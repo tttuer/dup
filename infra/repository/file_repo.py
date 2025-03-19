@@ -9,7 +9,7 @@ class FileRepository(IFileRepository):
     async def save_all(self, files: list[FileVo]):
         new_files = [
             File(
-                _id=file.id,
+                id=file.id,
                 withdrawn_at=file.withdrawn_at,
                 name=file.name,
                 file_data=file.file_data,
