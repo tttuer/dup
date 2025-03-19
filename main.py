@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 
 from containers import Container
 from infra.db_models.file import File
+from interface.controller.file_controller import router as file_router
 from interface.controller.user_controller import router as user_router
 
 
@@ -26,6 +27,7 @@ app = FastAPI(lifespan=lifespan)
 app.container = Container()
 
 app.include_router(user_router)
+app.include_router(file_router)
 
 
 @app.exception_handler(RequestValidationError)

@@ -2,10 +2,11 @@ from datetime import datetime
 
 from beanie import Document
 from bson import Binary
+from pydantic import ConfigDict, Field
 
 
 class File(Document):
-    _id: str
+    id: str = Field(alias="_id")
     withdrawn_at: str
     name: str
     file_data: Binary
@@ -15,3 +16,5 @@ class File(Document):
     class Settings:
         name = "files"
         indexes = ["id", "withdrawn_at", "created_at"]
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
