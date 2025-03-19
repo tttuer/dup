@@ -5,7 +5,7 @@ from bson import Binary
 
 
 class File(Document):
-    id: str
+    _id: str
     withdrawn_at: str
     name: str
     file_data: Binary
