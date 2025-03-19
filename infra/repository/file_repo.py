@@ -6,20 +6,23 @@ from infra.db_models.file import File
 
 
 class FileRepository(IFileRepository):
-    async def save(self, file: FileVo):
-        new_file = File(
-            id=file.id,
-            withdrawn_at=file.withdrawn_at,
-            name=file.name,
-            file_data=file.file_data,
-            created_at=file.created_at,
-            updated_at=file.updated_at,
-        )
+    async def save_all(self, files: list[FileVo]):
+        new_files = [
+            File(
+                _id=file.id,
+                withdrawn_at=file.withdrawn_at,
+                name=file.name,
+                file_data=file.file_data,
+                created_at=file.created_at,
+                updated_at=file.updated_at,
+            )
+            for file in files
+        ]
 
-        await new_file.save()
+        await File.insert_many(new_files)
 
     async def find_by_id(self, id: str) -> File:
-        file = await File.find_one(File.id == id)
+        file = await File.get(id)
 
         if not file:
             raise HTTPException(

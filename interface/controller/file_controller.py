@@ -13,6 +13,7 @@ class CreateFileBody(BaseModel):
     name: str
     file_datas: list[UploadFile]
 
+
 class FileResponse(BaseModel):
     id: str
     withdrawn_at: str
@@ -23,12 +24,12 @@ class FileResponse(BaseModel):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
-async def create_file(
+async def create_files(
     file: CreateFileBody,
     file_service: FileService = Depends(Provide[Container.file_service]),
-) -> FileResponse:
-    file = await file_service.save_file(
+) -> list[FileResponse]:
+    files = await file_service.save_files(
         name=file.name, withdrawn_at=file.withdrawn_at, file_datas=file.file_datas
     )
 
-    return file
+    return files
