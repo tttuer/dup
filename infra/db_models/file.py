@@ -12,8 +12,4 @@ class File(Document):
 
     class Settings:
         name = "files"
-        indexes = [
-            {"key": [("id", 1)], "unique": True},  # id에 unique 인덱스
-            {"key": [("withdrawn_at", 1)]},
-            {"key": [("created_at", 1)]},
-        ]
+        indexes = ["id", "withdrawn_at", "created_at"]

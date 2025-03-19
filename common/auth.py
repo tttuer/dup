@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta, datetime, UTC
 from typing import Annotated
 
 from fastapi import Depends, HTTPException
@@ -8,7 +9,7 @@ from starlette import status
 
 SECRET_KEY = "pyeongtaek_baeksung_secret_key"
 ALGORITHM = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 
 @dataclass
@@ -38,3 +39,15 @@ def decode_token(token: str):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
+
+
+def create_access_token(
+    payload: dict,
+    expires_delta: timedelta = timedelta(hours=6),
+):
+    expire = datetime.now(UTC) + expires_delta
+    payload.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
