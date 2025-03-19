@@ -9,3 +9,6 @@ class User(Document):
     password: str
     created_at: datetime
     updated_at: datetime
+
+    class Settings:
+        name = "users"

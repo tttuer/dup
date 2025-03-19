@@ -6,18 +6,26 @@ from fastapi.exceptions import RequestValidationError
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.responses import JSONResponse
 
+from containers import Container
 from infra.db_models.file import File
+from interface.controller.user_controller import router as user_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     client = AsyncIOMotorClient("mongodb://localhost:27017")
-    await init_beanie(database=client.dup, document_models=[File])
+    from infra.db_models.user import User
+
+    await init_beanie(database=client.dup, document_models=[File, User])
     yield
     client.close()
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.container = Container()
+
+app.include_router(user_router)
 
 
 @app.exception_handler(RequestValidationError)
