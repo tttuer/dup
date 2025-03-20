@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from beanie import Document
-from bson import Binary
 from pydantic import ConfigDict, Field
 
 
@@ -9,7 +8,7 @@ class File(Document):
     id: str = Field(alias="_id")
     withdrawn_at: str
     name: str
-    file_data: Binary
+    file_data: bytes
     created_at: datetime
     updated_at: datetime
 

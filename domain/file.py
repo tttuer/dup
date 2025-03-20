@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from bson import Binary
-
 
 @dataclass
 class File:
@@ -11,4 +9,4 @@ class File:
     name: str
     created_at: datetime
     updated_at: datetime
-    file_data: Binary
+    file_data: bytes
