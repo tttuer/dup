@@ -1,9 +1,10 @@
+import base64
 from datetime import datetime
 from typing import Annotated
 
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, status, UploadFile, Depends, Form, File
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 from application.file_service import FileService
 from common.auth import CurrentUser
@@ -35,6 +36,10 @@ class FileResponse(BaseModel):
     updated_at: datetime
     file_data: bytes
 
+    @field_serializer("file_data", when_used="json")
+    def encode_file_data(self, file_data: bytes, _info):
+        return base64.b64encode(file_data).decode("utf-8")
+
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
@@ -58,4 +63,5 @@ async def find_file(
     id: str,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> FileResponse:
+
     return await file_service.find_by_id(id)
