@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from application.file_service import FileService
 from containers import Container
 
-router = APIRouter(prefix="/files")
+router = APIRouter(prefix="/files", tags=["files"])
 
 
 class CreateFileBody(BaseModel):
