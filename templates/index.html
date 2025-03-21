@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전표 첨부파일 저장소</title>
+    <!-- Tailwind CSS CDN (개발 단계용) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 필요시 tailwind.config.js에서 디자인 토큰을 추가하세요 -->
+</head>
+<body class="bg-white">
+<!-- 전체 디자인 컨테이너 -->
+<div class="w-[1440px] h-[1024px] relative overflow-hidden">
+    <!-- 로그인 폼 영역 -->
+    <div class="w-80 min-w-80 p-6 absolute left-[556px] top-[374px] bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Default-Default inline-flex flex-col gap-6 outline-gray-300">
+        <!-- 아이디 입력 -->
+        <div data-state="Default" data-value-Type="Placeholder" class="flex flex-col gap-2">
+            <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">아이디</div>
+            <div class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default inline-flex items-center overflow-hidden outline-gray-300">
+                <div class="flex-1 text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none">Value
+                </div>
+            </div>
+        </div>
+        <!-- 비밀번호 입력 -->
+        <div data-state="Default" data-value-Type="Placeholder" class="flex flex-col gap-2">
+            <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">비밀번호</div>
+            <div class="outline-gray-300 min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default inline-flex items-center overflow-hidden">
+                <div class="flex-1 text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none">Value
+                </div>
+            </div>
+        </div>
+        <!-- 로그인 버튼 -->
+        <div data-align="Justify" class="inline-flex gap-4">
+            <div data-size="Medium" data-state="Default" data-variant="Primary"
+                 class="bg-black flex-1 p-3 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden">
+                <div class="text-white text-base font-normal font-['Inter'] leading-none">로그인</div>
+            </div>
+        </div>
+    </div>
+    <!-- 헤더 영역 -->
+    <div class="w-[1440px] h-24 absolute left-0 top-0">
+        <div data-platform="Desktop" data-state="Default"
+             class="w-[1440px] p-8 absolute left-0 top-0 bg-Background-Default-Default border-b border-Border-Default-Default inline-flex items-center gap-6 flex-wrap overflow-hidden">
+            <!-- 로고/왼쪽 영역 -->
+            <div class="flex items-center gap-6">
+                <div class="w-10 flex justify-center items-center"></div>
+            </div>
+            <!-- 중앙/빈 영역 (필요에 따라 내용 추가) -->
+            <div data-direction="Row" class="flex-1 flex justify-end items-start gap-2 flex-wrap"></div>
+            <!-- 오른쪽 사용자 영역 -->
+            <div data-state="Logged Out" class="w-44 flex items-center gap-3">
+                <div data-size="Small" data-state="Default" data-variant="Neutral"
+                     class="flex-1 p-2 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Neutral-Secondary flex justify-center items-center overflow-hidden">
+                    <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-none">로그인</div>
+                </div>
+                <div data-size="Small" data-state="Default" data-variant="Primary"
+                     class="flex-1 p-2 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden">
+                    <div class="text-Text-Brand-On-Brand text-base font-normal font-['Inter'] leading-none">회원가입</div>
+                </div>
+            </div>
+        </div>
+        <!-- 헤더 내 로고 아이콘 -->
+        <div data-size="48" class="w-12 h-12 absolute left-[33px] top-[26px] overflow-hidden">
+            <div class="w-9 h-10 absolute left-[6px] top-[4px] outline outline-4 outline-offset-[-2px] outline-Icon-Default-Default"></div>
+        </div>
+        <!-- 헤더 타이틀 -->
+        <div class="w-72 absolute left-[580px] top-[33px] text-center text-Text-Default-Default text-2xl font-normal font-['Inter'] leading-loose">
+            전표 첨부파일 저장소
+        </div>
+    </div>
+    <!-- 푸터 영역 -->
+    <div data-platform="Desktop"
+         class="w-[1440px] h-24 px-8 pt-8 pb-40 absolute left-0 top-[925px] bg-Background-Default-Default border-t border-Border-Default-Default inline-flex gap-4 flex-wrap"></div>
+</div>
+</body>
+</html>
