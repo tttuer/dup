@@ -69,7 +69,7 @@ class FileService:
         if start_at:
             filters.append(FileDocument.withdrawn_at >= start_at)
 
-        if end_at < start_at:
+        if end_at and start_at and end_at < start_at:
             raise HTTPException(
                 status_code=400,
                 detail="start_at must be less than end_at",
