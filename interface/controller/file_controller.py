@@ -1,6 +1,6 @@
 import base64
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, status, UploadFile, Depends, Form, File
@@ -18,6 +18,14 @@ class CreateFileBody(BaseModel):
     withdrawn_at: str
     name: str
     file_datas: list[UploadFile]
+
+
+class GetFileBody(BaseModel):
+    name: str
+    start_at: str
+    end_at: str
+    page: int = 1
+    items_per_page: int = 20
 
 
 class CreateFileResponse(BaseModel):
@@ -65,3 +73,17 @@ async def find_file(
 ) -> FileResponse:
 
     return await file_service.find_by_id(id)
+
+
+@router.get("")
+@inject
+async def find_files(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    name: Optional[str] = None,
+    start_at: Optional[str] = None,
+    end_at: Optional[str] = None,
+    page: int = 1,
+    items_per_page: int = 20,
+    file_service: FileService = Depends(Provide[Container.file_service]),
+) -> tuple[int, list[FileResponse]]:
+    return await file_service.find_many(name, start_at, end_at, page, items_per_page)

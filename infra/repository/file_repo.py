@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import HTTPException
 
 from domain.file import File as FileVo
@@ -30,4 +32,32 @@ class FileRepository(IFileRepository):
                 detail="File not found",
             )
 
-        return file
+        return FileVo(**file.model_dump())
+
+    async def find_many(
+        self,
+        *filters: Any,
+        page: int = 1,
+        items_per_page: int = 10,
+    ) -> tuple[int, list[FileVo]]:
+        offset = (page - 1) * items_per_page
+
+        if filters:
+            total_count = await File.find(*filters).count()
+
+            files = (
+                await File.find(*filters).skip(offset).limit(items_per_page).to_list()
+            )
+
+            return (
+                total_count,
+                [FileVo(**file.model_dump()) for file in files],
+            )
+        total_count = await File.count()
+
+        files = await File.find().skip(offset).limit(items_per_page).to_list()
+
+        return (
+            total_count,
+            [FileVo(**file.model_dump()) for file in files],
+        )
