@@ -15,7 +15,8 @@ node_modules/
 package-lock.json
 
 # Tailwind 빌드 파일 (선택)
-static/css/main.css  # ➜ 빌드된 파일은 배포 시점에 생성하므로 제외 가능
+static/css/main.css
+# ➜ 빌드된 파일은 배포 시점에 생성하므로 제외 가능
 
 # IDE 설정
 .vscode/

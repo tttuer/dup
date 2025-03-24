@@ -23,6 +23,8 @@
     "tailwindcss": "^4.0.15"
   },
   "dependencies": {
-    "@tailwindcss/cli": "^4.0.15"
+    "@heroicons/react": "^2.2.0",
+    "@tailwindcss/cli": "^4.0.15",
+    "lucide-react": "^0.483.0"
   }
 }
