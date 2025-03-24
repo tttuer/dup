@@ -7,39 +7,47 @@
     <title>전표 첨부파일 저장소</title>
     <link href="/static/css/main.css" rel="stylesheet">
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-
+    <style>
+        /* 헤더와 푸터의 높이에 맞게 상하 여백을 추가 */
+        .content-wrapper {
+            padding-top: 6rem; /* 헤더 높이에 맞게 조정 */
+            padding-bottom: 6rem; /* 푸터 높이에 맞게 조정 */
+        }
+    </style>
 </head>
 <body class="bg-white">
-<div class="w-[1440px] h-[1024px] relative overflow-hidden">
-
+<div class="w-full min-h-screen relative overflow-hidden">
     {% include "common/header.html" %}
 
-    <!-- 로그인 폼 영역 -->
-    <form method="post" action="/login"
-          class="w-80 min-w-80 p-6 absolute left-[556px] top-[374px] bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Default-Default inline-flex flex-col gap-6 outline-gray-300">
-        <!-- 아이디 입력 -->
-        <div class="flex flex-col gap-2">
-            <label for="username" class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">아이디</label>
-            <input type="text" id="username" name="username"
-                   class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
-        </div>
+    <!-- 로그인 폼 영역: 헤더/푸터 여백을 고려하여 중앙 정렬 -->
+    <div class="content-wrapper flex justify-center items-center">
+        <form method="post" action="/login"
+              class="w-80 p-6 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Default-Default inline-flex flex-col gap-6">
+            <!-- 아이디 입력 -->
+            <div class="flex flex-col gap-2">
+                <label for="username"
+                       class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">아이디</label>
+                <input type="text" id="username" name="username"
+                       class="w-full px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
+            </div>
 
-        <!-- 비밀번호 입력 -->
-        <div class="flex flex-col gap-2">
-            <label for="password" class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">비밀번호</label>
-            <input type="password" id="password" name="password"
-                   class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
-        </div>
+            <!-- 비밀번호 입력 -->
+            <div class="flex flex-col gap-2">
+                <label for="password"
+                       class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">비밀번호</label>
+                <input type="password" id="password" name="password"
+                       class="w-full px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
+            </div>
 
-        <!-- 로그인 버튼 -->
-        <div class="inline-flex gap-4">
-            <button type="submit"
-                    class="bg-black flex-1 p-3 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden text-white text-base font-normal font-['Inter'] leading-none">
-                로그인
-            </button>
-        </div>
-    </form>
-
+            <!-- 로그인 버튼 -->
+            <div class="inline-flex gap-4">
+                <button type="submit"
+                        class="flex-1 p-3 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden text-white text-base font-normal font-['Inter'] leading-none">
+                    로그인
+                </button>
+            </div>
+        </form>
+    </div>
 
     {% include "common/footer.html" %}
 </div>
