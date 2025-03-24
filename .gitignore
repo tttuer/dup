@@ -1,36 +1,22 @@
-# Python Bytecode files
+# Python
+__pycache__/
 *.pyc
 *.pyo
-__pycache__/
+*.pyd
+.env
+.env.*
 
-# Virtual Environment
+# venv
 venv/
-env/
 .venv/
 
-# IDE-specific files
-.idea/
+# Node/npm
+node_modules/
+package-lock.json
 
-# PyCharm specific
-*.iml
+# Tailwind 빌드 파일 (선택)
+static/css/main.css  # ➜ 빌드된 파일은 배포 시점에 생성하므로 제외 가능
 
-# Distribution / packaging
-.Python
-build/
-dist/
-*.egg-info/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Environment variables file
-.env
-
-# VSCode settings
+# IDE 설정
 .vscode/
-
-# macOS files
-.DS_Store
-
-# Windows files
-Thumbs.db
+.idea/
