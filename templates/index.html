@@ -1,3 +1,4 @@
+<!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -5,74 +6,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전표 첨부파일 저장소</title>
     <link href="/static/css/main.css" rel="stylesheet">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
 
 </head>
 <body class="bg-white">
-<!-- 전체 디자인 컨테이너 -->
 <div class="w-[1440px] h-[1024px] relative overflow-hidden">
-    <!-- 로그인 폼 영역 -->
-    <div class="w-80 min-w-80 p-6 absolute left-[556px] top-[374px] bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Default-Default inline-flex flex-col gap-6 outline-gray-300">
-        <!-- 아이디 입력 -->
-        <div data-state="Default" data-value-Type="Placeholder" class="flex flex-col gap-2">
-            <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">아이디</div>
-            <div class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default inline-flex items-center overflow-hidden outline-gray-300">
-                <div class="flex-1 text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none">Value
-                </div>
-            </div>
-        </div>
-        <!-- 비밀번호 입력 -->
-        <div data-state="Default" data-value-Type="Placeholder" class="flex flex-col gap-2">
-            <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">비밀번호</div>
-            <div class="outline-gray-300 min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default inline-flex items-center overflow-hidden">
-                <div class="flex-1 text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none">Value
-                </div>
-            </div>
-        </div>
-        <!-- 로그인 버튼 -->
-        <div data-align="Justify" class="inline-flex gap-4">
-            <div data-size="Medium" data-state="Default" data-variant="Primary"
-                 class="bg-black flex-1 p-3 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden">
-                <div class="text-white text-base font-normal font-['Inter'] leading-none">로그인</div>
-            </div>
-        </div>
-    </div>
-    <!-- 헤더 영역 -->
-    <div class="w-[1440px] h-24 absolute left-0 top-0">
-        <div data-platform="Desktop" data-state="Default"
-             class="w-[1440px] p-8 absolute left-0 top-0 bg-Background-Default-Default border-b border-Border-Default-Default inline-flex items-center gap-6 flex-wrap overflow-hidden">
-            <!-- 로고/왼쪽 영역 -->
-            <div class="flex items-center gap-6">
-                <div class="w-10 flex justify-center items-center"></div>
-            </div>
-            <!-- 중앙/빈 영역 (필요에 따라 내용 추가) -->
-            <div data-direction="Row" class="flex-1 flex justify-end items-start gap-2 flex-wrap"></div>
-            <!-- 오른쪽 사용자 영역 -->
-            <div data-state="Logged Out" class="w-44 flex items-center gap-3">
-                <div data-size="Small" data-state="Default" data-variant="Neutral"
-                     class="flex-1 p-2 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Neutral-Secondary flex justify-center items-center overflow-hidden">
-                    <div class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-none">로그인</div>
-                </div>
-            </div>
-        </div>
-        <!-- 헤더 내 로고 아이콘 -->
-        <div data-size="48" class="w-12 h-12 absolute left-[33px] top-[26px] overflow-hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                 class="lucide lucide-archive">
-                <rect width="20" height="5" x="2" y="3" rx="1"/>
-                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/>
-                <path d="M10 12h4"/>
-            </svg>
 
+    {% include "common/header.html" %}
+
+    <!-- 로그인 폼 영역 -->
+    <form method="post" action="/login"
+          class="w-80 min-w-80 p-6 absolute left-[556px] top-[374px] bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Default-Default inline-flex flex-col gap-6 outline-gray-300">
+        <!-- 아이디 입력 -->
+        <div class="flex flex-col gap-2">
+            <label for="username" class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">아이디</label>
+            <input type="text" id="username" name="username"
+                   class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
         </div>
-        <!-- 헤더 타이틀 -->
-        <div class="w-72 absolute left-[580px] top-[33px] text-center text-Text-Default-Default text-2xl font-normal font-['Inter'] leading-loose">
-            전표 첨부파일 저장소
+
+        <!-- 비밀번호 입력 -->
+        <div class="flex flex-col gap-2">
+            <label for="password" class="text-Text-Default-Default text-base font-normal font-['Inter'] leading-snug">비밀번호</label>
+            <input type="password" id="password" name="password"
+                   class="min-w-60 px-4 py-3 bg-Background-Default-Default rounded-lg outline outline-1 outline-offset-[-0.5px] outline-Border-Default-Default text-Text-Default-Tertiary text-base font-normal font-['Inter'] leading-none outline-gray-300"/>
         </div>
-    </div>
-    <!-- 푸터 영역 -->
-    <div data-platform="Desktop"
-         class="w-[1440px] h-24 px-8 pt-8 pb-40 absolute left-0 top-[925px] bg-Background-Default-Default border-t border-Border-Default-Default inline-flex gap-4 flex-wrap"></div>
+
+        <!-- 로그인 버튼 -->
+        <div class="inline-flex gap-4">
+            <button type="submit"
+                    class="bg-black flex-1 p-3 bg-Background-Brand-Default rounded-lg outline outline-1 outline-offset-[-1px] outline-Border-Brand-Default flex justify-center items-center overflow-hidden text-white text-base font-normal font-['Inter'] leading-none">
+                로그인
+            </button>
+        </div>
+    </form>
+
+
+    {% include "common/footer.html" %}
 </div>
 </body>
 </html>

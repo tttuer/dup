@@ -5,6 +5,7 @@ from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from starlette.responses import RedirectResponse
 
 from application.user_service import UserService
 from containers import Container
@@ -43,4 +44,14 @@ async def login(
 ):
     access_token = await user_service.login(form_data.username, form_data.password)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    response = RedirectResponse(url="/lists", status_code=303)
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {access_token}",
+        httponly=True,  # <-- XSS 방어
+        secure=False,  # HTTPS에서 True (개발환경이면 False도 OK)
+        samesite="lax",  # or "strict"
+        max_age=60 * 60 * 8,  # 8시간 유지
+    )
+
+    return response
