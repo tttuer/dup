@@ -10,3 +10,8 @@ router = APIRouter()
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@router.get("/lists", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("lists.html", {"request": request})
