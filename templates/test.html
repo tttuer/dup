@@ -31,51 +31,67 @@
     </div>
 </header>
 <hr class="my-3 text-gray-300">
-<main class="w-full p-8">
-    <div class="w-full max-w-5xl mx-auto">
-        <table class="w-full table-auto not-prose overflow-auto rounded-lg bg-white outline outline-white/5 dark:bg-gray-950/50">
-            <thead>
-            <tr>
-                <th class="w-5 text-left px-4 py-2"><input type="checkbox" id="checkbox"/></th>
-                <th class="w-25 text-left px-4 py-2">날짜</th>
-                <th class="w-140 text-left px-4 py-2">설명</th>
-                <th class="w-40 text-left px-4 py-2">금액</th>
-                <th class="w-auto text-left px-4 py-2">첨부파일</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td class="px-4 py-2">
-                    <input type="checkbox" class="row-check"/>
-                </td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-            </tr>
-            <tr>
-                <td class="px-4 py-2">
-                    <input type="checkbox" class="row-check"/>
-                </td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-            </tr>
-            <tr>
-                <td class="px-4 py-2">
-                    <input type="checkbox" class="row-check"/>
-                </td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-                <td class="px-4 py-2">test</td>
-            </tr>
-            </tbody>
-        </table>
+<main class="w-full min-h-screen p-8">
+    <div class="w-full max-w-5xl mx-auto h-[calc(100vh-80px)] flex flex-col bg-white rounded-lg overflow-hidden outline outline-white/5 dark:bg-gray-950/50 border-2 border-gray-200 dark:border-gray-700">
+        <!-- 고정 헤더 테이블 -->
+        <div>
+            <table class="w-full table-fixed">
+                <thead class="bg-gray-100 dark:bg-gray-700">
+                <tr>
+                    <th class="w-5 text-left px-4 py-2">
+                        <input type="checkbox" id="check-all"/>
+                    </th>
+                    <th class="w-25 text-left px-4 py-2">날짜</th>
+                    <th class="w-140 text-left px-4 py-2">설명</th>
+                    <th class="w-40 text-left px-4 py-2">금액</th>
+                    <th class="w-auto text-left px-4 py-2">첨부파일</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+        <!--        <hr class="my-3 text-gray-300"></hr>-->
+
+        <!-- 스크롤 가능한 바디 테이블 -->
+        <div class="flex-1 overflow-y-auto">
+            <table class="w-full table-fixed">
+                <tbody>
+                <!-- 반복 행 예시 -->
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <td class="w-5 px-4 py-2"><input type="checkbox" class="row-check"/></td>
+                    <td class="w-25 px-4 py-2">2025/03/27</td>
+                    <td class="w-140 px-4 py-2">회의비</td>
+                    <td class="w-40 px-4 py-2">₩25,000</td>
+                    <td class="w-auto px-4 py-2">receipt.pdf</td>
+                </tr>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <td class="w-5 px-4 py-2"><input type="checkbox" class="row-check"/></td>
+                    <td class="w-25 px-4 py-2">2025/03/27</td>
+                    <td class="w-140 px-4 py-2">회의비</td>
+                    <td class="w-40 px-4 py-2">₩25,000</td>
+                    <td class="w-auto px-4 py-2">receipt.pdf</td>
+                </tr>
+                <!-- 더 많은 행들 -->
+                </tbody>
+            </table>
+        </div>
     </div>
+
+
 </main>
+<footer>
 
+</footer>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const checkAll = document.getElementById('check-all');
+        const rowChecks = document.querySelectorAll('.row-check');
 
+        checkAll.addEventListener('change', () => {
+            rowChecks.forEach(cb => cb.checked = checkAll.checked);
+        });
+    });
+</script>
 </body>
 </html>
+
+
