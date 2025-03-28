@@ -24,7 +24,7 @@ class FileService:
         return compress_data
 
     async def save_files(
-        self, withdrawn_at: str, name: str, file_datas: list[UploadFile]
+        self, withdrawn_at: str, name: str, price: int, file_datas: list[UploadFile]
     ):
         now = datetime.now()
         files: list[File] = [
@@ -32,6 +32,7 @@ class FileService:
                 id=self.ulid.generate(),
                 withdrawn_at=withdrawn_at,
                 name=name,
+                price=price,
                 file_data=await self.compress_pdf(file_data),
                 created_at=now,
                 updated_at=now,
