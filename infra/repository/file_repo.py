@@ -14,6 +14,7 @@ class FileRepository(IFileRepository):
                 id=file.id,
                 withdrawn_at=file.withdrawn_at,
                 name=file.name,
+                price=file.price,
                 file_data=file.file_data,
                 created_at=file.created_at,
                 updated_at=file.updated_at,

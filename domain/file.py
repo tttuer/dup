@@ -10,3 +10,4 @@ class File:
     created_at: datetime
     updated_at: datetime
     file_data: bytes
+    price: int

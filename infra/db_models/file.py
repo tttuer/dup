@@ -8,6 +8,7 @@ class File(Document):
     id: str = Field(alias="_id")
     withdrawn_at: str
     name: str
+    price: int
     file_data: bytes
     created_at: datetime
     updated_at: datetime
