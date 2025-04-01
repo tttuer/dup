@@ -9,7 +9,7 @@ from starlette import status
 
 SECRET_KEY = "pyeongtaek_baeksung_secret_key"
 ALGORITHM = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 
 
 @dataclass
