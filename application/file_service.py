@@ -34,6 +34,7 @@ class FileService:
                 name=name,
                 price=price,
                 file_data=await self.compress_pdf(file_data),
+                file_name=file_data.filename,
                 created_at=now,
                 updated_at=now,
             )

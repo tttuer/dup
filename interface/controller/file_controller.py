@@ -40,9 +40,11 @@ class FileResponse(BaseModel):
     id: str
     withdrawn_at: str
     name: str
+    price: int
     created_at: datetime
     updated_at: datetime
     file_data: bytes
+    file_name: str
 
     @field_serializer("file_data", when_used="json")
     def encode_file_data(self, file_data: bytes, _info):
@@ -55,11 +57,12 @@ async def create_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     withdrawn_at: str = Form(...),
     name: str = Form(...),
+    price: int = Form(...),
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> list[CreateFileResponse]:
     files = await file_service.save_files(
-        name=name, withdrawn_at=withdrawn_at, file_datas=file_datas
+        name=name, withdrawn_at=withdrawn_at, file_datas=file_datas, price=price
     )
     return files
 
@@ -78,7 +81,7 @@ async def find_file(
 @router.get("")
 @inject
 async def find_files(
-    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    # current_user: Annotated[CurrentUser, Depends(get_current_user)],
     name: Optional[str] = None,
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,

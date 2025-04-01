@@ -10,6 +10,7 @@ class File(Document):
     name: str
     price: int
     file_data: bytes
+    file_name: str
     created_at: datetime
     updated_at: datetime
 

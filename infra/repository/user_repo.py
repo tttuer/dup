@@ -22,6 +22,6 @@ class UserRepository(IUserRepository):
         if not user:
             raise HTTPException(
                 status_code=404,
-                detail="User not found",
+                detail=f"User not found:{user_id}",
             )
         return user
