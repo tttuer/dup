@@ -5,12 +5,10 @@ from fastapi import FastAPI, APIRouter
 from fastapi.exceptions import RequestValidationError
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.responses import JSONResponse
-from starlette.staticfiles import StaticFiles
 
 from containers import Container
 from infra.db_models.file import File
 from interface.controller.file_controller import router as file_router
-from interface.controller.page_controller import router as page_router
 from interface.controller.user_controller import router as user_router
 from middleware import add_cors
 
@@ -35,10 +33,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(user_router)
 api_router.include_router(file_router)
 
-app.include_router(page_router)
 app.include_router(api_router)
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @app.exception_handler(RequestValidationError)
