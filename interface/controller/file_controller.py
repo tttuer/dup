@@ -81,7 +81,7 @@ async def find_file(
 @router.get("")
 @inject
 async def find_files(
-    # current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
     name: Optional[str] = None,
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,
