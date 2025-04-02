@@ -1,5 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+
+
+class Company(str, Enum):
+    BAEKSUNG = "BAEKSUNG"
+    PYEONGTAEK = "PYEONGTAEK"
+    PARAN = "PARAN"
 
 
 @dataclass
@@ -12,3 +19,4 @@ class File:
     file_data: bytes
     file_name: str
     price: int
+    company: Company

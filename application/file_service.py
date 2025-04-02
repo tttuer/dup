@@ -7,7 +7,7 @@ from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
-from domain.file import File
+from domain.file import File, Company
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File as FileDocument
 
@@ -24,7 +24,12 @@ class FileService:
         return compress_data
 
     async def save_files(
-        self, withdrawn_at: str, name: str, price: int, file_datas: list[UploadFile]
+        self,
+        withdrawn_at: str,
+        name: str,
+        price: int,
+        company: Company,
+        file_datas: list[UploadFile],
     ):
         now = datetime.now()
         files: list[File] = [
@@ -37,6 +42,7 @@ class FileService:
                 file_name=file_data.filename,
                 created_at=now,
                 updated_at=now,
+                company=company,
             )
             for file_data in file_datas
         ]
@@ -55,6 +61,7 @@ class FileService:
     async def find_many(
         self,
         name: Optional[str] = None,
+        company: Optional[Company] = Company.BAEKSUNG,
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
         page: int = 1,
@@ -64,6 +71,8 @@ class FileService:
 
         if name:
             filters.append(RegEx("name", f".*{name}.*", options="i"))
+
+        filters.append(FileDocument.company == company)
 
         if start_at and end_at:
             filters.append(FileDocument.withdrawn_at >= start_at)

@@ -19,6 +19,7 @@ class FileRepository(IFileRepository):
                 file_name=file.file_name,
                 created_at=file.created_at,
                 updated_at=file.updated_at,
+                company=file.company,
             )
             for file in files
         ]
