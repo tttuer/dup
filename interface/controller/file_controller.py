@@ -95,9 +95,9 @@ async def find_files(
     end_at: Optional[str] = None,
     company: Optional[Company] = Company.BAEKSUNG,
     page: int = 1,
-    items_per_page: int = 20,
+    items_per_page: int = 30,
     file_service: FileService = Depends(Provide[Container.file_service]),
-) -> tuple[int, list[FileResponse]]:
+) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
         name, company, start_at, end_at, page, items_per_page
     )
