@@ -65,7 +65,7 @@ class FileService:
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
         page: int = 1,
-        items_per_page: int = 20,
+        items_per_page: int = 30,
     ):
         filters = []
 
@@ -99,4 +99,6 @@ class FileService:
         for file in files:
             file.file_data = zlib.decompress(file.file_data)
 
-        return total_count, files
+        total_page = (total_count - 1) // items_per_page + 1
+
+        return total_count, total_page, files
