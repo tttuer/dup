@@ -1,10 +1,11 @@
 import base64
+import zlib
 from datetime import datetime
 from typing import Annotated, Optional
 
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, status, UploadFile, Depends, Form, File
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, field_serializer, model_validator
 
 from application.file_service import FileService
 from common.auth import CurrentUser
@@ -29,15 +30,6 @@ class GetFileBody(BaseModel):
     items_per_page: int = 20
 
 
-class CreateFileResponse(BaseModel):
-    id: str
-    withdrawn_at: str
-    name: str
-    company: Company
-    created_at: datetime
-    updated_at: datetime
-
-
 class FileResponse(BaseModel):
     id: str
     withdrawn_at: str
@@ -48,6 +40,14 @@ class FileResponse(BaseModel):
     updated_at: datetime
     file_data: bytes
     file_name: str
+
+    @model_validator(mode="after")
+    def decompress_file_data(self):
+        try:
+            self.file_data = zlib.decompress(self.file_data)
+        except zlib.error:
+            pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
+        return self
 
     @field_serializer("file_data", when_used="json")
     def encode_file_data(self, file_data: bytes, _info):
@@ -64,7 +64,7 @@ async def create_files(
     company: Company = Form(...),
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
-) -> list[CreateFileResponse]:
+) -> list[FileResponse]:
     files = await file_service.save_files(
         name=name,
         withdrawn_at=withdrawn_at,

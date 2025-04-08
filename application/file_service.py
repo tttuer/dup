@@ -54,8 +54,6 @@ class FileService:
     async def find_by_id(self, id: str):
         file = await self.file_repo.find_by_id(id)
 
-        file.file_data = zlib.decompress(file.file_data)
-
         return file
 
     async def find_many(
@@ -95,9 +93,6 @@ class FileService:
                 page=page, items_per_page=items_per_page
             )
         )
-
-        for file in files:
-            file.file_data = zlib.decompress(file.file_data)
 
         total_page = (total_count - 1) // items_per_page + 1
 
