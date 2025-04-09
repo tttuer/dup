@@ -46,10 +46,14 @@ class FileRepository(IFileRepository):
         offset = (page - 1) * items_per_page
 
         if filters:
-            total_count = await File.find(*filters).count()
+            total_count = await File.find(*filters).sort("withdrawn_at").count()
 
             files = (
-                await File.find(*filters).skip(offset).limit(items_per_page).to_list()
+                await File.find(*filters)
+                .sort("withdrawn_at")
+                .skip(offset)
+                .limit(items_per_page)
+                .to_list()
             )
 
             return (
@@ -58,7 +62,13 @@ class FileRepository(IFileRepository):
             )
         total_count = await File.count()
 
-        files = await File.find().skip(offset).limit(items_per_page).to_list()
+        files = (
+            await File.find()
+            .sort("withdrawn_at")
+            .skip(offset)
+            .limit(items_per_page)
+            .to_list()
+        )
 
         return (
             total_count,
