@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, status, UploadFile, Depends, Form, File
+from fastapi import APIRouter, status, UploadFile, Depends, Form, File, HTTPException
 from pydantic import BaseModel, field_serializer, model_validator
 
 from application.file_service import FileService
@@ -54,6 +54,13 @@ class FileResponse(BaseModel):
         return base64.b64encode(file_data).decode("utf-8")
 
 
+ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+}
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
 async def create_files(
@@ -65,6 +72,15 @@ async def create_files(
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> list[FileResponse]:
+
+    # 파일 타입 검사
+    for file in file_datas:
+        if file.content_type not in ALLOWED_CONTENT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type: {file.content_type}",
+            )
+
     files = await file_service.save_files(
         name=name,
         withdrawn_at=withdrawn_at,
