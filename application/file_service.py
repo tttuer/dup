@@ -2,7 +2,7 @@ import zlib
 from datetime import datetime
 from typing import Optional
 
-from beanie.operators import And, In
+from beanie.operators import And, RegEx, Or
 from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
@@ -71,9 +71,14 @@ class FileService:
         # ✅ 1. 검색어가 있고, 검색 조건이 명시된 경우
         if search and search_option:
             if search_option == SearchOption.DESCRIPTION_FILENAME:
-                filters.append({"$text": {"$search": search}})
+                filters.append(
+                    Or(
+                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
+                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
+                    )
+                )
             elif search_option == SearchOption.PRICE:
-                filters.append(In(FileDocument.price, search))
+                filters.append(FileDocument.price == int(search))
 
         filters.append(FileDocument.company == company)
 

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from beanie import Document
 from pydantic import ConfigDict, Field
-from pymongo import TEXT, IndexModel
+from pymongo import IndexModel
 
 from domain.file import Company
 
@@ -21,15 +21,10 @@ class File(Document):
     class Settings:
         name = "files"
         indexes = [
-            "id",
             "withdrawn_at",
             "created_at",
             "company",
             "price",
-            IndexModel(
-                [("name", TEXT), ("file_name", TEXT)],
-                name="text_index_name_filename",
-            ),
             IndexModel([("price", 1)]),  # 숫자 인덱스도 따로 걸어줌
         ]
 
