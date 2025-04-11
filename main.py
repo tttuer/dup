@@ -42,3 +42,10 @@ async def validation_exception_handler(request, exc):
         status_code=400,
         content={"detail": exc.errors(), "body": exc.body},
     )
+
+
+# 이 부분 추가해야 디버깅 가능
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="127.0.0.1", port=8080, reload=True)
