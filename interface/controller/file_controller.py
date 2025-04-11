@@ -106,7 +106,8 @@ async def find_file(
 @inject
 async def find_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    name: Optional[str] = None,
+    search: Optional[str] = None,
+    search_option: Optional[str] = None,
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,
     company: Optional[Company] = Company.BAEKSUNG,
@@ -115,5 +116,5 @@ async def find_files(
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
-        name, company, start_at, end_at, page, items_per_page
+        search, search_option, company, start_at, end_at, page, items_per_page
     )

@@ -9,6 +9,11 @@ class Company(str, Enum):
     PARAN = "PARAN"
 
 
+class SearchOption(str, Enum):
+    DESCRIPTION_FILENAME = "DESCRIPTION_FILENAME"
+    PRICE = "PRICE"
+
+
 @dataclass
 class File:
     id: str

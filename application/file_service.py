@@ -2,12 +2,12 @@ import zlib
 from datetime import datetime
 from typing import Optional
 
-from beanie.operators import And, RegEx
+from beanie.operators import And, In
 from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
-from domain.file import File, Company
+from domain.file import File, Company, SearchOption
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File as FileDocument
 
@@ -58,7 +58,8 @@ class FileService:
 
     async def find_many(
         self,
-        name: Optional[str] = None,
+        search: Optional[str] = None,
+        search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
@@ -67,8 +68,12 @@ class FileService:
     ):
         filters = []
 
-        if name:
-            filters.append(RegEx("name", f".*{name}.*", options="i"))
+        # ✅ 1. 검색어가 있고, 검색 조건이 명시된 경우
+        if search and search_option:
+            if search_option == SearchOption.DESCRIPTION_FILENAME:
+                filters.append({"$text": {"$search": search}})
+            elif search_option == SearchOption.PRICE:
+                filters.append(In(FileDocument.price, search))
 
         filters.append(FileDocument.company == company)
 
