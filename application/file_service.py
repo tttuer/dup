@@ -107,3 +107,6 @@ class FileService:
         total_page = (total_count - 1) // items_per_page + 1
 
         return total_count, total_page, files
+
+    async def delete(self, id: str):
+        await self.file_repo.delete(id)

@@ -118,3 +118,13 @@ async def find_files(
     return await file_service.find_many(
         search, search_option, company, start_at, end_at, page, items_per_page
     )
+
+
+@router.delete("/{id}")
+@inject
+async def delete_file(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    id: str,
+    file_service: FileService = Depends(Provide[Container.file_service]),
+):
+    await file_service.delete(id)

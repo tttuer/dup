@@ -19,3 +19,7 @@ class IFileRepository(metaclass=ABCMeta):
         self, *filters: Any, page: int, items_per_page: int
     ) -> tuple[int, List[File]]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def delete(self, id: str):
+        raise NotImplementedError

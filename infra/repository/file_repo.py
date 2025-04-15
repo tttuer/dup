@@ -74,3 +74,13 @@ class FileRepository(IFileRepository):
             total_count,
             [FileVo(**file.model_dump()) for file in files],
         )
+
+    async def delete(self, id: str):
+        file = await File.get(id)
+
+        if not file:
+            raise HTTPException(
+                status_code=404,
+            )
+
+        await file.delete()
