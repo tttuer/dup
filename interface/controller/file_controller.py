@@ -1,7 +1,7 @@
 import base64
 import zlib
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, status, UploadFile, Depends, Form, File, HTTPException
@@ -128,3 +128,13 @@ async def delete_file(
     file_service: FileService = Depends(Provide[Container.file_service]),
 ):
     await file_service.delete(id)
+
+
+@router.delete("")
+@inject
+async def delete_files(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    ids: List[str],
+    file_service: FileService = Depends(Provide[Container.file_service]),
+):
+    await file_service.delete_many(ids)

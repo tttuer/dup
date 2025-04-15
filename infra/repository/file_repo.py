@@ -84,3 +84,6 @@ class FileRepository(IFileRepository):
             )
 
         await file.delete()
+
+    async def delete_many(self, *filters):
+        await File.find(*filters).delete()

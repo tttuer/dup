@@ -1,8 +1,8 @@
 import zlib
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from beanie.operators import And, RegEx, Or
+from beanie.operators import And, RegEx, Or, In
 from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
@@ -110,3 +110,6 @@ class FileService:
 
     async def delete(self, id: str):
         await self.file_repo.delete(id)
+
+    async def delete_many(self, ids: List[str]):
+        await self.file_repo.delete_many(In(FileDocument.id, ids))

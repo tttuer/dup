@@ -23,3 +23,7 @@ class IFileRepository(metaclass=ABCMeta):
     @abstractmethod
     async def delete(self, id: str):
         raise NotImplementedError
+
+    @abstractmethod
+    async def delete_many(self, ids: List[str]):
+        raise NotImplementedError
