@@ -4,7 +4,16 @@ from datetime import datetime
 from typing import Annotated, Optional, List
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, status, UploadFile, Depends, Form, File, HTTPException
+from fastapi import (
+    APIRouter,
+    status,
+    UploadFile,
+    Depends,
+    Form,
+    File,
+    HTTPException,
+    Query,
+)
 from pydantic import BaseModel, field_serializer, model_validator
 
 from application.file_service import FileService
@@ -134,7 +143,7 @@ async def delete_file(
 @inject
 async def delete_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    ids: List[str],
+    ids: List[str] = Query(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ):
     await file_service.delete_many(ids)
