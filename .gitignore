@@ -21,3 +21,5 @@ static/css/main.css
 # IDE 설정
 .vscode/
 .idea/
+
+.python-version
