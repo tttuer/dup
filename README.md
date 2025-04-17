@@ -43,6 +43,24 @@ uv venv .venv
 
 ```
 
+## mac
+
+```
+brew install pyenv
+brew install uv
+
+pyenv install 3.13.2
+pyenv global 3.13.2   # 또는 pyenv local 3.13.2 (디렉토리 한정)
+
+echo 'eval "$(pyenv init --path)"' >> ~/.zprofile
+echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+exec zsh
+
+uv venv .venv
+
+
+```
+
 # fastapi 실행
 
 ```uvicorn main:app```
