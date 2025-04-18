@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from typing import Any
 
 from fastapi import HTTPException
@@ -87,3 +88,22 @@ class FileRepository(IFileRepository):
 
     async def delete_many(self, *filters):
         await File.find(*filters).delete()
+
+    async def update(self, update_file: FileVo):
+        db_file = await File.get(update_file.id)
+
+        if not db_file:
+            raise HTTPException(
+                status_code=404,
+                detail="File not found",
+            )
+
+        update_data = asdict(update_file)
+        update_data.pop("id", None)
+
+        for field, value in update_data.items():
+            if value is not None:
+                setattr(db_file, field, value)
+
+        await db_file.save()
+        return db_file
