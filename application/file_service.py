@@ -113,3 +113,29 @@ class FileService:
 
     async def delete_many(self, ids: List[str]):
         await self.file_repo.delete_many(In(FileDocument.id, ids))
+
+    async def update(
+        self,
+        id: str,
+        withdrawn_at: str,
+        name: str,
+        price: int,
+        file_data: UploadFile,
+    ):
+        now = datetime.now()
+
+        file: File = File(
+            id=id,
+            withdrawn_at=withdrawn_at,
+            name=name,
+            price=price,
+            file_data=await self.compress_pdf(file_data) if file_data else None,
+            file_name=file_data.filename if file_data else None,
+            updated_at=now,
+            created_at=None,
+            company=None,
+        )
+
+        update_file = await self.file_repo.update(file)
+
+        return update_file

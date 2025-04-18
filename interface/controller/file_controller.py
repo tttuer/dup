@@ -147,3 +147,32 @@ async def delete_files(
     file_service: FileService = Depends(Provide[Container.file_service]),
 ):
     await file_service.delete_many(ids)
+
+
+@router.put("/{id}")
+@inject
+async def update_file(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    id: str,
+    withdrawn_at: str = Form(...),
+    name: str = Form(...),
+    price: int = Form(...),
+    file_data: Optional[UploadFile] = None,
+    file_service: FileService = Depends(Provide[Container.file_service]),
+) -> FileResponse:
+
+    # 파일 타입 검사
+    if file_data and file_data.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file_data.content_type}",
+        )
+
+    file = await file_service.update(
+        id=id,
+        name=name,
+        withdrawn_at=withdrawn_at,
+        file_data=file_data,
+        price=price,
+    )
+    return file
