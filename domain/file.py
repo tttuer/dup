@@ -25,10 +25,10 @@ class File:
     id: str
     withdrawn_at: str
     name: str
-    created_at: Optional[datetime]
     updated_at: datetime
-    file_data: Optional[bytes]
-    file_name: Optional[str]
     price: int
-    company: Optional[Company]
-    type: Optional[Type]
+    created_at: Optional[datetime] = None
+    file_data: Optional[bytes] = None
+    file_name: Optional[str] = None
+    company: Optional[Company] = None
+    type: Optional[Type] = None
