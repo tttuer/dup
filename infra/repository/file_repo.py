@@ -21,6 +21,7 @@ class FileRepository(IFileRepository):
                 created_at=file.created_at,
                 updated_at=file.updated_at,
                 company=file.company,
+                type=file.type,
             )
             for file in files
         ]

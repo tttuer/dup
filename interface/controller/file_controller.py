@@ -20,7 +20,7 @@ from application.file_service import FileService
 from common.auth import CurrentUser
 from common.auth import get_current_user
 from containers import Container
-from domain.file import Company
+from domain.file import Company, Type
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -45,6 +45,7 @@ class FileResponse(BaseModel):
     name: str
     price: int
     company: Company
+    type: Type
     created_at: datetime
     updated_at: datetime
     file_data: bytes
@@ -78,6 +79,7 @@ async def create_files(
     name: str = Form(...),
     price: int = Form(...),
     company: Company = Form(...),
+    type: Type = Form(...),
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> list[FileResponse]:
@@ -96,6 +98,7 @@ async def create_files(
         file_datas=file_datas,
         price=price,
         company=company,
+        type=type,
     )
     return files
 
@@ -120,12 +123,13 @@ async def find_files(
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,
     company: Optional[Company] = Company.BAEKSUNG,
+    type: Optional[Type] = Type.VOUCHER,
     page: int = 1,
     items_per_page: int = 30,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
-        search, search_option, company, start_at, end_at, page, items_per_page
+        search, search_option, company, type, start_at, end_at, page, items_per_page
     )
 
 

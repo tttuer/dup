@@ -7,7 +7,7 @@ from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
-from domain.file import File, Company, SearchOption
+from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File as FileDocument
 
@@ -30,6 +30,7 @@ class FileService:
         price: int,
         company: Company,
         file_datas: list[UploadFile],
+        type: Type,
     ):
         now = datetime.now()
         files: list[File] = [
@@ -43,6 +44,7 @@ class FileService:
                 created_at=now,
                 updated_at=now,
                 company=company,
+                type=type,
             )
             for file_data in file_datas
         ]
@@ -61,6 +63,7 @@ class FileService:
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
+        type: Optional[Type] = Type.VOUCHER,
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
         page: int = 1,
@@ -81,6 +84,7 @@ class FileService:
                 filters.append(FileDocument.price == int(search))
 
         filters.append(FileDocument.company == company)
+        filters.append(FileDocument.type == type)
 
         if start_at and end_at:
             filters.append(FileDocument.withdrawn_at >= start_at)
@@ -132,8 +136,6 @@ class FileService:
             file_data=await self.compress_pdf(file_data) if file_data else None,
             file_name=file_data.filename if file_data else None,
             updated_at=now,
-            created_at=None,
-            company=None,
         )
 
         update_file = await self.file_repo.update(file)

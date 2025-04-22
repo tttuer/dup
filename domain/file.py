@@ -15,6 +15,11 @@ class SearchOption(str, Enum):
     PRICE = "PRICE"
 
 
+class Type(str, Enum):
+    VOUCHER = "VOUCHER"
+    EXTRA = "EXTRA"
+
+
 @dataclass
 class File:
     id: str
@@ -26,3 +31,4 @@ class File:
     file_name: Optional[str]
     price: int
     company: Optional[Company]
+    type: Optional[Type]
