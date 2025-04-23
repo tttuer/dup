@@ -7,6 +7,7 @@ from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
+from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File as FileDocument
@@ -60,6 +61,7 @@ class FileService:
 
     async def find_many(
         self,
+        role: Role,
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
@@ -97,6 +99,9 @@ class FileService:
                 status_code=400,
                 detail="start_at must be less than end_at",
             )
+
+        if role == Role.USER:
+            filters.append(FileDocument.lock == False)
 
         total_count, files = (
             await self.file_repo.find_many(

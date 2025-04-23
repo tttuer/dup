@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from application.user_service import UserService
+from common.auth import Role
 from containers import Container
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -22,6 +23,7 @@ class UserResponse(BaseModel):
 class CreateUserBody(BaseModel):
     user_id: str
     password: str
+    role: Role
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -30,7 +32,9 @@ async def create_user(
     user: CreateUserBody,
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
-    created_user = await user_service.create_user(user.user_id, user.password)
+    created_user = await user_service.create_user(
+        user.user_id, user.password, user.role
+    )
 
     return created_user
 
