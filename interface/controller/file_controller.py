@@ -81,7 +81,7 @@ async def create_files(
     price: int = Form(...),
     company: Company = Form(...),
     type: Type = Form(...),
-    lock: bool = Form(...),
+    lock: bool = Form(False),
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> list[FileResponse]:
