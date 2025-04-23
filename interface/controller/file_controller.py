@@ -50,6 +50,7 @@ class FileResponse(BaseModel):
     updated_at: datetime
     file_data: bytes
     file_name: str
+    lock: bool
 
     @model_validator(mode="after")
     def decompress_file_data(self):
@@ -80,6 +81,7 @@ async def create_files(
     price: int = Form(...),
     company: Company = Form(...),
     type: Type = Form(...),
+    lock: bool = Form(...),
     file_datas: list[UploadFile] = File(...),
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> list[FileResponse]:
@@ -99,6 +101,7 @@ async def create_files(
         price=price,
         company=company,
         type=type,
+        lock=lock,
     )
     return files
 
@@ -128,7 +131,6 @@ async def find_files(
     items_per_page: int = 30,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
-    print(current_user)
     return await file_service.find_many(
         current_user.role,
         search,

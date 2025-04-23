@@ -22,6 +22,7 @@ class FileRepository(IFileRepository):
                 updated_at=file.updated_at,
                 company=file.company,
                 type=file.type,
+                lock=file.lock,
             )
             for file in files
         ]

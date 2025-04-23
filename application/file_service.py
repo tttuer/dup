@@ -32,6 +32,7 @@ class FileService:
         company: Company,
         file_datas: list[UploadFile],
         type: Type,
+        lock: bool,
     ):
         now = datetime.now()
         files: list[File] = [
@@ -46,6 +47,7 @@ class FileService:
                 updated_at=now,
                 company=company,
                 type=type,
+                lock=lock,
             )
             for file_data in file_datas
         ]
