@@ -18,6 +18,7 @@ class File(Document):
     updated_at: datetime
     company: Company
     type: Type
+    lock: bool
 
     class Settings:
         name = "files"
