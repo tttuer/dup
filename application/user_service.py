@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from starlette import status
 from ulid import ULID
 
-from common.auth import create_access_token
+from common.auth import create_access_token, Role
 from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from utils.crypto import Crypto
@@ -18,7 +18,7 @@ class UserService:
         self.ulid = ULID()
         self.crypto = Crypto()
 
-    async def create_user(self, user_id: str, password: str):
+    async def create_user(self, user_id: str, password: str, role: Role) -> User:
         _user = None
 
         try:
@@ -39,6 +39,7 @@ class UserService:
             password=self.crypto.encrypt(password),
             created_at=now,
             updated_at=now,
+            role=role,
         )
 
         await self.user_repo.save(user)
@@ -51,9 +52,10 @@ class UserService:
         if not self.crypto.verify(password, user.password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-        return await self.get_access_token(user_id)
+        return await self.get_access_token(user_id, user.role)
 
-    async def get_access_token(self, user_id: str):
+    async def get_access_token(self, user_id: str, role: Role):
         return create_access_token(
             payload={"user_id": user_id},
+            role=role,
         )

@@ -13,6 +13,7 @@ class UserRepository(IUserRepository):
             password=user.password,
             created_at=user.created_at,
             updated_at=user.updated_at,
+            role=user.role,
         )
 
         await new_user.insert()

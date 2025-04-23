@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from common.auth import Role
+
 
 @dataclass
 class User:
@@ -9,3 +11,4 @@ class User:
     password: str
     created_at: datetime
     updated_at: datetime
+    role: Role

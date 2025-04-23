@@ -128,8 +128,17 @@ async def find_files(
     items_per_page: int = 30,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
+    print(current_user)
     return await file_service.find_many(
-        search, search_option, company, type, start_at, end_at, page, items_per_page
+        current_user.role,
+        search,
+        search_option,
+        company,
+        type,
+        start_at,
+        end_at,
+        page,
+        items_per_page,
     )
 
 
