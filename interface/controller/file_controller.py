@@ -172,6 +172,7 @@ async def update_file(
     withdrawn_at: str = Form(...),
     name: str = Form(...),
     price: int = Form(...),
+    lock: bool = Form(...),
     file_data: Optional[UploadFile] = None,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> FileResponse:
@@ -189,5 +190,6 @@ async def update_file(
         withdrawn_at=withdrawn_at,
         file_data=file_data,
         price=price,
+        lock=lock,
     )
     return file

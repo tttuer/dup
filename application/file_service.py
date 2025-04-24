@@ -132,6 +132,7 @@ class FileService:
         name: str,
         price: int,
         file_data: UploadFile,
+        lock: bool,
     ):
         now = datetime.now()
 
@@ -143,6 +144,7 @@ class FileService:
             file_data=await self.compress_pdf(file_data) if file_data else None,
             file_name=file_data.filename if file_data else None,
             updated_at=now,
+            lock=lock,
         )
 
         update_file = await self.file_repo.update(file)
