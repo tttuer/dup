@@ -129,7 +129,7 @@ async def find_files(
     company: Optional[Company] = Company.BAEKSUNG,
     type: Optional[Type] = Type.VOUCHER,
     page: int = 1,
-    items_per_page: int = 30,
+    items_per_page: int = 20,
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
