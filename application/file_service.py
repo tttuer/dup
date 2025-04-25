@@ -63,6 +63,7 @@ class FileService:
 
     async def find_many(
         self,
+        is_locked: bool,
         role: Role,
         search: Optional[str] = None,
         search_option: Optional[str] = None,
@@ -87,6 +88,8 @@ class FileService:
             elif search_option == SearchOption.PRICE:
                 filters.append(FileDocument.price == int(search))
 
+        if is_locked:
+            filters.append(FileDocument.lock == True)
         filters.append(FileDocument.company == company)
         filters.append(FileDocument.type == type)
 
