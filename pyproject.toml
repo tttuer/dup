@@ -39,7 +39,7 @@ dependencies = [
     "starlette==0.46.1",
     "toml==0.10.2",
     "typing_extensions==4.12.2",
-    "uvicorn==0.34.0",
+    "uvicorn[standard]==0.34.0",
     "wheel==0.45.1",
     "selenium>=4.31.0",
     "selenium-wire>=5.1.0",
