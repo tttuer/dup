@@ -11,6 +11,7 @@ from infra.db_models.file import File
 from interface.controller.file_controller import router as file_router
 from interface.controller.user_controller import router as user_router
 from middleware import add_cors
+from utils.whg import Voucher
 
 
 @asynccontextmanager
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
     client = AsyncIOMotorClient("mongodb://localhost:27017")
     from infra.db_models.user import User
 
-    await init_beanie(database=client.dup, document_models=[File, User])
+    await init_beanie(database=client.dup, document_models=[File, User, Voucher])
     yield
     client.close()
 
