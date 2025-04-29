@@ -353,7 +353,7 @@ requires-dist = [
     { name = "starlette", specifier = "==0.46.1" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "typing-extensions", specifier = "==4.12.2" },
-    { name = "uvicorn", extras = ["standard"], specifier = "==0.34.0" },
+    { name = "uvicorn", extras = ["fastapi", "standard"], specifier = "==0.34.0" },
     { name = "wheel", specifier = "==0.45.1" },
 ]
 
