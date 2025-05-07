@@ -13,6 +13,5 @@ router = APIRouter(prefix="/whg", tags=["whg"])
 @inject
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    whg: Whg = Depends(Provide[Container.whg]),
 ):
-    await whg.crawl_whg()
+    await Whg().crawl_whg()

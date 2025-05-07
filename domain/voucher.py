@@ -1,11 +1,23 @@
-from typing import Optional
-from beanie import Document
-from pydantic import Field
+from dataclasses import dataclass
 from datetime import datetime
-from domain.voucher import Company
+from enum import Enum
+from typing import Optional
 
-class Voucher(Document):
-    id: str = Field(alias="_id")
+
+class Company(str, Enum):
+    BAEKSUNG = "BAEKSUNG"
+    PYEONGTAEK = "PYEONGTAEK"
+    PARAN = "PARAN"
+
+
+class SearchOption(str, Enum):
+    DESCRIPTION_FILENAME = "DESCRIPTION_FILENAME"
+    PRICE = "PRICE"
+
+
+@dataclass
+class Voucher:
+    id: str
     mn_bungae1: Optional[float] = None
     mn_bungae2: Optional[float] = None
     nm_remark: Optional[str] = None
@@ -25,6 +37,3 @@ class Voucher(Document):
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = None
-
-    class Settings:
-        name = "vouchers"  # MongoDB collection name

@@ -13,28 +13,30 @@ from pydantic import Field
 from datetime import datetime
 from typing import Optional
 import time
+from domain.voucher import Voucher
+import dataclasses
 
-class Voucher(Document):
-    id: str = Field(alias="_id")
-    mn_bungae1: Optional[float] = None
-    mn_bungae2: Optional[float] = None
-    nm_remark: Optional[str] = None
-    sq_acttax2: Optional[int] = None
-    nm_gubn: Optional[str] = None
-    cd_acctit: Optional[str] = None
-    year: Optional[str] = None
-    cd_trade: Optional[str] = None
-    dt_time: datetime
-    month: Optional[str] = None
-    day: Optional[str] = None
-    nm_acctit: Optional[str] = None
-    dt_insert: datetime
-    user_id: str
-    da_date: Optional[str] = None
-    nm_trade: Optional[str] = None
+# class Voucher(Document):
+#     id: str = Field(alias="_id")
+#     mn_bungae1: Optional[float] = None
+#     mn_bungae2: Optional[float] = None
+#     nm_remark: Optional[str] = None
+#     sq_acttax2: Optional[int] = None
+#     nm_gubn: Optional[str] = None
+#     cd_acctit: Optional[str] = None
+#     year: Optional[str] = None
+#     cd_trade: Optional[str] = None
+#     dt_time: datetime
+#     month: Optional[str] = None
+#     day: Optional[str] = None
+#     nm_acctit: Optional[str] = None
+#     dt_insert: datetime
+#     user_id: str
+#     da_date: Optional[str] = None
+#     nm_trade: Optional[str] = None
 
-    class Settings:
-        name = "vouchers"  # MongoDB collection name
+#     class Settings:
+#         name = "vouchers"  # MongoDB collection name
 
 
 class Whg:
@@ -150,23 +152,35 @@ class Whg:
                 # (위에 이미 다 작성했지)
 
                 # 3. 새 요청이 생길 때까지 기다리자
-                print("⏳ 마지막 전표: ", driver.last_request)
-                try:
-                    WebDriverWait(driver, 15).until(
-                        lambda d: d.last_request
-                        and d.last_request.response
-                        and "/smarta/sabk0102" in d.last_request.url
-                        and "start_date=" in d.last_request.url
-                        and d.last_request.response.status_code == 200
-                        and len(d.last_request.response.body) > 100
-                    )
-                except TimeoutException:
+                print("⏳ 전표 데이터 로딩 대기 중...")
+
+                start_time = time.time()
+                target_request = None
+                while time.time() - start_time < 15:
+                    for req in reversed(driver.requests):  # 최신 요청부터 검사
+                        if (
+                            req.response
+                            and "/smarta/sabk0102" in req.url
+                            and f"start_date=2025{m}" in req.url
+                            and req.response.status_code == 200
+                            and req.response.body
+                            and len(req.response.body) > 100
+                        ):
+                            target_request = req
+                            break
+                    if target_request:
+                        break
+                    time.sleep(0.5)
+
+                if not target_request:
                     print("❗ 타임아웃: 전표 조회 API 응답을 기다리다 실패했습니다.")
                     driver.quit()
                     exit(1)
 
+                print(f"🎯 전표 데이터 요청 발견: {target_request.url}")
+
                 # 4. 바로 last_request로 처리
-                request = driver.last_request
+                request = target_request
                 if f"start_date=2025{m}" not in request.url:
                     print("❗ 예상한 start_date가 아닌 요청입니다.")
                     break
@@ -182,21 +196,24 @@ class Whg:
                 print(f"📄 총 {len(voucher_list)}개의 전표를 가져왔습니다.")
 
                 # id 필드 주입 + 모델 변환
-                vouchers = [
-                    Voucher.model_validate({**entry, "id": str(entry["sq_acttax2"])})
-                    for entry in voucher_list
-                ]
+                vouchers = []
+                allowed_keys = {f.name for f in dataclasses.fields(Voucher)}
+
+                for entry in voucher_list:
+                    entry = dict(entry)
+                    entry["id"] = str(entry["sq_acttax2"])
+                    filtered = {k: v for k, v in entry.items() if k in allowed_keys}
+                    vouchers.append(Voucher(**filtered))
 
                 all_vouchers.extend(vouchers)
+            
+            print(f"📄 총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
+            return all_vouchers
 
-            # MongoDB에 저장 (비동기)
-            async with BulkWriter(Voucher) as bulk:
-                for voucher in all_vouchers:
-                    await voucher.save(bulk_writer=bulk)
+            # # MongoDB에 저장 (비동기)
+            # async with BulkWriter(Voucher) as bulk:
+            #     for voucher in all_vouchers:
+            #         await voucher.save(bulk_writer=bulk)
 
         finally:  # 잠시 대기 후 로그아웃 버튼 클릭
             driver.quit()
-
-
-# # if __name__ == "__main__":
-# #     asyncio.run(crawl_whg())
