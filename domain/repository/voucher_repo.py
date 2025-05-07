@@ -6,7 +6,7 @@ from domain.voucher import Voucher as VoucherVo
 class IVoucherRepository(metaclass=ABCMeta):
 
     @abstractmethod
-    async def save(self, voucher):
+    async def save(self, vouchers: list[VoucherVo]):
         raise NotImplementedError
 
     @abstractmethod

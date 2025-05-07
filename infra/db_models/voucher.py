@@ -24,7 +24,7 @@ class Voucher(Document):
     nm_trade: Optional[str] = None  
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
-    company: Optional[Company] = None
+    company: Optional[Company] = Field(default=None)
 
     class Settings:
         name = "vouchers"  # MongoDB collection name
