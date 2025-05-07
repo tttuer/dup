@@ -155,8 +155,6 @@ class Whg:
                     driver.quit()
                     exit(1)
 
-                print(f"🎯 전표 데이터 요청 발견: {target_request.url}")
-
                 # 4. 바로 last_request로 처리
                 request = target_request
                 if f"start_date=2025{m}" not in request.url:

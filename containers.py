@@ -9,7 +9,7 @@ from infra.repository.voucher_repo import VoucherRepository
 
 class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
-        packages=["domain", "application", "infra", "interface", "utils"]
+        packages=["domain", "application", "infra", "interface"]
     )
 
     user_repo = providers.Factory(UserRepository)

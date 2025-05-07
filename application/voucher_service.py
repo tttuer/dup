@@ -11,6 +11,7 @@ from common.auth import Role
 from domain.voucher import Voucher, Company, SearchOption
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher as VoucherDocument
+from utils.whg import Whg
 
 
 class VoucherService:
@@ -26,32 +27,14 @@ class VoucherService:
 
     async def save_vouchers(
         self,
-        withdrawn_at: str,
-        name: str,
-        price: int,
-        company: Company,
-        file_datas: list[UploadFile],
-        lock: bool,
+        company: Company = Company.BAEKSUNG,
     ):
-        now = datetime.now()
-        vouchers: list[Voucher] = [
-            Voucher(
-                id=self.ulid.generate(),
-                withdrawn_at=withdrawn_at,
-                name=name,
-                price=price,
-                file_data=await self.compress_pdf(file_data),
-                file_name=file_data.filename,
-                created_at=now,
-                updated_at=now,
-                company=company,
-                type=type,
-                lock=lock,
-            )
-            for file_data in file_datas
-        ]
+        vouchers = await Whg().crawl_whg()
 
-        await self.voucher_repo.save_all(vouchers)
+        for v in vouchers:
+            v.company = company
+
+        await self.voucher_repo.save(vouchers)
 
         return vouchers
 

@@ -6,6 +6,8 @@ from fastapi import HTTPException
 from domain.voucher import Voucher as VoucherVo
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
+from beanie import BulkWriter
+from domain.voucher import Company
 
 class VoucherRepository(IVoucherRepository):
     async def save(self, vouchers: list[VoucherVo]):
@@ -30,14 +32,29 @@ class VoucherRepository(IVoucherRepository):
                 nm_trade=voucher.nm_trade,
                 file_data=voucher.file_data,
                 file_name=voucher.file_name,
-                created_at=voucher.created_at,
-                updated_at=voucher.updated_at,
                 company=voucher.company,
             )
             for voucher in vouchers
         ]
 
-        await Voucher.insert_many(new_vouchers)
+        collection = Voucher.get_motor_collection()
+
+        for v in new_vouchers:
+            await collection.replace_one(
+                {"_id": v.id},
+                v.model_dump(by_alias=True, exclude_none=True),
+                upsert=True
+            )
+
+        # async with Voucher.bulk_writer() as bulk:
+        #     for v in new_vouchers:
+        #         await v.save(bulk_writer=bulk)
+
+        # await new_vouchers.save()
+
+        # async with BulkWriter(Voucher) as bulk:
+            # for v in new_vouchers:
+            #     await v.save(bulk_writer=bulk)
 
     async def find_by_id(self, id: str) -> Voucher:
         voucher = await Voucher.get(id)
