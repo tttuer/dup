@@ -7,18 +7,18 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.responses import JSONResponse
 
 from containers import Container
-from infra.db_models.file import File
 from interface.controller.file_controller import router as file_router
 from interface.controller.user_controller import router as user_router
 from interface.controller.whg_controller import router as whg_router
 from middleware import add_cors
-from utils.whg import Voucher
+from infra.db_models.voucher import Voucher
+from infra.db_models.user import User
+from infra.db_models.file import File
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     client = AsyncIOMotorClient("mongodb://localhost:27017")
-    from infra.db_models.user import User
 
     await init_beanie(database=client.dup, document_models=[File, User, Voucher])
     yield
@@ -37,6 +37,7 @@ api_router.include_router(file_router)
 api_router.include_router(whg_router)
 
 app.include_router(api_router)
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
