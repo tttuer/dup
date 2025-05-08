@@ -12,10 +12,11 @@ import time
 from domain.voucher import Voucher
 from datetime import datetime
 import dataclasses
+from domain.voucher import Company
 
 
 class Whg:
-    async def crawl_whg(self):
+    async def crawl_whg(self, company: Company):
         # 1. 셀레니움 브라우저 옵션 설정
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
@@ -56,7 +57,7 @@ class Whg:
                     buttons[1].click()
                 else:
                     print("버튼이 2개 이상이 아닙니다.")
-            except:
+            except Exception as _:
                 # duplicate_login이 없으면 그냥 넘어감
                 pass
             # 로그인 완료 대기
@@ -64,9 +65,14 @@ class Whg:
                 EC.presence_of_element_located((By.CLASS_NAME, "snbnext"))
             )  # 로그인 후 나타나는 어떤 요소로 체크
 
+            sao_url = {
+                Company.BAEKSUNG: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7897095&cd_com=biz202411280045506&gisu=38&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=jayk0425",
+                Company.PYEONGTAEK  : "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929394&cd_com=biz202412060015967&gisu=20&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)&companyID=jayk0425&ledgerNum=7897095&ledger",
+                Company.PARAN : "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929524&cd_com=biz202412060017323&gisu=5&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C&companyID=jayk0425&ledgerNum=7897095&ledger",
+            }
             # 4. 스마트A 전표 리스트 화면으로 이동
             driver.get(
-                "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7897095&cd_com=biz202411280045506&gisu=38&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=jayk0425"
+                sao_url[company]
             )
 
             # 전표 화면이 완전히 뜰 때까지 기다림

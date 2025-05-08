@@ -29,7 +29,7 @@ class VoucherService:
         self,
         company: Company = Company.BAEKSUNG,
     ):
-        vouchers = await Whg().crawl_whg()
+        vouchers = await Whg().crawl_whg(company)
 
         for v in vouchers:
             v.company = company
