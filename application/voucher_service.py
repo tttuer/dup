@@ -62,23 +62,22 @@ class VoucherService:
             if search_option == SearchOption.DESCRIPTION_FILENAME:
                 filters.append(
                     Or(
-                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
-                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
+                        RegEx(VoucherDocument.name, f".*{search}.*", options="i"),
+                        RegEx(VoucherDocument.file_name, f".*{search}.*", options="i"),
                     )
                 )
             elif search_option == SearchOption.PRICE:
-                filters.append(FileDocument.price == int(search))
+                filters.append(VoucherDocument.price == int(search))
 
         if is_locked:
-            filters.append(FileDocument.lock == True)
-        filters.append(FileDocument.company == company)
-        filters.append(FileDocument.type == type)
+            filters.append(VoucherDocument.lock == True)
+        filters.append(VoucherDocument.company == company)
 
         if start_at and end_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
-            filters.append(FileDocument.withdrawn_at <= end_at)
+            filters.append(VoucherDocument.withdrawn_at >= start_at)
+            filters.append(VoucherDocument.withdrawn_at <= end_at)
         if start_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
+            filters.append(VoucherDocument.withdrawn_at >= start_at)
 
         if end_at and start_at and end_at < start_at:
             raise HTTPException(
@@ -87,7 +86,7 @@ class VoucherService:
             )
 
         if role == Role.USER:
-            filters.append(FileDocument.lock == False)
+            filters.append(VoucherDocument.lock == False)
 
         total_count, vouchers = (
             await self.voucher_repo.find_many(
@@ -107,7 +106,7 @@ class VoucherService:
         await self.voucher_repo.delete(id)
 
     async def delete_many(self, ids: List[str]):
-        await self.file_repo.delete_many(In(FileDocument.id, ids))
+        await self.voucher_repo.delete_many(In(VoucherDocument.id, ids))
 
     async def update(
         self,
