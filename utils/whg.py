@@ -8,13 +8,8 @@ import json
 import gzip
 import io
 from utils.settings import settings
-from beanie import Document, BulkWriter
-from pydantic import Field
-from datetime import datetime
-from typing import Optional
 import time
 from domain.voucher import Voucher
-import dataclasses
 
 
 class Whg:
@@ -22,14 +17,22 @@ class Whg:
         # 1. 셀레니움 브라우저 옵션 설정
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
-
+        options.add_argument('--headless')  # 창 없이 실행
+        options.add_argument('--disable-gpu')  # GPU 가속 비활성화 (일부 환경에서 필요)
+        options.add_argument('--no-sandbox')  # 샌드박스 모드 비활성화 (리눅스에서 권장)
+        options.page_load_strategy = 'eager'
         driver = webdriver.Chrome(options=options)
 
         try:
             wait = WebDriverWait(driver, 10)  # 최대 10초 기다리기 기본 설정
 
             # 2. 위하고 로그인 페이지로 이동
-            driver.get("https://www.wehago.com/#/login")
+            driver.set_page_load_timeout(10)
+            try:
+                driver.get("https://www.wehago.com/#/login")
+            except TimeoutException:
+                print("❗ 페이지 로딩 시간 초과")
+                return
 
             # 3. 아이디/비번 입력
             wait.until(EC.presence_of_element_located((By.ID, "inputId"))).send_keys(
@@ -80,7 +83,6 @@ class Whg:
             inputs = span.find_elements(By.TAG_NAME, "input")
 
             # 전표 데이터 로딩 대기
-            print("⏳ 전표 데이터 로딩 대기 중...")
             month = [
                 "01",
                 "02",
@@ -152,8 +154,7 @@ class Whg:
 
                 if not target_request:
                     print("❗ 타임아웃: 전표 조회 API 응답을 기다리다 실패했습니다.")
-                    driver.quit()
-                    exit(1)
+                    return
 
                 # 4. 바로 last_request로 처리
                 request = target_request
@@ -185,11 +186,6 @@ class Whg:
             
             print(f"📄 총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
             return all_vouchers
-
-            # # MongoDB에 저장 (비동기)
-            # async with BulkWriter(Voucher) as bulk:
-            #     for voucher in all_vouchers:
-            #         await voucher.save(bulk_writer=bulk)
 
         finally:  # 잠시 대기 후 로그아웃 버튼 클릭
             driver.quit()
