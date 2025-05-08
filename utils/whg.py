@@ -10,6 +10,8 @@ import io
 from utils.settings import settings
 import time
 from domain.voucher import Voucher
+from datetime import datetime
+import dataclasses
 
 
 class Whg:
@@ -17,7 +19,7 @@ class Whg:
         # 1. 셀레니움 브라우저 옵션 설정
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
-        options.add_argument('--headless')  # 창 없이 실행
+        # options.add_argument('--headless')  # 창 없이 실행
         options.add_argument('--disable-gpu')  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument('--no-sandbox')  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = 'eager'
