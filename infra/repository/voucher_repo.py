@@ -8,6 +8,7 @@ from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
 from beanie import BulkWriter
 from domain.voucher import Company
+from pymongo import UpdateOne
 
 class VoucherRepository(IVoucherRepository):
     async def save(self, vouchers: list[VoucherVo]):
@@ -37,14 +38,22 @@ class VoucherRepository(IVoucherRepository):
             for voucher in vouchers
         ]
 
-        collection = Voucher.get_motor_collection()
-
-        for v in new_vouchers:
-            await collection.replace_one(
+        # MongoDB 작업 목록 구성
+        ops = [
+            UpdateOne(
                 {"_id": v.id},
-                v.model_dump(by_alias=True, exclude_none=True),
+                {"$set": v.model_dump(by_alias=True, exclude_none=True)},
                 upsert=True
             )
+            for v in new_vouchers
+        ]
+
+        # MongoDB collection 직접 접근 후 bulk 저장
+        collection = Voucher.get_motor_collection()
+        result = await collection.bulk_write(ops)
+
+        print(f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}")
+
 
         # async with Voucher.bulk_writer() as bulk:
         #     for v in new_vouchers:
