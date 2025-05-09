@@ -1,31 +1,29 @@
-# 1. Python 3.12 베이스 이미지
-FROM python:3.12-slim
+# 1. Python 베이스 이미지
+FROM python:3.12-slim-bookworm
 
-# 2. 환경 변수 설정
+# 2. prebuilt uv 바이너리 복사 (FROM 공식 이미지)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# 3. 환경변수
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
-# 3. 작업 디렉토리
 WORKDIR /app
 
-# 4. 필요한 시스템 패키지 설치
+# 4. 시스템 패키지 설치 (필요시 최소화 가능)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
-    curl \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. uv 설치 (패키지 매니저)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 6. pyproject.toml, uv.lock 복사
+# 5. pyproject.toml, uv.lock 복사
 COPY pyproject.toml uv.lock /app/
 
-# 7. 패키지 설치
-RUN ~/.cargo/bin/uv sync --system --no-cache
+# 6. 패키지 설치
+RUN uv sync
 
-# 8. 애플리케이션 복사
+# 7. 애플리케이션 코드 복사
 COPY . /app
 
-# 9. FastAPI 실행
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 8. FastAPI 실행
+CMD [".venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
