@@ -1,0 +1,39 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main  # `main` 브랜치에 push 될 때 실행
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: Production  # 🔥 환경별 설정 (GitHub Environment Secrets 사용)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 1️⃣ .env 파일 생성 (Docker Build 전에 필요)
+      - name: Create .env file
+        run: |
+          echo "🔐 .env 파일 생성 중..."
+          echo -e "${{ secrets.ENV_VARS }}" > .env  # `.env` 생성
+          chmod 600 .env
+          echo "✅ .env 파일 생성 완료!"
+
+      # 2️⃣ Docker 로그인 (GitHub 또는 Docker Hub)
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 3️⃣ Docker 이미지 빌드 및 푸시
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_NAME=tttuer/dup
+          TAG=test
+          docker build -t $IMAGE_NAME:$TAG .
+          docker push $IMAGE_NAME:$TAG
+          echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
