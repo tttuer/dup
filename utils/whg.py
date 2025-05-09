@@ -25,6 +25,11 @@ class Whg:
         options.add_argument('--no-sandbox')  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = 'eager'
         driver = webdriver.Chrome(options=options)
+        # prod 환경
+        # driver = webdriver.Remote(
+        #     command_executor="http://localhost:4444/wd/hub",
+        #     options=options
+        # )
 
         try:
             wait = WebDriverWait(driver, 10)  # 최대 10초 기다리기 기본 설정
