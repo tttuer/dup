@@ -1,5 +1,5 @@
 # 1. Python 베이스 이미지
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 # 2. prebuilt uv 바이너리 복사 (FROM 공식 이미지)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
