@@ -16,7 +16,8 @@ from domain.voucher import Company
 
 
 class Whg:
-    async def crawl_whg(self, company: Company):
+    @staticmethod
+    async def crawl_whg(company: Company):
         # 1. 셀레니움 브라우저 옵션 설정
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
