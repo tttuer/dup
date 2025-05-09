@@ -27,7 +27,7 @@ class Whg:
         driver = webdriver.Chrome(options=options)
         # prod 환경
         # driver = webdriver.Remote(
-        #     command_executor="http://localhost:4444/wd/hub",
+        #     command_executor="http://localhost:4444",
         #     options=options
         # )
 
@@ -137,7 +137,6 @@ class Whg:
 
                     # 엔터 입력
                     target_input.send_keys(Keys.ENTER, Keys.ENTER)
-                    time.sleep(0.5)
                 else:
                     print("❗ 두 번째 input을 찾지 못했습니다.")
 
@@ -163,7 +162,6 @@ class Whg:
                             break
                     if target_request:
                         break
-                    time.sleep(0.5)
 
                 if not target_request:
                     print("❗ 타임아웃: 전표 조회 API 응답을 기다리다 실패했습니다.")
