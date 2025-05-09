@@ -26,5 +26,5 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def update(self, update_voucher: VoucherVo):
+    async def update(self, id, file_data, file_name):
         raise NotImplementedError

@@ -11,6 +11,7 @@ from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File as FileDocument
+from utils.pdf import Pdf
 
 
 class FileService:
@@ -18,11 +19,6 @@ class FileService:
     def __init__(self, file_repo: IFileRepository):
         self.file_repo = file_repo
         self.ulid = ULID()
-
-    async def compress_pdf(self, file_data: UploadFile) -> bytes:
-        raw_data = await file_data.read()
-        compress_data = zlib.compress(raw_data)
-        return compress_data
 
     async def save_files(
         self,
@@ -41,7 +37,7 @@ class FileService:
                 withdrawn_at=withdrawn_at,
                 name=name,
                 price=price,
-                file_data=await self.compress_pdf(file_data),
+                file_data=await Pdf.compress(file_data),
                 file_name=file_data.filename,
                 created_at=now,
                 updated_at=now,
@@ -144,7 +140,7 @@ class FileService:
             withdrawn_at=withdrawn_at,
             name=name,
             price=price,
-            file_data=await self.compress_pdf(file_data) if file_data else None,
+            file_data=await Pdf.compress(file_data) if file_data else None,
             file_name=file_data.filename if file_data else None,
             updated_at=now,
             lock=lock,

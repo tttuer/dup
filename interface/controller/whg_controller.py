@@ -6,9 +6,48 @@ from typing import Annotated
 from common.auth import get_current_user
 from application.voucher_service import VoucherService
 from domain.voucher import Company
+from fastapi import UploadFile
+from pydantic import BaseModel, model_validator, field_serializer
+import zlib
+import base64
+from typing import Optional
+from datetime import datetime
 
-router = APIRouter(prefix="/whg", tags=["whg"])
+router = APIRouter(prefix="/voucher", tags=["voucher"])
 
+class VoucherResponse(BaseModel):
+    id: str
+    mn_bungae1: Optional[float] = None
+    mn_bungae2: Optional[float] = None
+    nm_remark: Optional[str] = None
+    sq_acttax2: Optional[int] = None
+    nm_gubn: Optional[str] = None
+    cd_acctit: Optional[str] = None
+    year: Optional[str] = None
+    cd_trade: Optional[str] = None
+    dt_time: Optional[datetime] = None
+    month: Optional[str] = None
+    day: Optional[str] = None
+    nm_acctit: Optional[str] = None
+    dt_insert: Optional[datetime] = None
+    user_id: Optional[str] = None
+    da_date: Optional[str] = None
+    nm_trade: Optional[str] = None  
+    file_data: Optional[bytes] = None
+    file_name: Optional[str] = None
+    company: Optional[Company] = None
+
+    @model_validator(mode="after")
+    def decompress_file_data(self):
+        try:
+            self.file_data = zlib.decompress(self.file_data)
+        except zlib.error:
+            pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
+        return self
+
+    @field_serializer("file_data", when_used="json")
+    def encode_file_data(self, file_data: bytes, _info):
+        return base64.b64encode(file_data).decode("utf-8")
 
 @router.get("/sync")
 @inject
@@ -20,3 +59,24 @@ async def sync_whg(
     await voucher_service.save_vouchers(company=company)
 
     return {"message": "Sync completed successfully"}
+
+
+@router.get("/{id}")
+@inject
+async def find_voucher(
+    id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+) -> VoucherResponse:
+    return await voucher_service.find_by_id(id)
+
+
+@router.patch("/{id}")
+@inject
+async def update_voucher(
+    id: str,
+    file_data: UploadFile,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+) -> VoucherResponse:
+    return await voucher_service.update(id, file_data)

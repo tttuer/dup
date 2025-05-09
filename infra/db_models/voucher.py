@@ -6,9 +6,9 @@ from domain.voucher import Company
 
 class Voucher(Document):
     id: str = Field(alias="_id")
-    mn_bungae1: Optional[float] = None
-    mn_bungae2: Optional[float] = None
-    nm_remark: Optional[str] = None
+    mn_bungae1: Optional[float] = None # 차변 금액
+    mn_bungae2: Optional[float] = None # 대변 금액
+    nm_remark: Optional[str] = None # 적요
     sq_acttax2: Optional[int] = None
     nm_gubn: Optional[str] = None
     cd_acctit: Optional[str] = None
@@ -17,11 +17,11 @@ class Voucher(Document):
     dt_time: Optional[datetime] = None
     month: Optional[str] = None
     day: Optional[str] = None
-    nm_acctit: Optional[str] = None
+    nm_acctit: Optional[str] = None # 계정과목
     dt_insert: Optional[datetime] = None
     user_id: Optional[str] = None
     da_date: Optional[str] = None
-    nm_trade: Optional[str] = None  
+    nm_trade: Optional[str] = None  # 거래처
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = Field(default=None)

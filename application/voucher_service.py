@@ -1,4 +1,3 @@
-import zlib
 from datetime import datetime
 from typing import Optional, List
 
@@ -12,6 +11,7 @@ from domain.voucher import Voucher, Company, SearchOption
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher as VoucherDocument
 from utils.whg import Whg
+from utils.pdf import Pdf
 
 
 class VoucherService:
@@ -20,16 +20,11 @@ class VoucherService:
         self.voucher_repo = voucher_repo
         self.ulid = ULID()
 
-    async def compress_pdf(self, file_data: UploadFile) -> bytes:
-        raw_data = await file_data.read()
-        compress_data = zlib.compress(raw_data)
-        return compress_data
-
     async def save_vouchers(
         self,
         company: Company = Company.BAEKSUNG,
     ):
-        vouchers = await Whg().crawl_whg(company)
+        vouchers = await Whg.crawl_whg(company)
 
         for v in vouchers:
             v.company = company
@@ -62,22 +57,23 @@ class VoucherService:
             if search_option == SearchOption.DESCRIPTION_FILENAME:
                 filters.append(
                     Or(
-                        RegEx(VoucherDocument.name, f".*{search}.*", options="i"),
-                        RegEx(VoucherDocument.file_name, f".*{search}.*", options="i"),
+                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
+                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
                     )
                 )
             elif search_option == SearchOption.PRICE:
-                filters.append(VoucherDocument.price == int(search))
+                filters.append(FileDocument.price == int(search))
 
         if is_locked:
-            filters.append(VoucherDocument.lock == True)
-        filters.append(VoucherDocument.company == company)
+            filters.append(FileDocument.lock == True)
+        filters.append(FileDocument.company == company)
+        filters.append(FileDocument.type == type)
 
         if start_at and end_at:
-            filters.append(VoucherDocument.withdrawn_at >= start_at)
-            filters.append(VoucherDocument.withdrawn_at <= end_at)
+            filters.append(FileDocument.withdrawn_at >= start_at)
+            filters.append(FileDocument.withdrawn_at <= end_at)
         if start_at:
-            filters.append(VoucherDocument.withdrawn_at >= start_at)
+            filters.append(FileDocument.withdrawn_at >= start_at)
 
         if end_at and start_at and end_at < start_at:
             raise HTTPException(
@@ -86,7 +82,7 @@ class VoucherService:
             )
 
         if role == Role.USER:
-            filters.append(VoucherDocument.lock == False)
+            filters.append(FileDocument.lock == False)
 
         total_count, vouchers = (
             await self.voucher_repo.find_many(
@@ -106,27 +102,17 @@ class VoucherService:
         await self.voucher_repo.delete(id)
 
     async def delete_many(self, ids: List[str]):
-        await self.voucher_repo.delete_many(In(VoucherDocument.id, ids))
+        await self.file_repo.delete_many(In(FileDocument.id, ids))
 
     async def update(
         self,
         id: str,
-        withdrawn_at: str,
-        name: str,
-        price: int,
         file_data: UploadFile,
-        lock: bool,
     ):
-        now = datetime.now()
-
-        voucher: Voucher = Voucher(
+        update_voucher = await self.voucher_repo.update(
             id=id,
-            withdrawn_at=withdrawn_at,
-            name=name,
-            price=price,
-            updated_at=now,
+            file_data=await Pdf.compress(file_data) if file_data else None,
+            file_name=file_data.filename if file_data else None,
         )
-
-        update_voucher = await self.voucher_repo.update(voucher)
 
         return update_voucher

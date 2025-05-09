@@ -54,17 +54,6 @@ class VoucherRepository(IVoucherRepository):
 
         print(f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}")
 
-
-        # async with Voucher.bulk_writer() as bulk:
-        #     for v in new_vouchers:
-        #         await v.save(bulk_writer=bulk)
-
-        # await new_vouchers.save()
-
-        # async with BulkWriter(Voucher) as bulk:
-            # for v in new_vouchers:
-            #     await v.save(bulk_writer=bulk)
-
     async def find_by_id(self, id: str) -> Voucher:
         voucher = await Voucher.get(id)
 
@@ -127,8 +116,8 @@ class VoucherRepository(IVoucherRepository):
     async def delete_many(self, *filters):
         await Voucher.find(*filters).delete()
 
-    async def update(self, update_voucher: VoucherVo):
-        db_voucher = await Voucher.get(update_voucher.id)
+    async def update(self, id: str, file_data: bytes, file_name: str):
+        db_voucher = await Voucher.get(id)
 
         if not db_voucher:
             raise HTTPException(
@@ -136,12 +125,8 @@ class VoucherRepository(IVoucherRepository):
                 detail="Voucher not found",
             )
 
-        update_data = asdict(update_voucher)
-        update_data.pop("id", None)
-
-        for field, value in update_data.items():
-            if value is not None:
-                setattr(db_voucher, field, value)
+        db_voucher.file_data = file_data
+        db_voucher.file_name = file_name
 
         await db_voucher.save()
         return db_voucher
