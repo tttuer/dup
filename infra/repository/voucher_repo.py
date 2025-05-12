@@ -31,6 +31,7 @@ class VoucherRepository(IVoucherRepository):
                 user_id=voucher.user_id,
                 da_date=voucher.da_date,
                 nm_trade=voucher.nm_trade,
+                no_acct=voucher.no_acct,
                 file_data=voucher.file_data,
                 file_name=voucher.file_name,
                 company=voucher.company,

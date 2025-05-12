@@ -34,6 +34,7 @@ class Voucher:
     user_id: Optional[str] = None
     da_date: Optional[str] = None
     nm_trade: Optional[str] = None  
+    no_acct: Optional[int] = None
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = None
