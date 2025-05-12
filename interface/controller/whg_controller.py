@@ -13,7 +13,7 @@ import base64
 from typing import Optional
 from datetime import datetime
 
-router = APIRouter(prefix="/voucher", tags=["voucher"])
+router = APIRouter(prefix="/vouchers", tags=["voucher"])
 
 class VoucherResponse(BaseModel):
     id: str
