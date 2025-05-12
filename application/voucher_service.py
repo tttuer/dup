@@ -40,8 +40,6 @@ class VoucherService:
 
     async def find_many(
         self,
-        is_locked: bool,
-        role: Role,
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
@@ -54,35 +52,32 @@ class VoucherService:
 
         # ✅ 1. 검색어가 있고, 검색 조건이 명시된 경우
         if search and search_option:
-            if search_option == SearchOption.DESCRIPTION_FILENAME:
+            if search_option == SearchOption.NM_ACCTIT:
                 filters.append(
-                    Or(
-                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
-                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
-                    )
+                    RegEx(VoucherDocument.nm_acctit, f".*{search}.*", options="i")
                 )
-            elif search_option == SearchOption.PRICE:
-                filters.append(FileDocument.price == int(search))
+            elif search_option == SearchOption.NM_TRADE:
+                filters.append(
+                    RegEx(VoucherDocument.nm_trade, f".*{search}.*", options="i")
+                )
+            elif search_option == SearchOption.NM_REMARK:
+                filters.append(
+                    RegEx(VoucherDocument.nm_remark, f".*{search}.*", options="i")
+                )
 
-        if is_locked:
-            filters.append(FileDocument.lock == True)
-        filters.append(FileDocument.company == company)
-        filters.append(FileDocument.type == type)
+        filters.append(VoucherDocument.company == company)
 
         if start_at and end_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
-            filters.append(FileDocument.withdrawn_at <= end_at)
+            filters.append(VoucherDocument.voucher_date >= start_at)
+            filters.append(VoucherDocument.voucher_date <= end_at)
         if start_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
+            filters.append(VoucherDocument.voucher_date >= start_at)
 
         if end_at and start_at and end_at < start_at:
             raise HTTPException(
                 status_code=400,
                 detail="start_at must be less than end_at",
             )
-
-        if role == Role.USER:
-            filters.append(FileDocument.lock == False)
 
         total_count, vouchers = (
             await self.voucher_repo.find_many(
@@ -97,12 +92,6 @@ class VoucherService:
         total_page = (total_count - 1) // items_per_page + 1
 
         return total_count, total_page, vouchers
-
-    async def delete(self, id: str):
-        await self.voucher_repo.delete(id)
-
-    async def delete_many(self, ids: List[str]):
-        await self.file_repo.delete_many(In(FileDocument.id, ids))
 
     async def update(
         self,

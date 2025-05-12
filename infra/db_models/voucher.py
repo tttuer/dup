@@ -23,6 +23,7 @@ class Voucher(Document):
     da_date: Optional[str] = None
     nm_trade: Optional[str] = None  # 거래처
     no_acct: Optional[int] = None # 전표 묶는 기준
+    voucher_date: Optional[str] = None
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = Field(default=None)
