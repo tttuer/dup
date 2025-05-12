@@ -10,6 +10,7 @@ from beanie import BulkWriter
 from domain.voucher import Company
 from pymongo import UpdateOne
 
+
 class VoucherRepository(IVoucherRepository):
     async def save(self, vouchers: list[VoucherVo]):
         new_vouchers = [
@@ -32,6 +33,7 @@ class VoucherRepository(IVoucherRepository):
                 da_date=voucher.da_date,
                 nm_trade=voucher.nm_trade,
                 no_acct=voucher.no_acct,
+                voucher_date=f'{voucher.year}{voucher.month}{voucher.day}',
                 file_data=voucher.file_data,
                 file_name=voucher.file_name,
                 company=voucher.company,
@@ -44,7 +46,7 @@ class VoucherRepository(IVoucherRepository):
             UpdateOne(
                 {"_id": v.id},
                 {"$set": v.model_dump(by_alias=True, exclude_none=True)},
-                upsert=True
+                upsert=True,
             )
             for v in new_vouchers
         ]
@@ -53,7 +55,9 @@ class VoucherRepository(IVoucherRepository):
         collection = Voucher.get_motor_collection()
         result = await collection.bulk_write(ops)
 
-        print(f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}")
+        print(
+            f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}"
+        )
 
     async def find_by_id(self, id: str) -> Voucher:
         voucher = await Voucher.get(id)
@@ -75,11 +79,13 @@ class VoucherRepository(IVoucherRepository):
         offset = (page - 1) * items_per_page
 
         if filters:
-            total_count = await Voucher.find(*filters).sort("dt_time").count()
+            total_count = (
+                await Voucher.find(*filters).sort("year", "month", "day").count()
+            )
 
             vouchers = (
                 await Voucher.find(*filters)
-                .sort("dt_time")
+                .sort("year", "month", "day")
                 .skip(offset)
                 .limit(items_per_page)
                 .to_list()
@@ -93,7 +99,7 @@ class VoucherRepository(IVoucherRepository):
 
         vouchers = (
             await Voucher.find()
-            .sort("dt_time")
+            .sort("year", "month", "day")
             .skip(offset)
             .limit(items_per_page)
             .to_list()
@@ -103,19 +109,6 @@ class VoucherRepository(IVoucherRepository):
             total_count,
             [VoucherVo(**voucher.model_dump()) for voucher in vouchers],
         )
-
-    async def delete(self, id: str):
-        voucher = await Voucher.get(id)
-
-        if not voucher:
-            raise HTTPException(
-                status_code=404,
-            )
-
-        await voucher.delete()
-
-    async def delete_many(self, *filters):
-        await Voucher.find(*filters).delete()
 
     async def update(self, id: str, file_data: bytes, file_name: str):
         db_voucher = await Voucher.get(id)

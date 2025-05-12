@@ -33,6 +33,8 @@ class VoucherResponse(BaseModel):
     user_id: Optional[str] = None
     da_date: Optional[str] = None
     nm_trade: Optional[str] = None  
+    no_acct: Optional[int] = None
+    voucher_date: Optional[str] = None
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = None
@@ -40,14 +42,17 @@ class VoucherResponse(BaseModel):
     @model_validator(mode="after")
     def decompress_file_data(self):
         try:
-            self.file_data = zlib.decompress(self.file_data)
+            if self.file_data:
+                self.file_data = zlib.decompress(self.file_data)
         except zlib.error:
             pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
         return self
 
     @field_serializer("file_data", when_used="json")
     def encode_file_data(self, file_data: bytes, _info):
-        return base64.b64encode(file_data).decode("utf-8")
+        if file_data:
+            return base64.b64encode(file_data).decode("utf-8")
+        return None
 
 @router.get("/sync")
 @inject
@@ -80,3 +85,26 @@ async def update_voucher(
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ) -> VoucherResponse:
     return await voucher_service.update(id, file_data)
+
+@router.get("")
+@inject
+async def find_files(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    search: Optional[str] = None,
+    search_option: Optional[str] = None,
+    start_at: Optional[str] = None,
+    end_at: Optional[str] = None,
+    company: Optional[Company] = Company.BAEKSUNG,
+    page: int = 1,
+    items_per_page: int = 20,
+    voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+) -> tuple[int, int, list[VoucherResponse]]:
+    return await voucher_service.find_many(
+        search=search,
+        search_option=search_option,
+        company=company,
+        start_at=start_at,
+        end_at=end_at,
+        page=page,
+        items_per_page=items_per_page,
+    )

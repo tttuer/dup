@@ -190,7 +190,7 @@ class Whg:
 
                 for entry in voucher_list:
                     entry = dict(entry)
-                    entry["id"] = str(entry["sq_acttax2"])
+                    entry["id"] = str(entry["sq_acttax2"]) + "_" + company.value
                     filtered = {k: v for k, v in entry.items() if k in allowed_keys}
                     vouchers.append(Voucher(**filtered))
 

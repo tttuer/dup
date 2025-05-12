@@ -11,8 +11,9 @@ class Company(str, Enum):
 
 
 class SearchOption(str, Enum):
-    DESCRIPTION_FILENAME = "DESCRIPTION_FILENAME"
-    PRICE = "PRICE"
+    NM_ACCTIT = "NM_ACCTIT" # 계정과목
+    NM_TRADE = "NM_TRADE" # 거래처
+    NM_REMARK = "NM_REMARK" # 적요
 
 
 @dataclass
@@ -35,6 +36,7 @@ class Voucher:
     da_date: Optional[str] = None
     nm_trade: Optional[str] = None  
     no_acct: Optional[int] = None
+    voucher_date: Optional[str] = None
     file_data: Optional[bytes] = None
     file_name: Optional[str] = None
     company: Optional[Company] = None

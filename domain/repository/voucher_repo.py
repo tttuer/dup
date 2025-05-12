@@ -18,13 +18,5 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete(self, id: str):
-        raise NotImplementedError
-
-    @abstractmethod
-    async def delete_many(self, *filters):
-        raise NotImplementedError
-
-    @abstractmethod
     async def update(self, id, file_data, file_name):
         raise NotImplementedError
