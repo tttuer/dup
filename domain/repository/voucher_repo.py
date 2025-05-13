@@ -10,7 +10,7 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_id(self, id):
+    async def find_by_id(self, id) -> VoucherVo:
         raise NotImplementedError
 
     @abstractmethod

@@ -1,8 +1,9 @@
 from typing import Optional
 from beanie import Document
-from pydantic import Field
+from pydantic import BaseModel, Field
 from datetime import datetime
-from domain.voucher import Company
+from domain.voucher import Company, VoucherFile
+
 
 class Voucher(Document):
     id: str = Field(alias="_id")
@@ -24,8 +25,7 @@ class Voucher(Document):
     nm_trade: Optional[str] = None  # 거래처
     no_acct: Optional[int] = None # 전표 묶는 기준
     voucher_date: Optional[str] = None
-    file_data: Optional[bytes] = None
-    file_name: Optional[str] = None
+    files: list[VoucherFile] = Field(default_factory=list)
     company: Optional[Company] = Field(default=None)
 
     class Settings:

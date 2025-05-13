@@ -34,8 +34,7 @@ class VoucherRepository(IVoucherRepository):
                 nm_trade=voucher.nm_trade,
                 no_acct=voucher.no_acct,
                 voucher_date=f'{voucher.year}{voucher.month}{voucher.day}',
-                file_data=voucher.file_data,
-                file_name=voucher.file_name,
+                files=voucher.files,
                 company=voucher.company,
             )
             for voucher in vouchers
@@ -59,7 +58,7 @@ class VoucherRepository(IVoucherRepository):
             f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}"
         )
 
-    async def find_by_id(self, id: str) -> Voucher:
+    async def find_by_id(self, id: str) -> VoucherVo:
         voucher = await Voucher.get(id)
 
         if not voucher:
@@ -110,8 +109,9 @@ class VoucherRepository(IVoucherRepository):
             [VoucherVo(**voucher.model_dump()) for voucher in vouchers],
         )
 
-    async def update(self, id: str, file_data: bytes, file_name: str):
-        db_voucher = await Voucher.get(id)
+    async def update(self, voucher: VoucherVo):
+
+        db_voucher = await Voucher.get(voucher.id)
 
         if not db_voucher:
             raise HTTPException(
@@ -119,8 +119,7 @@ class VoucherRepository(IVoucherRepository):
                 detail="Voucher not found",
             )
 
-        db_voucher.file_data = file_data
-        db_voucher.file_name = file_name
+        db_voucher.files = voucher.files
 
         await db_voucher.save()
         return db_voucher
