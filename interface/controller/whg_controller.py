@@ -5,13 +5,16 @@ from containers import Container
 from typing import Annotated
 from common.auth import get_current_user
 from application.voucher_service import VoucherService
-from domain.voucher import Company
+from domain.voucher import Company, VoucherFile
 from fastapi import UploadFile
 from pydantic import BaseModel, model_validator, field_serializer
 import zlib
 import base64
-from typing import Optional
+from typing import Optional, List
+from fastapi import Form
 from datetime import datetime
+from itertools import zip_longest
+from fastapi import File
 
 router = APIRouter(prefix="/vouchers", tags=["voucher"])
 
@@ -35,24 +38,23 @@ class VoucherResponse(BaseModel):
     nm_trade: Optional[str] = None  
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
-    file_data: Optional[bytes] = None
-    file_name: Optional[str] = None
+    files: Optional[list[VoucherFile]] = None
     company: Optional[Company] = None
 
-    @model_validator(mode="after")
-    def decompress_file_data(self):
-        try:
-            if self.file_data:
-                self.file_data = zlib.decompress(self.file_data)
-        except zlib.error:
-            pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
-        return self
+    # @model_validator(mode="after")
+    # def decompress_file_data(self):
+    #     try:
+    #         if self.file_data:
+    #             self.file_data = zlib.decompress(self.file_data)
+    #     except zlib.error:
+    #         pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
+    #     return self
 
-    @field_serializer("file_data", when_used="json")
-    def encode_file_data(self, file_data: bytes, _info):
-        if file_data:
-            return base64.b64encode(file_data).decode("utf-8")
-        return None
+    # @field_serializer("file_data", when_used="json")
+    # def encode_file_data(self, file_data: bytes, _info):
+    #     if file_data:
+    #         return base64.b64encode(file_data).decode("utf-8")
+    #     return None
 
 @router.get("/sync")
 @inject
@@ -79,12 +81,15 @@ async def find_voucher(
 @router.patch("/{id}")
 @inject
 async def update_voucher(
-    id: str,
-    file_data: UploadFile,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    id: str,
+    file_ids: Optional[List[Optional[str]]] = Form(None),
+    files: Optional[List[UploadFile]] = File(None),  # ✅ UploadFile만 허용하면 Swagger에서 파일 UI가 뜸
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ) -> VoucherResponse:
-    return await voucher_service.update(id, file_data)
+    update_items = list(zip_longest(file_ids or [], files or []))  # ✅ 길이 다를 수 있음
+    return await voucher_service.update(id=id, items=update_items)
+
 
 @router.get("")
 @inject

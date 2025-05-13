@@ -1,8 +1,28 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator, field_serializer
+import uuid
+import zlib
+import base64
 
+class VoucherFile(BaseModel):
+    file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    file_name: str
+    file_data: bytes
+    uploaded_at: datetime
+
+    @field_validator("file_data", mode="after")
+    def decompress_file_data(cls, value: bytes) -> bytes:
+        try:
+            return zlib.decompress(value)
+        except zlib.error:
+            return value  # 이미 풀린 경우나 오류는 그냥 넘김
+
+    @field_serializer("file_data", when_used="json")
+    def serialize_file_data(self, value: bytes, _info):
+        return base64.b64encode(value).decode("utf-8") if value else None
 
 class Company(str, Enum):
     BAEKSUNG = "BAEKSUNG"
@@ -37,6 +57,5 @@ class Voucher:
     nm_trade: Optional[str] = None  
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
-    file_data: Optional[bytes] = None
-    file_name: Optional[str] = None
+    files: List[VoucherFile] = field(default_factory=list)  # ✅ dataclasses 전용
     company: Optional[Company] = None

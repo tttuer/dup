@@ -1,17 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
-from beanie.operators import And, RegEx, Or, In
+from beanie.operators import And, RegEx
 from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
-from common.auth import Role
-from domain.voucher import Voucher, Company, SearchOption
+from domain.voucher import Company, SearchOption, VoucherFile
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher as VoucherDocument
-from utils.whg import Whg
 from utils.pdf import Pdf
+from utils.whg import Whg
 
 
 class VoucherService:
@@ -96,12 +95,21 @@ class VoucherService:
     async def update(
         self,
         id: str,
-        file_data: UploadFile,
+        items: list[tuple[Optional[str], Optional[UploadFile]]]
     ):
-        update_voucher = await self.voucher_repo.update(
-            id=id,
-            file_data=await Pdf.compress(file_data) if file_data else None,
-            file_name=file_data.filename if file_data else None,
-        )
+        voucher = await self.voucher_repo.find_by_id(id)
 
-        return update_voucher
+        for file_id, upload_file in items:
+            # 삭제 또는 교체 (file_id 있는 경우)
+            if file_id:
+                voucher.files = [f for f in voucher.files if f.file_id != file_id]
+
+            # 추가 또는 교체 (파일 있는 경우)
+            if upload_file:
+                voucher.files.append(VoucherFile(
+                    file_name=upload_file.filename,
+                    file_data=await Pdf.compress(upload_file),
+                    uploaded_at=datetime.now(timezone.utc)
+                ))
+
+        return await self.voucher_repo.update(voucher)
