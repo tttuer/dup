@@ -186,13 +186,10 @@ class Whg:
 
                 # id 필드 주입 + 모델 변환
                 vouchers = []
-                allowed_keys = {f.name for f in dataclasses.fields(Voucher)}
-
                 for entry in voucher_list:
                     entry = dict(entry)
                     entry["id"] = str(entry["sq_acttax2"]) + "_" + company.value
-                    filtered = {k: v for k, v in entry.items() if k in allowed_keys}
-                    vouchers.append(Voucher(**filtered))
+                    vouchers.append(Voucher(**entry))  # allowed_keys 필터링 필요 없어짐
 
                 all_vouchers.extend(vouchers)
             
