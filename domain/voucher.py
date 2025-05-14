@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator, field_serializer
+from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 import uuid
 import zlib
 import base64
@@ -57,3 +57,5 @@ class Voucher(BaseModel):
     voucher_date: Optional[str] = None
     files: List[VoucherFile] = Field(default_factory=list)
     company: Optional[Company] = None   
+
+    model_config = ConfigDict(extra="ignore")  # 중요!
