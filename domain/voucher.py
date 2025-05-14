@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List
@@ -36,8 +35,7 @@ class SearchOption(str, Enum):
     NM_REMARK = "NM_REMARK" # 적요
 
 
-@dataclass
-class Voucher:
+class Voucher(BaseModel):
     id: str
     mn_bungae1: Optional[float] = None
     mn_bungae2: Optional[float] = None
@@ -57,5 +55,5 @@ class Voucher:
     nm_trade: Optional[str] = None  
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
-    files: List[VoucherFile] = field(default_factory=list)  # ✅ dataclasses 전용
-    company: Optional[Company] = None
+    files: List[VoucherFile] = Field(default_factory=list)
+    company: Optional[Company] = None   
