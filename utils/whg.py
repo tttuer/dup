@@ -22,9 +22,9 @@ class Whg:
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
         # options.add_argument('--headless')  # 창 없이 실행
-        options.add_argument('--disable-gpu')  # GPU 가속 비활성화 (일부 환경에서 필요)
-        options.add_argument('--no-sandbox')  # 샌드박스 모드 비활성화 (리눅스에서 권장)
-        options.page_load_strategy = 'eager'
+        options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
+        options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
+        options.page_load_strategy = "eager"
         driver = webdriver.Chrome(options=options)
         # prod 환경
         # driver = webdriver.Remote(
@@ -73,13 +73,11 @@ class Whg:
 
             sao_url = {
                 Company.BAEKSUNG: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7897095&cd_com=biz202411280045506&gisu=38&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=jayk0425",
-                Company.PYEONGTAEK  : "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929394&cd_com=biz202412060015967&gisu=20&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)&companyID=jayk0425&ledgerNum=7897095&ledger",
-                Company.PARAN : "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929524&cd_com=biz202412060017323&gisu=5&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C&companyID=jayk0425&ledgerNum=7897095&ledger",
+                Company.PYEONGTAEK: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929394&cd_com=biz202412060015967&gisu=20&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)&companyID=jayk0425&ledgerNum=7897095&ledger",
+                Company.PARAN: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7929524&cd_com=biz202412060017323&gisu=5&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C&companyID=jayk0425&ledgerNum=7897095&ledger",
             }
             # 4. 스마트A 전표 리스트 화면으로 이동
-            driver.get(
-                sao_url[company]
-            )
+            driver.get(sao_url[company])
 
             # 전표 화면이 완전히 뜰 때까지 기다림
             wait.until(
@@ -176,7 +174,9 @@ class Whg:
                 print(f"🎯 전표 데이터 요청 발견: {request.url}")
 
                 compressed_body = request.response.body
-                decompressed_body = gzip.GzipFile(fileobj=io.BytesIO(compressed_body)).read()
+                decompressed_body = gzip.GzipFile(
+                    fileobj=io.BytesIO(compressed_body)
+                ).read()
                 response_body = decompressed_body.decode("utf-8")
                 target_data = json.loads(response_body)
 
@@ -192,7 +192,7 @@ class Whg:
                     vouchers.append(Voucher(**entry))  # allowed_keys 필터링 필요 없어짐
 
                 all_vouchers.extend(vouchers)
-            
+
             print(f"📄 총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
             return all_vouchers
 

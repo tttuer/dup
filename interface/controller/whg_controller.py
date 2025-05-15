@@ -18,6 +18,7 @@ from fastapi import File
 
 router = APIRouter(prefix="/vouchers", tags=["voucher"])
 
+
 class VoucherResponse(BaseModel):
     id: str
     mn_bungae1: Optional[float] = None
@@ -35,26 +36,11 @@ class VoucherResponse(BaseModel):
     dt_insert: Optional[datetime] = None
     user_id: Optional[str] = None
     da_date: Optional[str] = None
-    nm_trade: Optional[str] = None  
+    nm_trade: Optional[str] = None
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
     files: Optional[list[VoucherFile]] = None
     company: Optional[Company] = None
-
-    # @model_validator(mode="after")
-    # def decompress_file_data(self):
-    #     try:
-    #         if self.file_data:
-    #             self.file_data = zlib.decompress(self.file_data)
-    #     except zlib.error:
-    #         pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
-    #     return self
-
-    # @field_serializer("file_data", when_used="json")
-    # def encode_file_data(self, file_data: bytes, _info):
-    #     if file_data:
-    #         return base64.b64encode(file_data).decode("utf-8")
-    #     return None
 
 @router.get("/sync")
 @inject
@@ -63,7 +49,7 @@ async def sync_whg(
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
     company: Company = Company.BAEKSUNG,
 ):
-    await voucher_service.save_vouchers(company=company)
+    await voucher_service.sync(company=company)
 
     return {"message": "Sync completed successfully"}
 
@@ -84,10 +70,14 @@ async def update_voucher(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     id: str,
     file_ids: Optional[List[Optional[str]]] = Form(None),
-    files: Optional[List[UploadFile]] = File(None),  # ✅ UploadFile만 허용하면 Swagger에서 파일 UI가 뜸
+    files: Optional[List[UploadFile]] = File(
+        None
+    ),  # ✅ UploadFile만 허용하면 Swagger에서 파일 UI가 뜸
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ) -> VoucherResponse:
-    update_items = list(zip_longest(file_ids or [], files or []))  # ✅ 길이 다를 수 있음
+    update_items = list(
+        zip_longest(file_ids or [], files or [])
+    )  # ✅ 길이 다를 수 있음
     return await voucher_service.update(id=id, items=update_items)
 
 

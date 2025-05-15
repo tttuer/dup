@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from typing import Any
+from typing import Any, override
 
 from fastapi import HTTPException
 
@@ -33,7 +33,7 @@ class VoucherRepository(IVoucherRepository):
                 da_date=voucher.da_date,
                 nm_trade=voucher.nm_trade,
                 no_acct=voucher.no_acct,
-                voucher_date=f'{voucher.year}{voucher.month}{voucher.day}',
+                voucher_date=f"{voucher.year}{voucher.month}{voucher.day}",
                 files=voucher.files,
                 company=voucher.company,
             )
@@ -123,3 +123,15 @@ class VoucherRepository(IVoucherRepository):
 
         await db_voucher.save()
         return db_voucher
+
+    async def delete_by_ids(self, ids: list[str]):
+        print(f"✅ delete: {len(ids)}")
+
+        await Voucher.find({"_id": {"$in": list(ids)}}).delete()
+
+    async def find_by_company(self, company: Company) -> list[Voucher]:
+        db_vouchers = await Voucher.find(Voucher.company == company).to_list()
+
+        return [
+            VoucherVo.model_construct(**voucher.model_dump()) for voucher in db_vouchers
+        ]
