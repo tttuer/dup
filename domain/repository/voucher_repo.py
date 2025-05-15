@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from typing import Any
-from domain.voucher import Voucher as VoucherVo
+from domain.voucher import Company, Voucher as VoucherVo
 
 
 class IVoucherRepository(metaclass=ABCMeta):
@@ -19,4 +19,12 @@ class IVoucherRepository(metaclass=ABCMeta):
 
     @abstractmethod
     async def update(self, id, file_data, file_name):
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def delete_by_ids(self, ids: list[str]):
+        raise NotImplementedError
+    
+    @abstractmethod
+    async def find_by_company(self, company: Company):
         raise NotImplementedError
