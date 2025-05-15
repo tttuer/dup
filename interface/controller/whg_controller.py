@@ -42,7 +42,7 @@ class VoucherResponse(BaseModel):
     files: Optional[list[VoucherFile]] = None
     company: Optional[Company] = None
 
-@router.get("/sync")
+@router.post("/sync")
 @inject
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
