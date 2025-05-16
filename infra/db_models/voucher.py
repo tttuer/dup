@@ -25,7 +25,7 @@ class Voucher(Document):
     nm_trade: Optional[str] = None  # 거래처
     no_acct: Optional[int] = None # 전표 묶는 기준
     voucher_date: Optional[str] = None
-    files: list[VoucherFile] = Field(default_factory=list)
+    files: Optional[list[VoucherFile]] = None
     company: Optional[Company] = Field(default=None)
 
     class Settings:
