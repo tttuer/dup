@@ -55,7 +55,7 @@ class Voucher(BaseModel):
     nm_trade: Optional[str] = None  
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
-    files: List[VoucherFile] = Field(default_factory=list)
+    files: Optional[List[VoucherFile]] = None
     company: Optional[Company] = None   
 
     model_config = ConfigDict(extra="ignore")  # 중요!

@@ -117,6 +117,8 @@ class VoucherService:
 
             # 추가 또는 교체 (파일 있는 경우)
             if upload_file:
+                if voucher.files is None:
+                    voucher.files = []
                 voucher.files.append(
                     VoucherFile(
                         file_name=upload_file.filename,
