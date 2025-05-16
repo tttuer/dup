@@ -42,14 +42,19 @@ class VoucherResponse(BaseModel):
     files: Optional[list[VoucherFile]] = None
     company: Optional[Company] = None
 
+
+class SyncRequest(BaseModel):
+    company: Company = Company.BAEKSUNG
+
+
 @router.post("/sync")
 @inject
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    syncRequest: SyncRequest,
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
-    company: Company = Company.BAEKSUNG,
 ):
-    await voucher_service.sync(company=company)
+    await voucher_service.sync(company=syncRequest.company)
 
     return {"message": "Sync completed successfully"}
 

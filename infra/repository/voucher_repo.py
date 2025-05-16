@@ -34,7 +34,6 @@ class VoucherRepository(IVoucherRepository):
                 nm_trade=voucher.nm_trade,
                 no_acct=voucher.no_acct,
                 voucher_date=f"{voucher.year}{voucher.month}{voucher.day}",
-                files=voucher.files,
                 company=voucher.company,
             )
             for voucher in vouchers
@@ -44,7 +43,7 @@ class VoucherRepository(IVoucherRepository):
         ops = [
             UpdateOne(
                 {"_id": v.id},
-                {"$set": v.model_dump(by_alias=True, exclude_none=True)},
+                {"$set": v.model_dump(by_alias=True, exclude={"files"}, exclude_none=True)},
                 upsert=True,
             )
             for v in new_vouchers
