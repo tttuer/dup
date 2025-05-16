@@ -114,6 +114,8 @@ class VoucherService:
             # 삭제 또는 교체 (file_id 있는 경우)
             if file_id:
                 voucher.files = [f for f in voucher.files if f.file_id != file_id]
+                if len(voucher.files) == 0:
+                    voucher.files = None
 
             # 추가 또는 교체 (파일 있는 경우)
             if upload_file:
