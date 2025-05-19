@@ -45,4 +45,6 @@ dependencies = [
     "selenium-wire>=5.1.0",
     "blinker<1.7",
     "pydantic-settings>=2.9.1",
+    "pypdf2>=3.0.1",
+    "pymupdf>=1.25.5",
 ]
