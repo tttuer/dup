@@ -21,9 +21,10 @@ class VoucherService:
 
     async def sync(
         self,
+        year: int,
         company: Company = Company.BAEKSUNG,
     ):
-        vouchers = await Whg.crawl_whg(company)
+        vouchers = await Whg().crawl_whg(company, year)
 
         for v in vouchers:
             v.company = company
@@ -32,7 +33,7 @@ class VoucherService:
         new_ids = {v.id for v in vouchers}
 
         # 4. 기존 DB에 저장된 ID 목록 조회
-        existing_vouchers = await self.voucher_repo.find_by_company(company)
+        existing_vouchers = await self.voucher_repo.find_by_company_and_year(company, year)
         existing_ids = {v.id for v in existing_vouchers}
 
         # 5. 삭제 대상 ID 찾기 (기존에는 있었는데, 새로는 없음)

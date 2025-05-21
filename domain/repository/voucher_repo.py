@@ -28,3 +28,7 @@ class IVoucherRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_company(self, company: Company):
         raise NotImplementedError
+    
+    @abstractmethod
+    async def find_by_company_and_year(self, company: Company, year: int):
+        raise NotImplementedError

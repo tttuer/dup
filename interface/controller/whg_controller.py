@@ -44,6 +44,7 @@ class VoucherResponse(BaseModel):
 
 
 class SyncRequest(BaseModel):
+    year: int
     company: Company = Company.BAEKSUNG
 
 
@@ -54,7 +55,7 @@ async def sync_whg(
     syncRequest: SyncRequest,
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ):
-    await voucher_service.sync(company=syncRequest.company)
+    await voucher_service.sync(company=syncRequest.company, year=syncRequest.year)
 
     return {"message": "Sync completed successfully"}
 
@@ -88,7 +89,7 @@ async def update_voucher(
 
 @router.get("")
 @inject
-async def find_files(
+async def find_vouchers(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     search: Optional[str] = None,
     search_option: Optional[str] = None,

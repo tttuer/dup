@@ -16,8 +16,37 @@ from domain.voucher import Company
 
 
 class Whg:
-    @staticmethod
-    async def crawl_whg(company: Company):
+    async def calculate_gisu(
+        self,
+        company: Company,
+        year: int,
+    ):
+        baek = {
+            "gisu": 38,
+            "year": 2025,
+        }
+        pyeong = {
+            "gisu": 20,
+            "year": 2025,
+        }
+        paran = {
+            "gisu": 5,
+            "year": 2025,
+        }
+
+
+        if company == Company.BAEKSUNG:
+            gisu = baek["gisu"] - (baek["year"] - year)
+        elif company == Company.PYEONGTAEK:
+            gisu = pyeong["gisu"] - (pyeong["year"] - year)
+        elif company == Company.PARAN:
+            gisu = paran["gisu"] - (paran["year"] - year)
+        else:
+            raise ValueError("Invalid company")
+
+        return gisu
+    
+    async def crawl_whg(self, company: Company, year: int):
         # 1. 셀레니움 브라우저 옵션 설정
         options = webdriver.ChromeOptions()
         options.add_argument("--start-maximized")
@@ -71,10 +100,12 @@ class Whg:
                 EC.presence_of_element_located((By.CLASS_NAME, "snbnext"))
             )  # 로그인 후 나타나는 어떤 요소로 체크
 
+            gisu = await self.calculate_gisu(company, year)
+
             sao_url = {
-                Company.BAEKSUNG: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu=38&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=REDACTED_WEHAGO_USER_ID",
-                Company.PYEONGTAEK: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu=20&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)&companyID=REDACTED_WEHAGO_USER_ID&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
-                Company.PARAN: "https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu=5&yminsa=2024&searchData=2025010120251231&color=#1C90FB&companyName=(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C&companyID=REDACTED_WEHAGO_USER_ID&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
+                Company.BAEKSUNG: f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=REDACTED_WEHAGO_USER_ID",
+                Company.PYEONGTAEK: f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyName=%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)&companyID=REDACTED_WEHAGO_USER_ID&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
+                Company.PARAN: f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=REDACTED_WEHAGO_COMPANY_ID&cd_com=REDACTED_WEHAGO_COMPANY_CODE&gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyName=(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C&companyID=REDACTED_WEHAGO_USER_ID&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
             }
             # 4. 스마트A 전표 리스트 화면으로 이동
             driver.get(sao_url[company])
@@ -111,11 +142,12 @@ class Whg:
             ]
             now = datetime.now()
             now_month = now.strftime("%m")
+            now_year = now.strftime("%Y")
 
             all_vouchers = []
 
             for m in month:
-                if m > now_month:
+                if str(year) == now_year and m > now_month:
                     break
 
                 # 1. 기존 기록을 비워줘야 헷갈리지 않음
@@ -152,7 +184,7 @@ class Whg:
                         if (
                             req.response
                             and "/smarta/sabk0102" in req.url
-                            and f"start_date=2025{m}" in req.url
+                            and f"start_date={year}{m}" in req.url
                             and req.response.status_code == 200
                             and req.response.body
                             and len(req.response.body) > 100
@@ -168,7 +200,7 @@ class Whg:
 
                 # 4. 바로 last_request로 처리
                 request = target_request
-                if f"start_date=2025{m}" not in request.url:
+                if f"start_date={year}{m}" not in request.url:
                     print("❗ 예상한 start_date가 아닌 요청입니다.")
                     break
                 print(f"🎯 전표 데이터 요청 발견: {request.url}")
