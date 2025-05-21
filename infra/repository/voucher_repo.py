@@ -9,6 +9,7 @@ from infra.db_models.voucher import Voucher
 from beanie import BulkWriter
 from domain.voucher import Company
 from pymongo import UpdateOne
+from beanie.operators import And
 
 
 class VoucherRepository(IVoucherRepository):
@@ -130,6 +131,18 @@ class VoucherRepository(IVoucherRepository):
 
     async def find_by_company(self, company: Company) -> list[Voucher]:
         db_vouchers = await Voucher.find(Voucher.company == company).to_list()
+
+        return [
+            VoucherVo.model_construct(**voucher.model_dump()) for voucher in db_vouchers
+        ]
+
+    async def find_by_company_and_year(self, company: Company, year: int) -> list[Voucher]:
+        db_vouchers = await Voucher.find(
+            And(
+                Voucher.company == company,
+                Voucher.year == str(year),
+            )
+        ).to_list()
 
         return [
             VoucherVo.model_construct(**voucher.model_dump()) for voucher in db_vouchers
