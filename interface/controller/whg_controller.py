@@ -44,7 +44,7 @@ class VoucherResponse(BaseModel):
 
 
 class SyncRequest(BaseModel):
-    year: int
+    year: int = datetime.now().year
     company: Company = Company.BAEKSUNG
 
 
