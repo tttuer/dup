@@ -11,4 +11,4 @@ class User:
     password: str
     created_at: datetime
     updated_at: datetime
-    role: Role
+    roles: list[Role]

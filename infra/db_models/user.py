@@ -11,7 +11,7 @@ class User(Document):
     password: str
     created_at: datetime
     updated_at: datetime
-    role: Role
+    roles: list[Role]
 
     class Settings:
         name = "users"

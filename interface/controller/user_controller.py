@@ -23,7 +23,7 @@ class UserResponse(BaseModel):
 class CreateUserBody(BaseModel):
     user_id: str
     password: str
-    role: Role
+    roles: list[Role]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -33,7 +33,7 @@ async def create_user(
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
     created_user = await user_service.create_user(
-        user.user_id, user.password, user.role
+        user.user_id, user.password, user.roles
     )
 
     return created_user

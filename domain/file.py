@@ -26,7 +26,6 @@ class File:
     withdrawn_at: str
     name: str
     updated_at: datetime
-    price: int
     lock: bool
     created_at: Optional[datetime] = None
     file_data: Optional[bytes] = None
