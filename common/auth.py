@@ -16,26 +16,27 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 class Role(StrEnum):
     ADMIN = "ADMIN"
     USER = "USER"
+    VOUCHER = "VOUCHER"
 
 
 @dataclass
 class CurrentUser:
     id: str
-    role: Role
+    roles: list[Role]
 
 
 def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     payload = decode_token(token)
 
     user_id = payload.get("user_id")
-    role = payload.get("role")
+    roles = payload.get("roles", [])
 
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
         )
 
-    return CurrentUser(id=user_id, role=role)
+    return CurrentUser(id=user_id, roles=[Role(r) for r in roles])
 
 
 def decode_token(token: str):
@@ -51,11 +52,11 @@ def decode_token(token: str):
 
 def create_access_token(
     payload: dict,
-    role: Role,
+    roles: list[Role],
     expires_delta: timedelta = timedelta(hours=6),
 ):
     expire = datetime.now(UTC) + expires_delta
-    payload.update({"exp": expire, "role": role})
+    payload.update({"exp": expire, "roles": roles})
 
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 

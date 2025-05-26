@@ -18,7 +18,7 @@ class UserService:
         self.ulid = ULID()
         self.crypto = Crypto()
 
-    async def create_user(self, user_id: str, password: str, role: Role) -> User:
+    async def create_user(self, user_id: str, password: str, roles: list[Role]) -> User:
         _user = None
 
         try:
@@ -39,7 +39,7 @@ class UserService:
             password=self.crypto.encrypt(password),
             created_at=now,
             updated_at=now,
-            role=role,
+            roles=roles,
         )
 
         await self.user_repo.save(user)
@@ -52,10 +52,10 @@ class UserService:
         if not self.crypto.verify(password, user.password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-        return await self.get_access_token(user_id, user.role)
+        return await self.get_access_token(user_id, user.roles)
 
-    async def get_access_token(self, user_id: str, role: Role):
+    async def get_access_token(self, user_id: str, roles: list[Role]):
         return create_access_token(
             payload={"user_id": user_id},
-            role=role,
+            roles=roles,
         )

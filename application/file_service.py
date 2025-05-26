@@ -24,7 +24,6 @@ class FileService:
         self,
         withdrawn_at: str,
         name: str,
-        price: int,
         company: Company,
         file_datas: list[UploadFile],
         type: Type,
@@ -36,7 +35,6 @@ class FileService:
                 id=self.ulid.generate(),
                 withdrawn_at=withdrawn_at,
                 name=name,
-                price=price,
                 file_data=await Pdf.compress(file_data),
                 file_name=file_data.filename,
                 created_at=now,
@@ -60,7 +58,7 @@ class FileService:
     async def find_many(
         self,
         is_locked: bool,
-        role: Role,
+        roles: list[Role],
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
@@ -101,7 +99,7 @@ class FileService:
                 detail="start_at must be less than end_at",
             )
 
-        if role == Role.USER:
+        if Role.USER in roles:
             filters.append(FileDocument.lock == False)
 
         total_count, files = (
@@ -129,7 +127,6 @@ class FileService:
         id: str,
         withdrawn_at: str,
         name: str,
-        price: int,
         file_data: UploadFile,
         lock: bool,
     ):
@@ -139,7 +136,6 @@ class FileService:
             id=id,
             withdrawn_at=withdrawn_at,
             name=name,
-            price=price,
             file_data=await Pdf.compress(file_data) if file_data else None,
             file_name=file_data.filename if file_data else None,
             updated_at=now,

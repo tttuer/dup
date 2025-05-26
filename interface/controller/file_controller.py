@@ -43,7 +43,6 @@ class FileResponse(BaseModel):
     id: str
     withdrawn_at: str
     name: str
-    price: int
     company: Company
     type: Type
     created_at: datetime
@@ -78,7 +77,6 @@ async def create_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     withdrawn_at: str = Form(...),
     name: str = Form(...),
-    price: int = Form(...),
     company: Company = Form(...),
     type: Type = Form(...),
     lock: bool = Form(False),
@@ -98,7 +96,6 @@ async def create_files(
         name=name,
         withdrawn_at=withdrawn_at,
         file_datas=file_datas,
-        price=price,
         company=company,
         type=type,
         lock=lock,
@@ -134,7 +131,7 @@ async def find_files(
 ) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
         is_locked,
-        current_user.role,
+        current_user.roles,
         search,
         search_option,
         company,
@@ -173,7 +170,6 @@ async def update_file(
     id: str,
     withdrawn_at: str = Form(...),
     name: str = Form(...),
-    price: int = Form(...),
     lock: bool = Form(...),
     file_data: Optional[UploadFile] = None,
     file_service: FileService = Depends(Provide[Container.file_service]),
@@ -191,7 +187,6 @@ async def update_file(
         name=name,
         withdrawn_at=withdrawn_at,
         file_data=file_data,
-        price=price,
         lock=lock,
     )
     return file
