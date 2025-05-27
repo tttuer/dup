@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from beanie import Document
+from beanie import Document, PydanticObjectId
 from pydantic import ConfigDict, Field
-from pymongo import IndexModel
+from typing import Optional
+
 
 from domain.file import Company, Type
 
@@ -18,6 +19,7 @@ class File(Document):
     company: Company
     type: Type
     lock: bool
+    group_id: Optional[PydanticObjectId] = None
 
     class Settings:
         name = "files"

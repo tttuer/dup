@@ -52,10 +52,10 @@ class SyncRequest(BaseModel):
 @inject
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    syncRequest: SyncRequest,
+    sync_request: SyncRequest,
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ):
-    await voucher_service.sync(company=syncRequest.company, year=syncRequest.year)
+    await voucher_service.sync(company=sync_request.company, year=sync_request.year)
 
     return {"message": "Sync completed successfully"}
 

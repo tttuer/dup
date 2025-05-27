@@ -6,6 +6,8 @@ from application.user_service import UserService
 from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
+from infra.repository.group_repo import GroupRepository
+from application.group_service import GroupService
 
 class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
@@ -20,4 +22,7 @@ class Container(containers.DeclarativeContainer):
 
     voucher_repo = providers.Factory(VoucherRepository)
     voucher_service = providers.Factory(VoucherService, voucher_repo=voucher_repo)
+
+    group_repo = providers.Factory(GroupRepository)
+    group_service = providers.Factory(GroupService, group_repo=group_repo)  # Assuming GroupRepository is similar to FileRepository
     
