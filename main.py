@@ -10,15 +10,17 @@ from containers import Container
 from interface.controller.file_controller import router as file_router
 from interface.controller.user_controller import router as user_router
 from interface.controller.whg_controller import router as whg_router
+from interface.controller.group_controller import router as group_router
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
+from utils.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    client = AsyncIOMotorClient(settings.db_url)
 
     await init_beanie(database=client.dup, document_models=[File, User, Voucher])
     yield
@@ -35,6 +37,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(user_router)
 api_router.include_router(file_router)
 api_router.include_router(whg_router)
+api_router.include_router(group_router)
 
 app.include_router(api_router)
 
