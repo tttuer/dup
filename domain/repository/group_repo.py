@@ -8,7 +8,7 @@ from infra.db_models.group import Group
 
 class IGroupRepository(metaclass=ABCMeta):
     @abstractmethod
-    async def save(self, files: List[GroupVo]):
+    async def save(self, group: GroupVo):
         raise NotImplementedError
 
     @abstractmethod
