@@ -13,11 +13,12 @@ class GroupRepository(IGroupRepository):
         new_group = Group(
             id=group.id,
             name=group.name,
-            description=group.description,
             company=group.company,
         )
 
-        await Group.insert(new_group)
+        saved_group = await Group.insert(new_group)
+
+        return GroupVo(**saved_group.model_dump())
 
     async def find_by_id(self, id: str) -> GroupVo:
         group = await Group.get(id)

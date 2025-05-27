@@ -23,14 +23,6 @@ class CreateGroupBody(BaseModel):
     comapny: Company = Company.BAEKSUNG
 
 
-class GetFileBody(BaseModel):
-    name: str
-    start_at: str
-    end_at: str
-    page: int = 1
-    items_per_page: int = 20
-
-
 class GroupResponse(BaseModel):
     id: str
     name: str
@@ -43,7 +35,7 @@ async def create_group(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     group_body: CreateGroupBody,
     group_service: GroupService = Depends(Provide[Container.group_service]),
-) -> list[GroupResponse]:
+) -> GroupResponse:
 
     group = await group_service.save(
         name=group_body.name,

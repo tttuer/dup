@@ -19,9 +19,9 @@ class GroupService:
             name=name,
             company=company,
         )
-        await self.group_repo.save(group)
+        saved_group = await self.group_repo.save(group)
 
-        return group
+        return saved_group
 
     async def find_by_id(self, id: str):
         group = await self.group_repo.find_by_id(id)
