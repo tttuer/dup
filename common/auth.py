@@ -8,7 +8,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from starlette import status
 
-SECRET_KEY = "pyeongtaek_baeksung_secret_key"
+from utils import settings
+
+SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
 

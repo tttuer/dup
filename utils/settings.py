@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     wehago_id: str
     wehago_password: str
     db_url: str
+    secret_key: str
 
     class Config:
         env_file = ".env"  # .env 파일을 사용하도록 지정
