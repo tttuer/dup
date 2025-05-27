@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from starlette import status
 
-from utils import settings
+from utils.settings import settings
 
 SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"

@@ -6,6 +6,6 @@ from domain.file import Company
 
 @dataclass
 class Group:
-    id: Optional[str] = None
     name: str
+    id: Optional[str] = None
     company: Optional[Company] = None
