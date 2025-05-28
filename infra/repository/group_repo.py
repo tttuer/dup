@@ -42,7 +42,7 @@ class GroupRepository(IGroupRepository):
 
         return [GroupVo(**group.model_dump()) for group in groups]
 
-    async def delete(self, id: str):
+    async def delete(self, id: str, session=None):
         group = await Group.get(id)
 
         if not group:
@@ -50,7 +50,7 @@ class GroupRepository(IGroupRepository):
                 status_code=404,
             )
 
-        await group.delete()
+        await group.delete(session=session)
 
     async def update(self, update_group: GroupVo):
         db_group = await Group.get(update_group.id)

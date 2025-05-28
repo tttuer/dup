@@ -16,13 +16,11 @@ from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
-from utils.settings import settings
+from common.db import client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    client = AsyncIOMotorClient(settings.db_url)
-
     await init_beanie(database=client.dup, document_models=[File, User, Voucher, Group])
     yield
     client.close()

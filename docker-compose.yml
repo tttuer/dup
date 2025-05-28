@@ -8,6 +8,18 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    command: >
+      bash -c "
+        if [ ! -f /data/db/.replica_set_initialized ]; then
+          mongod --replSet rs0 --bind_ip_all --fork --logpath /var/log/mongodb.log &&
+          sleep 3 &&
+          echo 'rs.initiate({_id: \"rs0\", members: [{ _id: 0, host: \"localhost:27017\" }]})' | mongosh &&
+          touch /data/db/.replica_set_initialized &&
+          tail -f /var/log/mongodb.log
+        else
+          mongod --replSet rs0 --bind_ip_all
+        fi
+      "
     environment:
       - MONGO_INITDB_DATABASE=dup
 

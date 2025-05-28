@@ -24,5 +24,5 @@ class Container(containers.DeclarativeContainer):
     voucher_service = providers.Factory(VoucherService, voucher_repo=voucher_repo)
 
     group_repo = providers.Factory(GroupRepository)
-    group_service = providers.Factory(GroupService, group_repo=group_repo)  # Assuming GroupRepository is similar to FileRepository
+    group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo)  # Assuming GroupRepository is similar to FileRepository
     

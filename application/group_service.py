@@ -2,13 +2,19 @@ from dependency_injector.wiring import inject
 
 from domain.group import Group
 from domain.file import Company
+from domain.repository.file_repo import IFileRepository
 from domain.repository.group_repo import IGroupRepository
+from ulid import ULID
+from common.db import client
+
 
 
 class GroupService:
     @inject
-    def __init__(self, group_repo: IGroupRepository):
+    def __init__(self, group_repo: IGroupRepository, file_repo: IFileRepository):
         self.group_repo = group_repo
+        self.file_repo = file_repo
+        self.ulid = ULID()
 
     async def save(
         self,
@@ -16,6 +22,7 @@ class GroupService:
         company: Company,
     ):
         group = Group(
+            id=self.ulid.generate(),
             name=name,
             company=company,
         )
@@ -34,7 +41,13 @@ class GroupService:
         return groups
 
     async def delete(self, id: str):
-        await self.group_repo.delete(id)
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                # Delete all files associated with the group
+                await self.file_repo.delete_by_group_id(id, session=session)
+                await self.group_repo.delete(id, session=session)
+                
+                # Delete the group itself
 
     async def update(
         self,

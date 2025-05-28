@@ -25,22 +25,9 @@ from domain.file import Company, Type
 router = APIRouter(prefix="/files", tags=["files"])
 
 
-class CreateFileBody(BaseModel):
-    withdrawn_at: str
-    name: str
-    file_datas: list[UploadFile]
-
-
-class GetFileBody(BaseModel):
-    name: str
-    start_at: str
-    end_at: str
-    page: int = 1
-    items_per_page: int = 20
-
-
 class FileResponse(BaseModel):
     id: str
+    group_id: str
     withdrawn_at: str
     name: str
     company: Company
@@ -75,6 +62,7 @@ ALLOWED_CONTENT_TYPES = {
 @inject
 async def create_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    group_id: str = Form(...),
     withdrawn_at: str = Form(...),
     name: str = Form(...),
     company: Company = Form(...),
@@ -94,6 +82,7 @@ async def create_files(
 
     files = await file_service.save_files(
         name=name,
+        group_id=group_id,
         withdrawn_at=withdrawn_at,
         file_datas=file_datas,
         company=company,
@@ -118,6 +107,7 @@ async def find_file(
 @inject
 async def find_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    group_id: str,
     is_locked: Optional[bool] = None,
     search: Optional[str] = None,
     search_option: Optional[str] = None,
@@ -130,16 +120,17 @@ async def find_files(
     file_service: FileService = Depends(Provide[Container.file_service]),
 ) -> tuple[int, int, list[FileResponse]]:
     return await file_service.find_many(
-        is_locked,
-        current_user.roles,
-        search,
-        search_option,
-        company,
-        type,
-        start_at,
-        end_at,
-        page,
-        items_per_page,
+        is_locked=is_locked,
+        roles=current_user.roles,
+        group_id=group_id,
+        search=search,
+        search_option=search_option,
+        company=company,
+        type=type,
+        start_at=start_at,
+        end_at=end_at,
+        page=page,
+        items_per_page=items_per_page,
     )
 
 
@@ -168,6 +159,7 @@ async def delete_files(
 async def update_file(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     id: str,
+    group_id: str = Form(...),
     withdrawn_at: str = Form(...),
     name: str = Form(...),
     lock: bool = Form(...),
@@ -184,6 +176,7 @@ async def update_file(
 
     file = await file_service.update(
         id=id,
+        group_id=group_id,
         name=name,
         withdrawn_at=withdrawn_at,
         file_data=file_data,

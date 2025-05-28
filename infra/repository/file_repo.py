@@ -13,6 +13,7 @@ class FileRepository(IFileRepository):
         new_files = [
             File(
                 id=file.id,
+                group_id=file.group_id,
                 withdrawn_at=file.withdrawn_at,
                 name=file.name,
                 file_data=file.file_data,
@@ -89,6 +90,9 @@ class FileRepository(IFileRepository):
 
     async def delete_many(self, *filters):
         await File.find(*filters).delete()
+
+    async def delete_by_group_id(self, group_id: str, session=None):
+        await File.find(File.group_id == group_id).delete(session=session)
 
     async def update(self, update_file: FileVo):
         db_file = await File.get(update_file.id)
