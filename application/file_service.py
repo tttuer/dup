@@ -22,6 +22,7 @@ class FileService:
 
     async def save_files(
         self,
+        group_id: str,
         withdrawn_at: str,
         name: str,
         company: Company,
@@ -33,6 +34,7 @@ class FileService:
         files: list[File] = [
             File(
                 id=self.ulid.generate(),
+                group_id=group_id,
                 withdrawn_at=withdrawn_at,
                 name=name,
                 file_data=await Pdf.compress(file_data),
@@ -59,6 +61,7 @@ class FileService:
         self,
         is_locked: bool,
         roles: list[Role],
+        group_id: str,
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
@@ -86,6 +89,7 @@ class FileService:
             filters.append(FileDocument.lock == True)
         filters.append(FileDocument.company == company)
         filters.append(FileDocument.type == type)
+        filters.append(FileDocument.group_id == group_id)
 
         if start_at and end_at:
             filters.append(FileDocument.withdrawn_at >= start_at)
@@ -125,6 +129,7 @@ class FileService:
     async def update(
         self,
         id: str,
+        group_id: str,
         withdrawn_at: str,
         name: str,
         file_data: UploadFile,
@@ -134,6 +139,7 @@ class FileService:
 
         file: File = File(
             id=id,
+            group_id=group_id,
             withdrawn_at=withdrawn_at,
             name=name,
             file_data=await Pdf.compress(file_data) if file_data else None,

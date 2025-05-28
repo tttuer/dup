@@ -27,6 +27,10 @@ class IFileRepository(metaclass=ABCMeta):
     @abstractmethod
     async def delete_many(self, ids: List[str]):
         raise NotImplementedError
+    
+    @abstractmethod
+    async def delete_by_group_id(self, group_id: str, session=None):
+        raise NotImplementedError
 
     @abstractmethod
     async def update(self, file: FileVo) -> File:

@@ -23,6 +23,7 @@ class Type(str, Enum):
 @dataclass
 class File:
     id: str
+    group_id: str
     withdrawn_at: str
     name: str
     updated_at: datetime

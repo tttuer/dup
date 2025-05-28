@@ -29,7 +29,8 @@ class UserService:
 
         if _user:
             raise HTTPException(
-                status_code=422,
+                status_code=409,
+                detail="User already exists",
             )
 
         now = datetime.now()

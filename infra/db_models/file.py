@@ -10,6 +10,7 @@ from domain.file import Company, Type
 
 class File(Document):
     id: str = Field(alias="_id")
+    group_id: str
     withdrawn_at: str
     name: str
     file_data: bytes
@@ -19,7 +20,6 @@ class File(Document):
     company: Company
     type: Type
     lock: bool
-    group_id: Optional[PydanticObjectId] = None
 
     class Settings:
         name = "files"
@@ -28,6 +28,7 @@ class File(Document):
             "created_at",
             "company",
             "type",
+            "group_id",
         ]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

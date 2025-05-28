@@ -20,7 +20,7 @@ class IGroupRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete(self, id: str):
+    async def delete(self, id: str, session=None):
         raise NotImplementedError
 
     @abstractmethod
