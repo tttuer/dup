@@ -56,8 +56,8 @@ class Whg:
         # driver = webdriver.Chrome(options=options)
         # prod 환경
         driver = webdriver.Remote(
-            "http://localhost:4444/wd/hub",
-            options
+            command_executor="http://localhost:4444/wd/hub",
+            options=options
         )
 
         try:
