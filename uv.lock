@@ -349,7 +349,7 @@ requires-dist = [
     { name = "python-jose", specifier = "==3.4.0" },
     { name = "python-multipart", specifier = "==0.0.20" },
     { name = "rsa", specifier = "==4.9" },
-    { name = "selenium", specifier = ">=4.31.0" },
+    { name = "selenium", specifier = ">=4.9.0" },
     { name = "selenium-wire", specifier = ">=5.1.0" },
     { name = "setuptools", specifier = "==76.0.0" },
     { name = "six", specifier = "==1.17.0" },
