@@ -1,4 +1,5 @@
 from dependency_injector.wiring import inject
+from fastapi import HTTPException
 
 from domain.group import Group
 from domain.file import Company
@@ -21,6 +22,13 @@ class GroupService:
         name: str,
         company: Company,
     ):
+        db_group = await self.group_repo.find_by_name(name)
+        if db_group:
+            raise HTTPException(
+                status_code=409,
+                detail="Group with this name already exists",
+            )
+        
         group = Group(
             id=self.ulid.generate(),
             name=name,
