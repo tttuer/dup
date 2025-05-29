@@ -41,7 +41,7 @@ dependencies = [
     "typing_extensions==4.12.2",
     "uvicorn[fastapi,standard]==0.34.0",
     "wheel==0.45.1",
-    "selenium>=4.9.0",
+    "selenium==4.9.0",
     "selenium-wire>=5.1.0",
     "blinker<1.7",
     "pydantic-settings>=2.9.1",
