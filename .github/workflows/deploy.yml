@@ -48,5 +48,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "🔐 K3s 서버에서 배포 재시작..."
-            kubectl rollout restart deployment/dup-web
+            kubectl rollout restart deployment/dup
             echo "✅ 배포 완료!"
