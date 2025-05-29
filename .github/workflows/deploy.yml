@@ -3,12 +3,12 @@ name: Deploy to Kubernetes
 on:
   push:
     branches:
-      - main  # `main` 브랜치에 push 될 때 실행
+      - main # `main` 브랜치에 push 될 때 실행
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: Production  # 🔥 환경별 설정 (GitHub Environment Secrets 사용)
+    environment: Production # 🔥 환경별 설정 (GitHub Environment Secrets 사용)
 
     steps:
       - name: Checkout repository
@@ -37,3 +37,16 @@ jobs:
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
           echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
+
+      # 4️⃣ K3s 서버에 SSH 접속하여 배포 업데이트
+      - name: Deploy to K3s
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🔐 K3s 서버에서 배포 재시작..."
+            kubectl rollout restart deployment/dup-web
+            echo "✅ 배포 완료!"
