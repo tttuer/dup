@@ -39,8 +39,8 @@ class GroupRepository(IGroupRepository):
 
         return [GroupVo(**group.model_dump()) for group in groups]
     
-    async def find_by_name(self, name: str) -> GroupVo:
-        group = await Group.find_one(Group.name == name)
+    async def find_by_name_and_company(self, name: str, company: str) -> GroupVo:
+        group = await Group.find_one(Group.name == name, Group.company == company)
 
         if not group:
             return None

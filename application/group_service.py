@@ -22,7 +22,7 @@ class GroupService:
         name: str,
         company: Company,
     ):
-        db_group = await self.group_repo.find_by_name(name)
+        db_group = await self.group_repo.find_by_name_and_company(name, company)
         if db_group:
             raise HTTPException(
                 status_code=409,
