@@ -61,7 +61,7 @@ async def find_by_company(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     company: Optional[Company] = Company.BAEKSUNG,
     group_service: GroupService = Depends(Provide[Container.group_service]),
-) -> tuple[int, int, list[GroupResponse]]:
+) -> list[GroupResponse]:
     return await group_service.find_by_company(
         company=company,
     )

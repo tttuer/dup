@@ -35,12 +35,16 @@ class GroupRepository(IGroupRepository):
         groups = await Group.find(Group.company == company).to_list()
 
         if not groups:
-            raise HTTPException(
-                status_code=404,
-                detail="No groups found for the specified company",
-            )
+            return []
 
         return [GroupVo(**group.model_dump()) for group in groups]
+    
+    async def find_by_name(self, name: str) -> GroupVo:
+        group = await Group.find_one(Group.name == name)
+
+        if not group:
+            return None
+        return GroupVo(**group.model_dump())
 
     async def delete(self, id: str, session=None):
         group = await Group.get(id)

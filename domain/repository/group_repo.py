@@ -18,6 +18,10 @@ class IGroupRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_company(self, company: Company) -> List[Group]:
         raise NotImplementedError
+    
+    @abstractmethod
+    async def find_by_name(self, name: str) -> Group:
+        raise NotImplementedError
 
     @abstractmethod
     async def delete(self, id: str, session=None):
