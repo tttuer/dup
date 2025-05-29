@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 5. pyproject.toml, uv.lock 복사
-COPY pyproject.toml uv.lock .env /app/
+COPY pyproject.toml uv.lock /app/
+COPY .env /app/.env
+
 
 # 6. 패키지 설치
 RUN uv sync
