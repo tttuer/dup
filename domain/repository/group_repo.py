@@ -20,7 +20,7 @@ class IGroupRepository(metaclass=ABCMeta):
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_name(self, name: str) -> Group:
+    async def find_by_name_and_company(self, name: str, company: Company) -> Group:
         raise NotImplementedError
 
     @abstractmethod

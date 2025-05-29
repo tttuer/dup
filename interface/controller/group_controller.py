@@ -20,7 +20,7 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 
 class CreateGroupBody(BaseModel):
     name: str
-    comapny: Company = Company.BAEKSUNG
+    company: Company
 
 
 class GroupResponse(BaseModel):
@@ -36,10 +36,12 @@ async def create_group(
     group_body: CreateGroupBody,
     group_service: GroupService = Depends(Provide[Container.group_service]),
 ) -> GroupResponse:
+    
+    print(f"Creating group with body: {group_body}")
 
     group = await group_service.save(
         name=group_body.name,
-        company=group_body.comapny,
+        company=group_body.company,
     )
     return group
 
