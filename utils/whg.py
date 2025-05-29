@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.options import Options
 import json
 import gzip
 import io
@@ -49,19 +50,16 @@ class Whg:
     
     async def crawl_whg(self, company: Company, year: int):
         # 1. 셀레니움 브라우저 옵션 설정
-        options = webdriver.ChromeOptions()
+        options = Options()
         options.add_argument("--start-maximized")
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = "eager"
         # driver = webdriver.Chrome(options=options)
-        caps = DesiredCapabilities.CHROME.copy()
-        caps.update(options.to_capabilities())
         # prod 환경
         driver = webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            desired_capabilities=caps,
-            seleniumwire_options={}  # HTTP/HTTPS 가로채기 옵션 필요 시 여기에
+            "http://localhost:4444/wd/hub",
+            options
         )
 
         try:
