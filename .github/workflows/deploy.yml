@@ -40,7 +40,7 @@ jobs:
 
       # 4️⃣ K3s 서버에 SSH 접속하여 배포 업데이트
       - name: Deploy to K3s
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@master 
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
