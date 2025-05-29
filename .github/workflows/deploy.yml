@@ -33,7 +33,7 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           IMAGE_NAME=tttuer/dup
-          TAG=test
+          TAG=latest
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
           echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
