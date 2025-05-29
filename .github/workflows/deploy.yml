@@ -21,6 +21,9 @@ jobs:
           echo -e "${{ secrets.ENV_VARS }}" > .env  # `.env` 생성
           chmod 600 .env
           echo "✅ .env 파일 생성 완료!"
+      - name: 출력 확인 (테스트용, 비밀 포함 주의)
+        run: cat .env
+
 
       # 2️⃣ Docker 로그인 (GitHub 또는 Docker Hub)
       - name: Log in to Docker Hub
