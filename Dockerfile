@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # 4. 시스템 패키지 설치 (필요시 최소화 가능)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends && apt-get install -y curl \
     build-essential \
     gcc \
     libssl-dev \
