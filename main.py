@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.exceptions import RequestValidationError
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.openapi.docs import get_swagger_ui_html
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.responses import JSONResponse
 
@@ -17,6 +19,8 @@ from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
 from common.db import client
+from utils.settings import Settings
+settings = Settings()
 
 
 @asynccontextmanager
@@ -26,7 +30,7 @@ async def lifespan(app: FastAPI):
     client.close()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, docs_url=None)
 
 app.container = Container()
 add_cors(app)
@@ -47,6 +51,16 @@ async def validation_exception_handler(request, exc):
         status_code=400,
         content={"detail": exc.errors(), "body": exc.body},
     )
+
+security = HTTPBasic()
+
+def verify(credentials: HTTPBasicCredentials = Depends(security)):
+    if credentials.username != settings.wehago_id or credentials.password != settings.wehago_password:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+@app.get("/docs", include_in_schema=False)
+def secure_docs(credentials: HTTPBasicCredentials = Depends(verify)):
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="Secure Docs")
 
 
 # 이 부분 추가해야 디버깅 가능
