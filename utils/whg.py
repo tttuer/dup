@@ -49,7 +49,7 @@ class Whg:
     async def crawl_whg(self, company: Company, year: int):
         # 1. 셀레니움 브라우저 옵션 설정
         options = Options()
-        options.add_argument("--headless")  # 헤드리스 모드 (브라우저 창 없이 실행)
+        # options.add_argument("--headless")  # 헤드리스 모드 (브라우저 창 없이 실행)
         options.add_argument("--start-maximized")
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
