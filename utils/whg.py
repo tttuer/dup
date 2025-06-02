@@ -211,6 +211,9 @@ class Whg:
                 # 6. 가져온 전표 데이터 가공
                 voucher_list = target_data["list"]
                 print(f"📄 총 {len(voucher_list)}개의 전표를 가져왔습니다.")
+                if len(voucher_list) == 0:
+                    print("❗ 해당 월에 전표가 없습니다.")
+                    continue
 
                 # id 필드 주입 + 모델 변환
                 vouchers = []
