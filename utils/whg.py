@@ -195,8 +195,8 @@ class Whg:
                     if target_request:
                         break
 
-                if not target_request:
-                    print("❗ 타임아웃: 전표 조회 API 응답을 기다리다 실패했습니다.")
+                if len(req.response.body) < 100:
+                    print(f"❗{m}월 전표 데이터가 없습니다.")
                     break
 
                 # 4. 바로 last_request로 처리
