@@ -54,13 +54,13 @@ class Whg:
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = "eager"
-        # driver = webdriver.Chrome(options=options)
+        driver = webdriver.Chrome(options=options)
         # prod 환경
-        driver = webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            options=options,
-            desired_capabilities={"browserName": "chrome"}
-        )
+        # driver = webdriver.Remote(
+        #     command_executor="http://localhost:4444/wd/hub",
+        #     options=options,
+        #     desired_capabilities={"browserName": "chrome"}
+        # )
 
         try:
             wait = WebDriverWait(driver, 10)  # 최대 10초 기다리기 기본 설정

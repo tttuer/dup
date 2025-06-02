@@ -13,11 +13,13 @@ from interface.controller.file_controller import router as file_router
 from interface.controller.user_controller import router as user_router
 from interface.controller.whg_controller import router as whg_router
 from interface.controller.group_controller import router as group_router
+from interface.controller.sync import router as sync_router
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
+from infra.db_models.sync_status import SyncStatus
 from common.db import client
 from utils.settings import Settings
 settings = Settings()
@@ -25,7 +27,7 @@ settings = Settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_beanie(database=client.dup, document_models=[File, User, Voucher, Group])
+    await init_beanie(database=client.dup, document_models=[File, User, Voucher, Group, SyncStatus])
     yield
     client.close()
 
@@ -43,6 +45,7 @@ api_router.include_router(whg_router)
 api_router.include_router(group_router)
 
 app.include_router(api_router)
+app.include_router(sync_router)
 
 
 @app.exception_handler(RequestValidationError)
