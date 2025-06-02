@@ -188,16 +188,11 @@ class Whg:
                             and f"start_date={year}{m}" in req.url
                             and req.response.status_code == 200
                             and req.response.body
-                            and len(req.response.body) > 100
                         ):
                             target_request = req
                             break
                     if target_request:
                         break
-
-                if len(req.response.body) < 100:
-                    print(f"❗{m}월 전표 데이터가 없습니다.")
-                    break
 
                 # 4. 바로 last_request로 처리
                 request = target_request
