@@ -8,6 +8,8 @@ from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
 from infra.repository.group_repo import GroupRepository
 from application.group_service import GroupService
+from application.websocket_manager import WebSocketManager
+from application.sync_service import SyncService
 
 class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
@@ -26,3 +28,5 @@ class Container(containers.DeclarativeContainer):
     group_repo = providers.Factory(GroupRepository)
     group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo)  # Assuming GroupRepository is similar to FileRepository
     
+    sync_service = providers.Factory(SyncService)
+    websocket_manager = providers.Factory(WebSocketManager)

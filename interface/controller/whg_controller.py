@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
 from dependency_injector.wiring import inject, Provide
+from application.sync_service import SyncService
+from application.websocket_manager import WebSocketManager
 from common.auth import CurrentUser
 from containers import Container
 from typing import Annotated
@@ -53,10 +55,16 @@ class SyncRequest(BaseModel):
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     sync_request: SyncRequest,
+    ws_manager: WebSocketManager = Depends(Provide[Container.websocket_manager]),
+    sync_service: SyncService = Depends(Provide[Container.sync_service]),
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ):
+    await sync_service.set_sync_status(True)
+    # ✅ 동기화 시작 알림
+    await ws_manager.broadcast({"syncing": True})
     await voucher_service.sync(company=sync_request.company, year=sync_request.year)
-
+    # ✅ 동기화 종료 알림
+    await ws_manager.broadcast({"syncing": False})
     return {"message": "Sync completed successfully"}
 
 
