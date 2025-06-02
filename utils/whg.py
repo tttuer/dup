@@ -197,7 +197,7 @@ class Whg:
 
                 if not target_request:
                     print("❗ 타임아웃: 전표 조회 API 응답을 기다리다 실패했습니다.")
-                    return
+                    break
 
                 # 4. 바로 last_request로 처리
                 request = target_request
