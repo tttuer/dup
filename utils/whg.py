@@ -16,7 +16,7 @@ from domain.voucher import Company
 
 
 class Whg:
-    async def calculate_gisu(
+    def calculate_gisu(
         self,
         company: Company,
         year: int,
@@ -46,7 +46,7 @@ class Whg:
 
         return gisu
     
-    async def crawl_whg(self, company: Company, year: int):
+    def crawl_whg(self, company: Company, year: int):
         # 1. 셀레니움 브라우저 옵션 설정
         options = Options()
         # options.add_argument("--headless")  # 헤드리스 모드 (브라우저 창 없이 실행)

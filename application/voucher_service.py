@@ -28,7 +28,7 @@ class VoucherService:
         company: Company = Company.BAEKSUNG,
     ):
                     # 🧵 크롤링을 별도 쓰레드에서 실행
-        vouchers = await to_thread.run_sync(lambda: asyncio.run(Whg().crawl_whg(company, year)))
+        vouchers = await to_thread.run_sync(lambda: Whg().crawl_whg(company, year))
 
 
         for v in vouchers:
