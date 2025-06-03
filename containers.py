@@ -1,4 +1,5 @@
 from dependency_injector import containers, providers
+from redis.asyncio import Redis
 
 from application.voucher_service import VoucherService
 from application.file_service import FileService
@@ -10,11 +11,18 @@ from infra.repository.group_repo import GroupRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
 from application.sync_service import SyncService
+from utils.settings import settings
 
 class Container(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         packages=["domain", "application", "infra", "interface"]
     )
+    
+        # 환경 설정
+    config = providers.Configuration()
+    config.redis.host.from_value(settings.redis_host)
+    config.redis.port.from_value(settings.redis_port)
+    config.redis.password.from_value(settings.redis_password)
 
     user_repo = providers.Factory(UserRepository)
     user_service = providers.Factory(UserService, user_repo=user_repo)
@@ -30,3 +38,11 @@ class Container(containers.DeclarativeContainer):
     
     sync_service = providers.Factory(SyncService)
     websocket_manager = providers.Factory(WebSocketManager)
+    
+    redis = providers.Singleton(
+        Redis,
+        host=config.redis.host,
+        port=config.redis.port,
+        password=config.redis.password,
+        decode_responses=True,
+    )
