@@ -1,5 +1,7 @@
+import json
 from fastapi import APIRouter, Depends
 from dependency_injector.wiring import inject, Provide
+from redis.asyncio import Redis
 from application.sync_service import SyncService
 from application.websocket_manager import WebSocketManager
 from common.auth import CurrentUser
@@ -58,20 +60,23 @@ async def sync_whg(
     ws_manager: WebSocketManager = Depends(Provide[Container.websocket_manager]),
     sync_service: SyncService = Depends(Provide[Container.sync_service]),
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+    redis: Redis = Depends(Provide[Container.redis]),
 ):
     await sync_service.set_sync_status(True)
+    await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
     await ws_manager.broadcast({"syncing": True})
 
     try:
         await voucher_service.sync(company=sync_request.company, year=sync_request.year)
         return {"message": "Sync completed successfully"}
     except Exception as e:
-        # 💥 예외 로깅 (원하면 로그로 남기기)
         print(f"[Sync Error] {e}")
-        raise  # FastAPI가 에러로 응답하게 하기
+        raise
     finally:
         await sync_service.set_sync_status(False)
+        await redis.publish("sync_status_channel", json.dumps({"syncing": False}))
         await ws_manager.broadcast({"syncing": False})
+
 
 
 
