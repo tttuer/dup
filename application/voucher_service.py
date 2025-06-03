@@ -12,7 +12,8 @@ from infra.db_models.voucher import Voucher as VoucherDocument
 from utils.pdf import Pdf
 from utils.whg import Whg
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from anyio import to_thread
+
 
 
 class VoucherService:
@@ -20,7 +21,6 @@ class VoucherService:
     def __init__(self, voucher_repo: IVoucherRepository):
         self.voucher_repo = voucher_repo
         self.ulid = ULID()
-        self.executor = ThreadPoolExecutor()
 
     async def sync(
         self,
@@ -28,10 +28,8 @@ class VoucherService:
         company: Company = Company.BAEKSUNG,
     ):
                     # 🧵 크롤링을 별도 쓰레드에서 실행
-        loop = asyncio.get_event_loop()
-        vouchers = await loop.run_in_executor(
-            self.executor, lambda: asyncio.run(Whg().crawl_whg(company, year))
-        )
+        vouchers = await to_thread.run_sync(lambda: asyncio.run(Whg().crawl_whg(company, year)))
+
 
         for v in vouchers:
             v.company = company
