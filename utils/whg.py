@@ -57,7 +57,7 @@ class Whg:
         # driver = webdriver.Chrome(options=options)
         # prod 환경
         driver = webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
+            command_executor="http://selenium:4444/wd/hub",
             options=options,
             desired_capabilities={"browserName": "chrome"}
         )
