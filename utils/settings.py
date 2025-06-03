@@ -6,7 +6,6 @@ class Settings(BaseSettings):
     wehago_password: str
     db_url: str
     secret_key: str
-    redis_url: str
     redis_host: str
     redis_port: int
     redis_password: str
