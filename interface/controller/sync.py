@@ -34,6 +34,7 @@ async def sync_status_websocket(
             message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
             if message and message["type"] == "message":
                 data = json.loads(message["data"])
+                print(f"📣 Redis PubSub received: {data}")  # ← 이거 추가
                 await ws_manager.broadcast(data)
 
             # ✅ keepalive (옵션) — 클라이언트 메시지 수신 가능
