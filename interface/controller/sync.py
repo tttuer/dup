@@ -9,7 +9,6 @@ from application.sync_service import SyncService
 
 
 router = APIRouter()
-ws_manager = WebSocketManager()
 
 
 @router.websocket("/ws/sync-status")
