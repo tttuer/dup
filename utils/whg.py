@@ -196,6 +196,10 @@ class Whg:
                             break
                     if target_request:
                         break
+                    
+                if not target_request:
+                    print("❗ 전표 데이터 요청을 찾지 못했습니다.")
+                    continue
 
                 # 4. 바로 last_request로 처리
                 request = target_request

@@ -22,12 +22,15 @@ from infra.db_models.group import Group
 from infra.db_models.sync_status import SyncStatus
 from common.db import client
 from utils.settings import Settings
+
 settings = Settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_beanie(database=client.dup, document_models=[File, User, Voucher, Group, SyncStatus])
+    await init_beanie(
+        database=client.dup, document_models=[File, User, Voucher, Group, SyncStatus]
+    )
     yield
     client.close()
 
@@ -55,11 +58,17 @@ async def validation_exception_handler(request, exc):
         content={"detail": exc.errors(), "body": exc.body},
     )
 
+
 security = HTTPBasic()
 
+
 def verify(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != settings.wehago_id or credentials.password != settings.wehago_password:
+    if (
+        credentials.username != settings.wehago_id
+        or credentials.password != settings.wehago_password
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
 
 @app.get("/docs", include_in_schema=False)
 def secure_docs(credentials: HTTPBasicCredentials = Depends(verify)):
