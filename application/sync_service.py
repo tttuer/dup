@@ -13,4 +13,8 @@ class SyncService:
             await status.save()
         else:
             await SyncStatus(syncing=syncing, updated_at=now).insert()
+    
+    async def get_current_status(self) -> bool:
+        status = await SyncStatus.find_one({})
+        return status.syncing if status else False
 

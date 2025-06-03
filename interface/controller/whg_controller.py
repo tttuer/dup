@@ -60,12 +60,19 @@ async def sync_whg(
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ):
     await sync_service.set_sync_status(True)
-    # ✅ 동기화 시작 알림
     await ws_manager.broadcast({"syncing": True})
-    await voucher_service.sync(company=sync_request.company, year=sync_request.year)
-    # ✅ 동기화 종료 알림
-    await ws_manager.broadcast({"syncing": False})
-    return {"message": "Sync completed successfully"}
+
+    try:
+        await voucher_service.sync(company=sync_request.company, year=sync_request.year)
+        return {"message": "Sync completed successfully"}
+    except Exception as e:
+        # 💥 예외 로깅 (원하면 로그로 남기기)
+        print(f"[Sync Error] {e}")
+        raise  # FastAPI가 에러로 응답하게 하기
+    finally:
+        await sync_service.set_sync_status(False)
+        await ws_manager.broadcast({"syncing": False})
+
 
 
 @router.get("/{id}")
