@@ -53,9 +53,6 @@ class Whg:
         options.add_argument("--start-maximized")
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
-        options.add_argument('--no-proxy-server')  # ← 프록시 사용 안 함
-        options.add_argument('--proxy-server="direct://"')  # ← 직접 연결
-        options.add_argument('--proxy-bypass-list=*')  # ← 모든 주소에 프록시 안 씀
         options.page_load_strategy = "eager"
         # driver = webdriver.Chrome(options=options)
         # prod 환경
