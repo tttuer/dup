@@ -101,7 +101,7 @@ class Whg:
                 EC.presence_of_element_located((By.CLASS_NAME, "snbnext"))
             )  # 로그인 후 나타나는 어떤 요소로 체크
 
-            gisu = await self.calculate_gisu(company, year)
+            gisu = self.calculate_gisu(company, year)
 
             sao_url = {
                 Company.BAEKSUNG: f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno=7897095&cd_com=biz202411280045506&gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyName=%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)&companyID=jayk0425",
