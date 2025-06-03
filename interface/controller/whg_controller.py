@@ -57,14 +57,13 @@ class SyncRequest(BaseModel):
 async def sync_whg(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     sync_request: SyncRequest,
-    ws_manager: WebSocketManager = Depends(Provide[Container.websocket_manager]),
     sync_service: SyncService = Depends(Provide[Container.sync_service]),
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
     redis: Redis = Depends(Provide[Container.redis]),
 ):
+    # ✅ 상태 업데이트 + Redis Pub/Sub 전파만 수행
     await sync_service.set_sync_status(True)
     await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
-    await ws_manager.broadcast({"syncing": True})
 
     try:
         await voucher_service.sync(company=sync_request.company, year=sync_request.year)
@@ -75,7 +74,7 @@ async def sync_whg(
     finally:
         await sync_service.set_sync_status(False)
         await redis.publish("sync_status_channel", json.dumps({"syncing": False}))
-        await ws_manager.broadcast({"syncing": False})
+
 
 
 
