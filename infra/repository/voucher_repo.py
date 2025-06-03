@@ -79,12 +79,12 @@ class VoucherRepository(IVoucherRepository):
 
         if filters:
             total_count = (
-                await Voucher.find(*filters).sort("voucher_date").count()
+                await Voucher.find(*filters).sort("voucher_date", "sq_acttax2").count()
             )
 
             vouchers = (
                 await Voucher.find(*filters)
-                .sort("voucher_date")
+                .sort("voucher_date", "sq_acttax2")
                 .skip(offset)
                 .limit(items_per_page)
                 .to_list()
@@ -98,7 +98,7 @@ class VoucherRepository(IVoucherRepository):
 
         vouchers = (
             await Voucher.find()
-            .sort("voucher_date")
+            .sort("voucher_date", "sq_acttax2")
             .skip(offset)
             .limit(items_per_page)
             .to_list()
