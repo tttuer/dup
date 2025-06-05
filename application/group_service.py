@@ -70,6 +70,7 @@ class GroupService:
         id: str,
         name: str,
     ):
+        
         group: Group = Group(
             id=id,
             name=name,

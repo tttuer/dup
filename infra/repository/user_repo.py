@@ -26,3 +26,9 @@ class UserRepository(IUserRepository):
                 detail=f"User not found:{user_id}",
             )
         return user
+    
+    async def find(self) -> list[User]:
+        users = await User.find().to_list()
+        if not users:
+            return []
+        return [UserVo(**user.model_dump()) for user in users]
