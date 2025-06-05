@@ -14,11 +14,11 @@ class IGroupRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_id(self, id: str) -> Group:
         raise NotImplementedError
-    
+
     @abstractmethod
-    async def find_by_company(self, company: Company) -> List[Group]:
+    async def find(self, *filters: Any) -> List[Group]:
         raise NotImplementedError
-    
+
     @abstractmethod
     async def find_by_name_and_company(self, name: str, company: Company) -> Group:
         raise NotImplementedError
@@ -28,5 +28,5 @@ class IGroupRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def update(self, file: GroupVo) -> Group:
+    async def update(self, group: GroupVo) -> Group:
         raise NotImplementedError

@@ -8,3 +8,4 @@ class Group(Document):
     id: str = Field(alias="_id")
     name: str
     company: Company
+    auth_users: list[str]
