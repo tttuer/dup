@@ -9,4 +9,4 @@ class Group:
     id: str
     name: str
     company: Optional[Company] = None
-    auth_users: list[str] = None
+    auth_users: Optional[list[str]] = None

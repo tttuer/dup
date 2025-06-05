@@ -10,3 +10,7 @@ class IUserRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_user_id(self, user_id):
         raise NotImplementedError
+    
+    @abstractmethod
+    async def find(self):
+        raise NotImplementedError

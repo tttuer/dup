@@ -4,8 +4,9 @@ from pydantic import Field
 
 from domain.file import Company
 
+
 class Group(Document):
     id: str = Field(alias="_id")
     name: str
     company: Company
-    auth_users: list[str]
+    auth_users: list[str] = Field(default_factory=list)

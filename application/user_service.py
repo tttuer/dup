@@ -60,3 +60,8 @@ class UserService:
             payload={"user_id": user_id},
             roles=roles,
         )
+
+    async def find(self):
+        user = await self.user_repo.find()
+
+        return user

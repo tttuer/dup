@@ -2,12 +2,12 @@ from datetime import datetime
 from typing import Annotated
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from application.user_service import UserService
-from common.auth import Role
+from common.auth import CurrentUser, Role, get_current_user
 from containers import Container
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     user_id: str
     created_at: datetime
     updated_at: datetime
+    roles: list[Role]
 
 
 class CreateUserBody(BaseModel):
@@ -48,3 +49,19 @@ async def login(
     access_token = await user_service.login(form_data.username, form_data.password)
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("")
+@inject
+async def find(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> list[UserResponse]:
+    if Role.ADMIN not in current_user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this resource.",
+        )
+    
+    created_user = await user_service.find()
+
+    return created_user
