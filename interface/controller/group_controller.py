@@ -28,6 +28,7 @@ class GroupResponse(BaseModel):
     id: str
     name: str
     company: Company
+    auth_users: list[str] = []
 
 class GroupGrantBody(BaseModel):
     auth_users: list[str] = []
