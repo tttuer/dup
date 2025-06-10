@@ -42,11 +42,11 @@ async def create_group(
     group_service: GroupService = Depends(Provide[Container.group_service]),
 ) -> GroupResponse:
 
-    print(f"Creating group with body: {group_body}")
-
     group = await group_service.save(
         name=group_body.name,
         company=group_body.company,
+        user_id=current_user.id,
+        roles=current_user.roles,
     )
     return group
 
