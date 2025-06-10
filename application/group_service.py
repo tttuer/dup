@@ -23,6 +23,8 @@ class GroupService:
         self,
         name: str,
         company: Company,
+        user_id: str,
+        roles: list[Role],
     ):
         db_group = await self.group_repo.find_by_name_and_company(name, company)
         if db_group:
@@ -35,6 +37,7 @@ class GroupService:
             id=self.ulid.generate(),
             name=name,
             company=company,
+            auth_users=[user_id] if Role.ADMIN not in roles else [],
         )
         saved_group = await self.group_repo.save(group)
 

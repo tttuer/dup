@@ -14,6 +14,7 @@ class GroupRepository(IGroupRepository):
             id=group.id,
             name=group.name,
             company=group.company,
+            auth_users=group.auth_users or [],
         )
 
         saved_group = await Group.insert(new_group)
