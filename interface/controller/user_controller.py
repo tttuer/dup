@@ -62,6 +62,6 @@ async def find(
             detail="You do not have permission to access this resource.",
         )
     
-    created_user = await user_service.find()
+    users = await user_service.find()
 
-    return created_user
+    return users
