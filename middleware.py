@@ -7,7 +7,6 @@ def add_cors(app):
         CORSMiddleware,
         allow_origins=[
             "http://localhost:5173",  # 개발용
-            "http://localhost:8080",  # 개발용
             "https://arc.baeksung.kr",  # 배포용
         ],
         allow_credentials=True,
