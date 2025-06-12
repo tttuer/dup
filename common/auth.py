@@ -3,7 +3,7 @@ from datetime import timedelta, datetime, UTC
 from enum import StrEnum
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from starlette import status
@@ -55,7 +55,7 @@ def decode_token(token: str):
 def create_access_token(
     payload: dict,
     roles: list[Role],
-    expires_delta: timedelta = timedelta(hours=6),
+    expires_delta: timedelta = timedelta(hours=3),
 ):
     expire = datetime.now(UTC) + expires_delta
     payload.update({"exp": expire, "roles": roles})
@@ -63,3 +63,36 @@ def create_access_token(
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     return encoded_jwt
+
+
+def create_refresh_token(
+    payload: dict, expires_delta: timedelta = timedelta(days=7)
+) -> str:
+    data = payload.copy()
+    data["exp"] = datetime.now(UTC) + expires_delta
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_user_id_from_refresh_token(request: Request) -> str:
+    refresh_token = request.cookies.get("refresh_token")
+
+    if not refresh_token:
+        print("Refresh token not found in cookies")
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
+    try:
+        payload = decode_token(refresh_token)
+    except JWTError:
+        print("Invalid or expired refresh token")
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    user_id = payload.get("user_id")
+    if not user_id:
+        print("Invalid token payload: user_id not found")
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    return user_id
+
+
+def clear_refresh_token_cookie(response: Response):
+    response.delete_cookie(key="refresh_token", path="/")
