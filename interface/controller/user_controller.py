@@ -56,12 +56,7 @@ async def find(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> list[UserResponse]:
-    if Role.ADMIN not in current_user.roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this resource.",
-        )
-    
+
     users = await user_service.find()
 
     return users

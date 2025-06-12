@@ -30,6 +30,7 @@ class GroupResponse(BaseModel):
     company: Company
     auth_users: list[str] = []
 
+
 class GroupGrantBody(BaseModel):
     auth_users: list[str] = []
 
@@ -101,6 +102,7 @@ async def update_group(
     )
     return group
 
+
 @router.patch("/{id}")
 @inject
 async def grant_group(
@@ -109,8 +111,12 @@ async def grant_group(
     group_body: GroupGrantBody,
     group_service: GroupService = Depends(Provide[Container.group_service]),
 ) -> GroupResponse:
-    
-    if Role.ADMIN not in current_user.roles:
+    db_group = await group_service.find_by_id(id)
+
+    if (
+        Role.ADMIN not in current_user.roles
+        and current_user.id not in db_group.auth_users
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to grant access to this group.",
