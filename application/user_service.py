@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from starlette import status
 from ulid import ULID
 
-from common.auth import create_access_token, Role
+from common.auth import create_access_token, create_refresh_token, Role
 from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from utils.crypto import Crypto
@@ -53,7 +53,10 @@ class UserService:
         if not self.crypto.verify(password, user.password):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-        return await self.get_access_token(user_id, user.roles)
+        access_token = await self.get_access_token(user_id, user.roles)
+        refresh_token = await self.get_refresh_token(user_id)
+
+        return access_token, refresh_token
 
     async def get_access_token(self, user_id: str, roles: list[Role]):
         return create_access_token(
@@ -61,7 +64,23 @@ class UserService:
             roles=roles,
         )
 
+    async def get_refresh_token(self, user_id: str) -> str:
+        return create_refresh_token(
+            payload={"user_id": user_id} # 만료기간 설정
+        )
+
     async def find(self):
         user = await self.user_repo.find()
+
+        return user
+    
+    async def find_by_user_id(self, user_id: str) -> User:
+        user = await self.user_repo.find_by_user_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User not found: {user_id}",
+            )
 
         return user
