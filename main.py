@@ -70,7 +70,7 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-@app.get("/docs", include_in_schema=False)
+@app.get("/api/docs", include_in_schema=False)
 def secure_docs(credentials: HTTPBasicCredentials = Depends(verify)):
     return get_swagger_ui_html(openapi_url="/openapi.json", title="Secure Docs")
 
