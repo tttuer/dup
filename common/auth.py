@@ -55,7 +55,7 @@ def decode_token(token: str):
 def create_access_token(
     payload: dict,
     roles: list[Role],
-    expires_delta: timedelta = timedelta(seconds=10),
+    expires_delta: timedelta = timedelta(hours=3),
 ):
     expire = datetime.now(UTC) + expires_delta
     payload.update({"exp": expire, "roles": roles})
@@ -66,7 +66,7 @@ def create_access_token(
 
 
 def create_refresh_token(
-    payload: dict, expires_delta: timedelta = timedelta(minutes=2)
+    payload: dict, expires_delta: timedelta = timedelta(days=7)
 ) -> str:
     data = payload.copy()
     data["exp"] = datetime.now(UTC) + expires_delta
