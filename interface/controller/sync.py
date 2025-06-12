@@ -10,7 +10,7 @@ from application.sync_service import SyncService
 router = APIRouter()
 
 
-@router.websocket("/ws/sync-status")
+@router.websocket("/api/ws/sync-status")
 @inject
 async def sync_status_websocket(
     websocket: WebSocket,
