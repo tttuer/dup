@@ -55,7 +55,7 @@ def decode_token(token: str):
 def create_access_token(
     payload: dict,
     roles: list[Role],
-    expires_delta: timedelta = timedelta(hours=3),
+    expires_delta: timedelta = timedelta(seconds=10),
 ):
     expire = datetime.now(UTC) + expires_delta
     payload.update({"exp": expire, "roles": roles})
@@ -66,7 +66,7 @@ def create_access_token(
 
 
 def create_refresh_token(
-    payload: dict, expires_delta: timedelta = timedelta(days=7)
+    payload: dict, expires_delta: timedelta = timedelta(minutes=7)
 ) -> str:
     data = payload.copy()
     data["exp"] = datetime.now(UTC) + expires_delta
@@ -75,6 +75,7 @@ def create_refresh_token(
 
 def get_user_id_from_refresh_token(request: Request) -> str:
     refresh_token = request.cookies.get("refresh_token")
+    print(f"Refresh token from cookies: {refresh_token}")
 
     if not refresh_token:
         print("Refresh token not found in cookies")
