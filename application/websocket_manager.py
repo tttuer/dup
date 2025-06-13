@@ -10,10 +10,14 @@ class WebSocketManager:
         self.active_connections.append(websocket)
         print(f"✅ WebSocket connected. Total: {len(self.active_connections)}")
 
-    def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
             print(f"❌ WebSocket disconnected. Remaining: {len(self.active_connections)}")
+            try:
+                await websocket.close()
+            except Exception as e:
+                print(f"⚠️ Error while closing websocket: {e}")
 
     async def broadcast(self, message: dict):
         print(f"📤 Broadcasting to {len(self.active_connections)} clients: {message}")
@@ -26,6 +30,7 @@ class WebSocketManager:
                 print(f"⚠️ Failed to send to a client: {e}")
                 disconnected.append(connection)
 
-        # 끊긴 연결은 제거
+        # 끊긴 연결은 정리
         for conn in disconnected:
-            self.disconnect(conn)
+            await self.disconnect(conn)
+
