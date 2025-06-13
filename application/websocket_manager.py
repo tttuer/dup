@@ -14,10 +14,6 @@ class WebSocketManager:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
             print(f"❌ WebSocket disconnected. Remaining: {len(self.active_connections)}")
-            try:
-                await websocket.close()
-            except Exception as e:
-                print(f"⚠️ Error while closing websocket: {e}")
 
     async def broadcast(self, message: dict):
         print(f"📤 Broadcasting to {len(self.active_connections)} clients: {message}")
