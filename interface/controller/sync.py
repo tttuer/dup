@@ -20,36 +20,38 @@ async def sync_status_websocket(
 ):
     await ws_manager.connect(websocket)
 
-    try:
-        # ✅ 1. 최초 연결 시 현재 상태 응답
-        current = await sync_service.get_current_status()
-        await websocket.send_json({"syncing": current})
+    # ✅ 최초 상태 전송
+    current = await sync_service.get_current_status()
+    await websocket.send_json({"syncing": current})
 
-        # ✅ 2. Redis Pub/Sub 구독 설정
-        pubsub = redis.pubsub()
-        await pubsub.subscribe("sync_status_channel")
+    # ✅ Redis 구독 준비
+    pubsub = redis.pubsub()
+    await pubsub.subscribe("sync_status_channel")
 
-        # ✅ 3. 클라이언트 keepalive 수신 루프 (백그라운드로 실행)
-        async def keepalive_listener():
+    # ✅ Redis 메시지 처리 백그라운드 작업
+    async def redis_listener():
+        try:
             while True:
-                try:
-                    await websocket.receive_text()
-                except Exception:
-                    break  # 연결 끊김
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message["type"] == "message":
+                    data = json.loads(message["data"])
+                    print(f"📣 Redis PubSub received: {data}")
+                    await ws_manager.broadcast(data)
+        except Exception as e:
+            print(f"🚨 Redis listener error: {e}")
+        finally:
+            await pubsub.unsubscribe("sync_status_channel")
+            await pubsub.close()
 
-        keepalive_task = asyncio.create_task(keepalive_listener())
+    redis_task = asyncio.create_task(redis_listener())
 
-        # ✅ 4. Redis 메시지 수신 및 브로드캐스트 루프
+    try:
+        # ✅ WebSocket 종료 감지를 위한 main receive 루프
         while True:
-            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-            if message and message["type"] == "message":
-                data = json.loads(message["data"])
-                print(f"📣 Redis PubSub received: {data}")
-                await ws_manager.broadcast(data)
-
+            await websocket.receive_text()  # ← 여기서 끊기면 WebSocketDisconnect 발생
     except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
+        print("🛑 WebSocket disconnected")
     finally:
-        await pubsub.unsubscribe("sync_status_channel")
-        await pubsub.close()
-        keepalive_task.cancel()
+        await ws_manager.disconnect(websocket)
+        redis_task.cancel()
+
