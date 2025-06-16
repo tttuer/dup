@@ -96,4 +96,10 @@ def get_user_id_from_refresh_token(request: Request) -> str:
 
 
 def clear_refresh_token_cookie(response: Response):
-    response.delete_cookie(key="refresh_token", path="/")
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=True,  # set_cookie 쪽과 동일하게
+        httponly=True,  # set_cookie 쪽과 동일하게
+        samesite="lax",  # set_cookie 쪽과 동일하게
+    )
