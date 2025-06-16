@@ -10,6 +10,7 @@ class UserRepository(IUserRepository):
         new_user = User(
             id=user.id,
             user_id=user.user_id,
+            name=user.name,
             password=user.password,
             created_at=user.created_at,
             updated_at=user.updated_at,
