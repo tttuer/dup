@@ -22,6 +22,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 class UserResponse(BaseModel):
     id: str
+    name: str
     user_id: str
     created_at: datetime
     updated_at: datetime
@@ -30,6 +31,7 @@ class UserResponse(BaseModel):
 
 class CreateUserBody(BaseModel):
     user_id: str
+    name: str
     password: str
     roles: list[Role]
 

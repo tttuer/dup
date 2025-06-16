@@ -7,6 +7,7 @@ from common.auth import Role
 @dataclass
 class User:
     id: str
+    name: str
     user_id: str
     password: str
     created_at: datetime

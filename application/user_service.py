@@ -18,7 +18,7 @@ class UserService:
         self.ulid = ULID()
         self.crypto = Crypto()
 
-    async def create_user(self, user_id: str, password: str, roles: list[Role]) -> User:
+    async def create_user(self, user_id: str, name: str, password: str, roles: list[Role]) -> User:
         _user = None
 
         try:
@@ -36,6 +36,7 @@ class UserService:
         now = datetime.now()
         user: User = User(
             id=self.ulid.generate(),
+            name=name,
             user_id=user_id,
             password=self.crypto.encrypt(password),
             created_at=now,
