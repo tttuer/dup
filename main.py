@@ -72,7 +72,7 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/api/docs", include_in_schema=False)
 def secure_docs(credentials: HTTPBasicCredentials = Depends(verify)):
-    return get_swagger_ui_html(openapi_url="/openapi.json", title="Secure Docs")
+    return get_swagger_ui_html(openapi_url="/api/openapi.json", title="Secure Docs")
 
 
 # 이 부분 추가해야 디버깅 가능
