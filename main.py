@@ -35,7 +35,12 @@ async def lifespan(app: FastAPI):
     client.close()
 
 
-app = FastAPI(lifespan=lifespan, docs_url=None)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None, # 기본 스펙 경로 끄기
+)  
 
 app.container = Container()
 add_cors(app)
@@ -68,6 +73,12 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
         or credentials.password != settings.wehago_password
     ):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+# 보호된 OpenAPI JSON 제공
+@app.get("/api/openapi.json", include_in_schema=False)
+def secure_openapi(creds: HTTPBasicCredentials = Depends(verify)):
+    return JSONResponse(app.openapi())
 
 
 @app.get("/api/docs", include_in_schema=False)
