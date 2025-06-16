@@ -64,7 +64,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         secure=True,  # 로컬 테스트 중이면 False
-        samesite="None",
+        samesite="lax",
         max_age=60 * 60 * 24 * 7,
         path="/",
     )
