@@ -43,7 +43,10 @@ async def create_user(
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
     created_user = await user_service.create_user(
-        user.user_id, user.password, user.roles
+        user_id=user.user_id,
+        name=user.name,
+        password=user.password,
+        roles=user.roles,
     )
 
     return created_user
