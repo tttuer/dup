@@ -5,6 +5,7 @@ from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, HTTPException, Request, Response, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
+from utils.settings import settings
 
 from application.user_service import UserService
 from common.auth import (
@@ -40,8 +41,15 @@ class CreateUserBody(BaseModel):
 @inject
 async def create_user(
     user: CreateUserBody,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
+    if current_user.id != settings.wehago_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the admin can create users.",
+        )
+    
     created_user = await user_service.create_user(
         user_id=user.user_id,
         name=user.name,
