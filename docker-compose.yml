@@ -22,6 +22,16 @@ services:
       "
     environment:
       - MONGO_INITDB_DATABASE=dup
+  
+  redis:
+    image: bitnami/redis:latest
+    container_name: local-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
 volumes:
   mongo-data:
+  redis-data:
