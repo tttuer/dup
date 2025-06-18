@@ -48,6 +48,8 @@ class VoucherResponse(BaseModel):
 
 
 class SyncRequest(BaseModel):
+    wehago_id: str
+    wehago_password: str
     year: int = datetime.now().year
     company: Company = Company.BAEKSUNG
 
@@ -66,7 +68,12 @@ async def sync_whg(
     await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
 
     try:
-        await voucher_service.sync(company=sync_request.company, year=sync_request.year)
+        await voucher_service.sync(
+            company=sync_request.company,
+            year=sync_request.year,
+            wehago_id=sync_request.wehago_id,
+            wehago_password=sync_request.wehago_password,
+        )
         return {"message": "Sync completed successfully"}
     except Exception as e:
         print(f"[Sync Error] {e}")
@@ -74,9 +81,6 @@ async def sync_whg(
     finally:
         await sync_service.set_sync_status(False)
         await redis.publish("sync_status_channel", json.dumps({"syncing": False}))
-
-
-
 
 
 @router.get("/{id}")

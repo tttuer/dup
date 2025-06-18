@@ -30,7 +30,9 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
-    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      - REDIS_PASSWORD=     # 비워두고 싶으면 빈 값
+      - ALLOW_EMPTY_PASSWORD=yes   # 빈 비밀번호 허용 (개발용)
 
 volumes:
   mongo-data:
