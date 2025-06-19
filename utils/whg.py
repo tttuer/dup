@@ -98,12 +98,16 @@ class Whg:
             if login_response:
                 # 여기서 req.response로 접근!
                 status_code = login_response.response.status_code
-                body = login_response.response.body  # bytes
+                compressed_body = login_response.response.body  # bytes
 
                 try:
-                    data = json.loads(body.decode("utf-8"))  # JSON 디코딩
-                except Exception as e:
-                    data = {}
+                    decompressed_body = gzip.GzipFile(fileobj=io.BytesIO(compressed_body)).read()
+                    response_body = decompressed_body.decode("utf-8")
+                except OSError:
+                    # 만약 gzip이 아닐 수도 있으니 fallback
+                    response_body = compressed_body.decode("utf-8")
+
+                data = json.loads(response_body)
 
                 if status_code == 200:
                     if data.get("resultCode") == 401:
