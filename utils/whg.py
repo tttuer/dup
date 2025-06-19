@@ -87,7 +87,7 @@ class Whg:
             login_response = None
             while time.time() - start_time < 10:
                 for req in reversed(driver.requests):
-                    if "auth/login" in req.url and req.response:
+                    if "api0.wehago.com/auth/login" in req.url and req.response:
                         login_response = req
                         break
                 if login_response:
