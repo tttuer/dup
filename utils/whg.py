@@ -96,17 +96,34 @@ class Whg:
 
             # 응답이 오면 JSON 파싱 후 resultCode 체크
             if login_response:
-                if login_response.status_code == 200:
-                    data = login_response.json()
+                # 여기서 req.response로 접근!
+                status_code = login_response.response.status_code
+                body = login_response.response.body  # bytes
+
+                try:
+                    data = json.loads(body.decode("utf-8"))  # JSON 디코딩
+                except Exception as e:
+                    data = {}
+
+                if status_code == 200:
                     if data.get("resultCode") == 401:
-                        # 401 에러 처리
                         raise HTTPException(
                             status_code=401,
                             detail="로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.",
                         )
+                    # (성공 시 원하는 로직 추가)
                 else:
-                    # status code 가 200 이 아니면 HTTPError 로 올리기
-                    login_response.raise_for_status()
+                    # status code 가 200 이 아니면 HTTPError
+                    raise HTTPException(
+                        status_code=status_code,
+                        detail="로그인 실패(응답코드)",
+                    )
+            else:
+                # 응답이 아예 안 온 경우
+                raise HTTPException(
+                    status_code=504,
+                    detail="로그인 응답 없음 (타임아웃)",
+                )
             # wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "WSC_LUXButton"))).click()
             # "duplicate_login"이 뜨는지 확인
             try:
