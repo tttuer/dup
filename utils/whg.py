@@ -83,9 +83,16 @@ class Whg:
                 f"{wehago_password}", Keys.RETURN
             )
 
-            login_response = driver.wait_for_response(
-                lambda r: "auth/login" in r.url, timeout=10
-            )
+            start_time = time.time()
+            login_response = None
+            while time.time() - start_time < 10:
+                for req in reversed(driver.requests):
+                    if "auth/login" in req.url and req.response:
+                        login_response = req
+                        break
+                if login_response:
+                    break
+                time.sleep(0.2)
 
             # 응답이 오면 JSON 파싱 후 resultCode 체크
             if login_response:
