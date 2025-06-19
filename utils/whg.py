@@ -119,7 +119,7 @@ class Whg:
                 if status_code == 200:
                     if data.get("resultCode") == 401:
                         raise HTTPException(
-                            status_code=401,
+                            status_code=460,
                             detail="로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.",
                         )
                     # (성공 시 원하는 로직 추가)
