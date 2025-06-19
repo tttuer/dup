@@ -15,7 +15,6 @@ import asyncio
 from anyio import to_thread
 
 
-
 class VoucherService:
     @inject
     def __init__(self, voucher_repo: IVoucherRepository):
@@ -26,10 +25,13 @@ class VoucherService:
         self,
         year: int,
         company: Company = Company.BAEKSUNG,
+        wehago_id: str = None,
+        wehago_password: str = None,
     ):
-                    # 🧵 크롤링을 별도 쓰레드에서 실행
-        vouchers = await to_thread.run_sync(lambda: Whg().crawl_whg(company, year))
-
+        # 🧵 크롤링을 별도 쓰레드에서 실행
+        vouchers = await to_thread.run_sync(
+            lambda: Whg().crawl_whg(company, year, wehago_id, wehago_password)
+        )
 
         for v in vouchers:
             v.company = company
@@ -38,7 +40,9 @@ class VoucherService:
         new_ids = {v.id for v in vouchers}
 
         # 4. 기존 DB에 저장된 ID 목록 조회
-        existing_vouchers = await self.voucher_repo.find_by_company_and_year(company, year)
+        existing_vouchers = await self.voucher_repo.find_by_company_and_year(
+            company, year
+        )
         existing_ids = {v.id for v in existing_vouchers}
 
         # 5. 삭제 대상 ID 찾기 (기존에는 있었는데, 새로는 없음)
