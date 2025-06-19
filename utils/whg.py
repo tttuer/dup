@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from seleniumwire import webdriver  # type: ignore
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -34,7 +35,6 @@ class Whg:
             "year": 2025,
         }
 
-
         if company == Company.BAEKSUNG:
             gisu = baek["gisu"] - (baek["year"] - year)
         elif company == Company.PYEONGTAEK:
@@ -45,8 +45,10 @@ class Whg:
             raise ValueError("Invalid company")
 
         return gisu
-    
-    def crawl_whg(self, company: Company, year: int):
+
+    def crawl_whg(
+        self, company: Company, year: int, wehago_id: str, wehago_password: str
+    ):
         # 1. 셀레니움 브라우저 옵션 설정
         options = Options()
         # options.add_argument("--headless")  # 헤드리스 모드 (브라우저 창 없이 실행)
@@ -54,13 +56,13 @@ class Whg:
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = "eager"
-        # driver = webdriver.Chrome(options=options)
+        driver = webdriver.Chrome(options=options)
         # prod 환경
-        driver = webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            options=options,
-            desired_capabilities={"browserName": "chrome"}
-        )
+        # driver = webdriver.Remote(
+        #     command_executor="http://localhost:4444/wd/hub",
+        #     options=options,
+        #     desired_capabilities={"browserName": "chrome"},
+        # )
 
         try:
             wait = WebDriverWait(driver, 10)  # 최대 10초 기다리기 기본 설정
@@ -75,11 +77,29 @@ class Whg:
 
             # 3. 아이디/비번 입력
             wait.until(EC.presence_of_element_located((By.ID, "inputId"))).send_keys(
-                f"{settings.wehago_id}"
+                f"{wehago_id}"
             )
             wait.until(EC.presence_of_element_located((By.ID, "inputPw"))).send_keys(
-                f"{settings.wehago_password}", Keys.RETURN
+                f"{wehago_password}", Keys.RETURN
             )
+
+            login_response = driver.wait_for_response(
+                lambda r: "auth/login" in r.url, timeout=10
+            )
+
+            # 응답이 오면 JSON 파싱 후 resultCode 체크
+            if login_response:
+                if login_response.status_code == 200:
+                    data = login_response.json()
+                    if data.get("resultCode") == 401:
+                        # 401 에러 처리
+                        raise HTTPException(
+                            status_code=401,
+                            detail="로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.",
+                        )
+                else:
+                    # status code 가 200 이 아니면 HTTPError 로 올리기
+                    login_response.raise_for_status()
             # wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "WSC_LUXButton"))).click()
             # "duplicate_login"이 뜨는지 확인
             try:
@@ -193,7 +213,7 @@ class Whg:
                             break
                     if target_request:
                         break
-                    
+
                 if not target_request:
                     print("❗ 전표 데이터 요청을 찾지 못했습니다.")
                     continue
