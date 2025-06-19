@@ -56,13 +56,13 @@ class Whg:
         options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (일부 환경에서 필요)
         options.add_argument("--no-sandbox")  # 샌드박스 모드 비활성화 (리눅스에서 권장)
         options.page_load_strategy = "eager"
-        # driver = webdriver.Chrome(options=options)
+        driver = webdriver.Chrome(options=options)
         # prod 환경
-        driver = webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            options=options,
-            desired_capabilities={"browserName": "chrome"},
-        )
+        # driver = webdriver.Remote(
+        #     command_executor="http://localhost:4444/wd/hub",
+        #     options=options,
+        #     desired_capabilities={"browserName": "chrome"},
+        # )
 
         try:
             wait = WebDriverWait(driver, 10)  # 최대 10초 기다리기 기본 설정
@@ -87,7 +87,12 @@ class Whg:
             login_response = None
             while time.time() - start_time < 10:
                 for req in reversed(driver.requests):
-                    if "api0.wehago.com/auth/login" in req.url and req.response:
+                    if (
+                        req.method == "POST"
+                        and req.response
+                        and "api0.wehago.com/auth/login" in req.url
+                        and req.response.body
+                    ):
                         login_response = req
                         break
                 if login_response:
@@ -101,7 +106,9 @@ class Whg:
                 compressed_body = login_response.response.body  # bytes
 
                 try:
-                    decompressed_body = gzip.GzipFile(fileobj=io.BytesIO(compressed_body)).read()
+                    decompressed_body = gzip.GzipFile(
+                        fileobj=io.BytesIO(compressed_body)
+                    ).read()
                     response_body = decompressed_body.decode("utf-8")
                 except OSError:
                     # 만약 gzip이 아닐 수도 있으니 fallback

@@ -36,7 +36,6 @@ class Container(containers.DeclarativeContainer):
     group_repo = providers.Factory(GroupRepository)
     group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo)  # Assuming GroupRepository is similar to FileRepository
     
-    sync_service = providers.Factory(SyncService)
     websocket_manager = providers.Singleton(WebSocketManager)
     
     redis = providers.Singleton(
@@ -46,3 +45,5 @@ class Container(containers.DeclarativeContainer):
         password=config.redis.password,
         decode_responses=True,
     )
+
+    sync_service = providers.Factory(SyncService, redis=redis)

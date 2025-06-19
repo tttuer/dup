@@ -19,7 +19,6 @@ from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
-from infra.db_models.sync_status import SyncStatus
 from common.db import client
 from utils.settings import Settings
 
@@ -29,7 +28,7 @@ settings = Settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_beanie(
-        database=client.dup, document_models=[File, User, Voucher, Group, SyncStatus]
+        database=client.dup, document_models=[File, User, Voucher, Group]
     )
     yield
     client.close()
