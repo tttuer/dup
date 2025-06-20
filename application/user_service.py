@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
@@ -18,7 +19,7 @@ class UserService:
         self.ulid = ULID()
         self.crypto = Crypto()
 
-    async def create_user(self, user_id: str, name: str, password: str, roles: list[Role]) -> User:
+    async def create_user(self, user_id: str, name: Optional[str], password: str, roles: list[Role]) -> User:
         _user = None
 
         try:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, HTTPException, Request, Response, status, Depends
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 class UserResponse(BaseModel):
     id: str
-    name: str
+    name: Optional[str] = None
     user_id: str
     created_at: datetime
     updated_at: datetime
@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
 
 class CreateUserBody(BaseModel):
     user_id: str
-    name: str
+    name: Optional[str] = None
     password: str
     roles: list[Role]
 
