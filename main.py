@@ -21,6 +21,7 @@ from infra.db_models.file import File
 from infra.db_models.group import Group
 from common.db import client
 from utils.settings import Settings
+from utils.scheduler import start_scheduler, shutdown_scheduler
 
 settings = Settings()
 
@@ -30,8 +31,10 @@ async def lifespan(app: FastAPI):
     await init_beanie(
         database=client.dup, document_models=[File, User, Voucher, Group]
     )
+    start_scheduler()
     yield
     client.close()
+    shutdown_scheduler()
 
 
 app = FastAPI(
