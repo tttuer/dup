@@ -48,4 +48,5 @@ dependencies = [
     "pypdf2>=3.0.1",
     "pymupdf>=1.25.5",
     "redis>=6.2.0",
+    "apscheduler>=3.11.0",
 ]
