@@ -33,3 +33,16 @@ class UserRepository(IUserRepository):
         if not users:
             return []
         return [UserVo(**user.model_dump()) for user in users]
+    
+    async def update(self, user: UserVo):
+        db_user = await User.find_one(User.id == user.id)
+        if not db_user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User not found: {user.id}",
+            )
+        db_user.name = user.name
+        db_user.password = user.password
+        db_user.roles = user.roles
+        db_user.updated_at = user.updated_at
+        await db_user.save()

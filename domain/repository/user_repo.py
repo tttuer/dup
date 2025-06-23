@@ -14,3 +14,7 @@ class IUserRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find(self):
         raise NotImplementedError
+    
+    @abstractmethod
+    async def update(self, user):
+        raise NotImplementedError
