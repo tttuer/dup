@@ -7,6 +7,7 @@ import os
 import datetime
 from utils.settings import settings
 from utils.slack import send_slack_message
+from pytz import timezone
 
 scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
@@ -27,7 +28,7 @@ def crawl_job():
             send_slack_message(f"❌ {company.name} 전표 수집 실패: {e}")
 
 def start_scheduler():
-    scheduler.add_job(crawl_job, CronTrigger(hour=1, minute=0))
+    scheduler.add_job(crawl_job, CronTrigger(hour=8, minute=0, timezone="Asia/Seoul"))
     scheduler.start()
 
 def shutdown_scheduler():
