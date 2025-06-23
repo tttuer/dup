@@ -86,3 +86,33 @@ class UserService:
             )
 
         return user
+    
+    async def update_user(
+        self,
+        user_id: str,
+        name: Optional[str] = None,
+        password: Optional[str] = None,
+        roles: Optional[list[Role]] = None,
+    ) -> User:
+        user = await self.user_repo.find_by_user_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User not found: {user_id}",
+            )
+
+        if password:
+            user.password = self.crypto.encrypt(password)
+
+        if name is not None:
+            user.name = name
+
+        if roles is not None:
+            user.roles = roles
+
+        user.updated_at = datetime.now()
+
+        updated_user = await self.user_repo.update(user)
+
+        return updated_user

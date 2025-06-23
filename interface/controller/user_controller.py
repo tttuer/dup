@@ -36,6 +36,11 @@ class CreateUserBody(BaseModel):
     password: str
     roles: list[Role]
 
+class UpdateUserBody(BaseModel):
+    name: Optional[str] = None
+    password: Optional[str] = None
+    roles: Optional[list[Role]] = None
+
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
@@ -119,3 +124,20 @@ def logout(response: Response):
 
     clear_refresh_token_cookie(response)
     return {"message": "Logged out"}
+
+@router.patch("/{user_id}")
+@inject
+async def update_user(
+    user_id: str,
+    user: UpdateUserBody,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> UserResponse:
+    updated_user = await user_service.update_user(
+        user_id=user_id,
+        name=user.name,
+        password=user.password,
+        roles=user.roles,
+    )
+
+    return updated_user
