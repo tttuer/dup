@@ -46,3 +46,5 @@ class UserRepository(IUserRepository):
         db_user.roles = user.roles
         db_user.updated_at = user.updated_at
         await db_user.save()
+        
+        return UserVo(**db_user.model_dump())
