@@ -79,12 +79,12 @@ async def find_by_company(
 
 @router.delete("/{id}")
 @inject
-async def delete_file(
+async def delete(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     id: str,
     group_service: GroupService = Depends(Provide[Container.group_service]),
 ):
-    await group_service.delete(id)
+    await group_service.delete(id=id, current_user_id=current_user.id, roles=current_user.roles)
 
 
 @router.put("/{id}")
