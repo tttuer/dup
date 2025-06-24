@@ -59,7 +59,21 @@ class GroupService:
 
         return groups
 
-    async def delete(self, id: str):
+    async def delete(self, id: str, current_user_id: str, roles: list[Role]):
+        group = await self.group_repo.find_by_id(id)
+
+        if not group:
+            raise HTTPException(
+                status_code=404,
+                detail="Group not found",
+            )
+        
+        if current_user_id not in group.auth_users and Role.ADMIN not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to delete this group",
+            )
+
         async with await client.start_session() as session:
             async with session.start_transaction():
                 # Delete all files associated with the group
