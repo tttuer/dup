@@ -8,10 +8,15 @@ import datetime
 from utils.settings import settings
 from utils.slack import send_slack_message
 from pytz import timezone
+from containers import Container
 
 scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
-def crawl_job():
+container = Container()
+voucher_service = container.voucher_service()  # DI로 받은 서비스 인스턴스
+
+
+async def crawl_and_save_job():
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     send_slack_message(f"🌀 [{now}] 전표 스케줄 작업 시작")
 
@@ -21,15 +26,23 @@ def crawl_job():
 
     for company in [Company.BAEKSUNG, Company.PYEONGTAEK, Company.PARAN]:
         try:
-            whg = Whg()
-            whg.crawl_whg(company, year, wehago_id, wehago_password)
-            send_slack_message(f"✅ {company.name} 전표 수집 성공")
+            vouchers = await voucher_service.sync(
+                year, company, wehago_id, wehago_password
+            )
+            send_slack_message(
+                f"✅ {company.name} 전표 수집 및 저장 성공 ({len(vouchers)}건)"
+            )
         except Exception as e:
             send_slack_message(f"❌ {company.name} 전표 수집 실패: {e}")
 
+
 def start_scheduler():
-    scheduler.add_job(crawl_job, CronTrigger(hour=8, minute=0, timezone=timezone("Asia/Seoul")))
+    scheduler.add_job(
+        crawl_and_save_job,
+        CronTrigger(hour=8, minute=0, timezone=timezone("Asia/Seoul")),
+    )
     scheduler.start()
+
 
 def shutdown_scheduler():
     scheduler.shutdown(wait=False)
