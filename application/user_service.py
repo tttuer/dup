@@ -52,8 +52,12 @@ class UserService:
     async def login(self, user_id: str, password: str):
         user = await self.user_repo.find_by_user_id(user_id)
 
-        if not self.crypto.verify(password, user.password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        if not user or not self.crypto.verify(password, user.password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         access_token = await self.get_access_token(user_id, user.roles)
         refresh_token = await self.get_refresh_token(user_id)
