@@ -28,13 +28,13 @@ class Container(containers.DeclarativeContainer):
     user_service = providers.Factory(UserService, user_repo=user_repo)
 
     file_repo = providers.Factory(FileRepository)
-    file_service = providers.Factory(FileService, file_repo=file_repo)
+    file_service = providers.Factory(FileService, file_repo=file_repo, user_repo=user_repo)
 
     voucher_repo = providers.Factory(VoucherRepository)
     voucher_service = providers.Factory(VoucherService, voucher_repo=voucher_repo)
 
     group_repo = providers.Factory(GroupRepository)
-    group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo)  # Assuming GroupRepository is similar to FileRepository
+    group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo, user_repo=user_repo)
     
     websocket_manager = providers.Singleton(WebSocketManager)
     

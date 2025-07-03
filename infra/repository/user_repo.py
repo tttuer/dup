@@ -40,6 +40,6 @@ class UserRepository(BaseRepository[User], IUserRepository):
         db_user.password = user.password
         db_user.roles = user.roles
         db_user.updated_at = user.updated_at
-        updated_user = await self.update(db_user)
+        updated_user = await super().update(db_user)
         
         return UserVo(**updated_user.model_dump())

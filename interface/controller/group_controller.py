@@ -111,19 +111,10 @@ async def grant_group(
     group_body: GroupGrantBody,
     group_service: GroupService = Depends(Provide[Container.group_service]),
 ) -> GroupResponse:
-    db_group = await group_service.find_by_id(id)
-
-    if (
-        Role.ADMIN not in current_user.roles
-        and current_user.id not in db_group.auth_users
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to grant access to this group.",
-        )
-
-    group = await group_service.grant(
+    group = await group_service.grant_with_permission_check(
         id=id,
         auth_users=group_body.auth_users,
+        current_user_id=current_user.id,
+        current_user_roles=current_user.roles,
     )
     return group

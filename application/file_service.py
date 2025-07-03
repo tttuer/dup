@@ -7,16 +7,19 @@ from dependency_injector.wiring import inject
 from fastapi import UploadFile, HTTPException
 from ulid import ULID
 
+from application.base_service import BaseService
 from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
+from domain.repository.user_repo import IUserRepository
 from infra.db_models.file import File as FileDocument
 from utils.pdf import Pdf
 
 
-class FileService:
+class FileService(BaseService[File]):
     @inject
-    def __init__(self, file_repo: IFileRepository):
+    def __init__(self, file_repo: IFileRepository, user_repo: IUserRepository):
+        super().__init__(user_repo)
         self.file_repo = file_repo
         self.ulid = ULID()
 
@@ -71,40 +74,12 @@ class FileService:
         page: int = 1,
         items_per_page: int = 30,
     ):
-        filters = []
-
-        # ✅ 1. 검색어가 있고, 검색 조건이 명시된 경우
-        if search and search_option:
-            if search_option == SearchOption.DESCRIPTION_FILENAME:
-                filters.append(
-                    Or(
-                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
-                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
-                    )
-                )
-            elif search_option == SearchOption.PRICE:
-                filters.append(FileDocument.price == int(search))
-
-        if is_locked:
-            filters.append(FileDocument.lock == True)
-        filters.append(FileDocument.company == company)
-        filters.append(FileDocument.type == type)
-        filters.append(FileDocument.group_id == group_id)
-
-        if start_at and end_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
-            filters.append(FileDocument.withdrawn_at <= end_at)
-        if start_at:
-            filters.append(FileDocument.withdrawn_at >= start_at)
-
-        if end_at and start_at and end_at < start_at:
-            raise HTTPException(
-                status_code=400,
-                detail="start_at must be less than end_at",
-            )
-
-        if Role.USER in roles:
-            filters.append(FileDocument.lock == False)
+        self._validate_date_range(start_at, end_at)
+        
+        filters = self._build_search_filters(search, search_option)
+        filters.extend(self._build_base_filters(is_locked, company, type, group_id))
+        filters.extend(self._build_date_filters(start_at, end_at))
+        filters.extend(self._build_role_filters(roles))
 
         total_count, files = (
             await self.file_repo.find_many(
@@ -117,8 +92,57 @@ class FileService:
         )
 
         total_page = (total_count - 1) // items_per_page + 1
-
         return total_count, total_page, files
+    
+    def _validate_date_range(self, start_at: Optional[str], end_at: Optional[str]):
+        """Validate date range parameters."""
+        if end_at and start_at and end_at < start_at:
+            raise HTTPException(
+                status_code=400,
+                detail="start_at must be less than end_at",
+            )
+    
+    def _build_search_filters(self, search: Optional[str], search_option: Optional[str]) -> list:
+        """Build search filters based on search criteria."""
+        filters = []
+        if search and search_option:
+            if search_option == SearchOption.DESCRIPTION_FILENAME:
+                filters.append(
+                    Or(
+                        RegEx(FileDocument.name, f".*{search}.*", options="i"),
+                        RegEx(FileDocument.file_name, f".*{search}.*", options="i"),
+                    )
+                )
+            elif search_option == SearchOption.PRICE:
+                filters.append(FileDocument.price == int(search))
+        return filters
+    
+    def _build_base_filters(self, is_locked: bool, company: Company, type: Type, group_id: str) -> list:
+        """Build basic filters for company, type, group, and lock status."""
+        filters = [
+            FileDocument.company == company,
+            FileDocument.type == type,
+            FileDocument.group_id == group_id,
+        ]
+        if is_locked:
+            filters.append(FileDocument.lock == True)
+        return filters
+    
+    def _build_date_filters(self, start_at: Optional[str], end_at: Optional[str]) -> list:
+        """Build date range filters."""
+        filters = []
+        if start_at:
+            filters.append(FileDocument.withdrawn_at >= start_at)
+        if end_at:
+            filters.append(FileDocument.withdrawn_at <= end_at)
+        return filters
+    
+    def _build_role_filters(self, roles: list[Role]) -> list:
+        """Build role-based filters."""
+        filters = []
+        if Role.USER in roles:
+            filters.append(FileDocument.lock == False)
+        return filters
 
     async def delete(self, id: str):
         await self.file_repo.delete(id)
