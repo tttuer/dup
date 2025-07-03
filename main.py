@@ -20,10 +20,8 @@ from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
 from common.db import client
-from utils.settings import Settings
+from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
-
-settings = Settings()
 
 
 @asynccontextmanager
