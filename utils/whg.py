@@ -173,28 +173,8 @@ class Whg:
             logger.error("로그인 완료 대기 시간 초과")
             return False
 
-        return self._select_company_link(driver, company)
+        return True
     
-    def _select_company_link(self, driver, company: Company) -> bool:
-        """Select the appropriate company link based on company type."""
-        wait = WebDriverWait(driver, 10)
-
-        company_links = {
-            Company.BAEKSUNG: 'a[href="#/groupwareWorkspace?officeCode=1005491&officeId=35070&companyType=1"]',
-            Company.PYEONGTAEK: 'a[href="#/groupwareWorkspace?officeCode=1009091&officeId=35070&companyType=1"]',
-            Company.PARAN: 'a[href="#/groupwareWorkspace?officeCode=1002570&officeId=35070&companyType=1"]'
-        }
-        
-        if company not in company_links:
-            raise ValueError("Invalid company")
-        
-        try:
-            link = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, company_links[company])))
-            link.click()
-            return True
-        except TimeoutException:
-            logger.error(f"{company.name} 회사 링크를 찾을 수 없습니다.")
-            return False
     
     def _extract_voucher_data(self, driver, company: Company, year: int) -> list:
         """Extract voucher data from the website."""
