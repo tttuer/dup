@@ -6,16 +6,17 @@ from fastapi import HTTPException
 from starlette import status
 from ulid import ULID
 
+from application.base_service import BaseService
 from common.auth import create_access_token, create_refresh_token, Role
 from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from utils.crypto import Crypto
 
 
-class UserService:
+class UserService(BaseService[User]):
     @inject
     def __init__(self, user_repo: IUserRepository):
-        self.user_repo = user_repo
+        super().__init__(user_repo)
         self.ulid = ULID()
         self.crypto = Crypto()
 
@@ -81,15 +82,7 @@ class UserService:
         return user
     
     async def find_by_user_id(self, user_id: str) -> User:
-        user = await self.user_repo.find_by_user_id(user_id)
-
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail=f"User not found: {user_id}",
-            )
-
-        return user
+        return await self.validate_user_exists(user_id)
     
     async def update_user(
         self,
@@ -98,13 +91,7 @@ class UserService:
         password: Optional[str] = None,
         roles: Optional[list[Role]] = None,
     ) -> User:
-        user = await self.user_repo.find_by_user_id(user_id)
-
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail=f"User not found: {user_id}",
-            )
+        user = await self.validate_user_exists(user_id)
 
         if password:
             user.password = self.crypto.encrypt(password)

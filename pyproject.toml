@@ -30,7 +30,6 @@ dependencies = [
     "pydantic==2.10.6",
     "pydantic_core==2.27.2",
     "pymongo==4.11.3",
-    "python-jose==3.4.0",
     "python-multipart==0.0.20",
     "rsa==4.9",
     "setuptools==76.0.0",

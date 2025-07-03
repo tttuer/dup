@@ -22,4 +22,7 @@ static/css/main.css
 .vscode/
 .idea/
 
+# Claude Code 설정
+.claude/
+
 .python-version
