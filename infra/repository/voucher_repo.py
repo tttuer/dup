@@ -17,6 +17,10 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
     def __init__(self):
         super().__init__(Voucher)
     async def save(self, vouchers: list[VoucherVo]):
+        if not vouchers:
+            print("✅ No vouchers to save")
+            return
+            
         new_vouchers = [
             Voucher(
                 id=voucher.id,
