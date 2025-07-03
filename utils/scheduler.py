@@ -37,10 +37,22 @@ async def crawl_and_save_job():
 
 
 def start_scheduler():
+    # 매일 오전 8시에 실행
     scheduler.add_job(
         crawl_and_save_job,
         CronTrigger(hour=8, minute=0, timezone=timezone("Asia/Seoul")),
+        id='whg_crawl_8am',
+        replace_existing=True
     )
+    
+    # 매일 저녁 6시에 실행
+    scheduler.add_job(
+        crawl_and_save_job,
+        CronTrigger(hour=18, minute=0, timezone=timezone("Asia/Seoul")),
+        id='whg_crawl_6pm',
+        replace_existing=True
+    )
+    
     scheduler.start()
 
 
