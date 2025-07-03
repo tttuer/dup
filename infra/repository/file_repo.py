@@ -6,9 +6,12 @@ from fastapi import HTTPException
 from domain.file import File as FileVo
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File
+from infra.repository.base_repo import BaseRepository
 
 
-class FileRepository(IFileRepository):
+class FileRepository(BaseRepository[File], IFileRepository):
+    def __init__(self):
+        super().__init__(File)
     async def save_all(self, files: list[FileVo]):
         new_files = [
             File(

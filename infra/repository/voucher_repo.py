@@ -6,13 +6,16 @@ from fastapi import HTTPException
 from domain.voucher import Voucher as VoucherVo
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
+from infra.repository.base_repo import BaseRepository
 from beanie import BulkWriter
 from domain.voucher import Company
 from pymongo import UpdateOne
 from beanie.operators import And
 
 
-class VoucherRepository(IVoucherRepository):
+class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
+    def __init__(self):
+        super().__init__(Voucher)
     async def save(self, vouchers: list[VoucherVo]):
         new_vouchers = [
             Voucher(

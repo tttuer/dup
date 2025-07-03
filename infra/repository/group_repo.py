@@ -6,9 +6,12 @@ from fastapi import HTTPException
 from domain.group import Group as GroupVo
 from domain.repository.group_repo import IGroupRepository
 from infra.db_models.group import Group
+from infra.repository.base_repo import BaseRepository
 
 
-class GroupRepository(IGroupRepository):
+class GroupRepository(BaseRepository[Group], IGroupRepository):
+    def __init__(self):
+        super().__init__(Group)
     async def save(self, group: GroupVo):
         new_group = Group(
             id=group.id,
@@ -22,14 +25,7 @@ class GroupRepository(IGroupRepository):
         return GroupVo(**saved_group.model_dump())
 
     async def find_by_id(self, id: str) -> GroupVo:
-        group = await Group.get(id)
-
-        if not group:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found",
-            )
-
+        group = await super().find_by_id_or_raise(id, "Group")
         return GroupVo(**group.model_dump())
 
     async def find(self, *filters: Any) -> list[GroupVo]:
@@ -48,23 +44,11 @@ class GroupRepository(IGroupRepository):
         return GroupVo(**group.model_dump())
 
     async def delete(self, id: str, session=None):
-        group = await Group.get(id)
-
-        if not group:
-            raise HTTPException(
-                status_code=404,
-            )
-
+        group = await super().find_by_id_or_raise(id, "Group")
         await group.delete(session=session)
 
     async def update(self, update_group: GroupVo):
-        db_group = await Group.get(update_group.id)
-
-        if not db_group:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found",
-            )
+        db_group = await super().find_by_id_or_raise(update_group.id, "Group")
 
         update_data = asdict(update_group)
         update_data.pop("id", None)
@@ -73,5 +57,5 @@ class GroupRepository(IGroupRepository):
             if value is not None:
                 setattr(db_group, field, value)
 
-        await db_group.save()
-        return db_group
+        updated_group = await super().update(db_group)
+        return GroupVo(**updated_group.model_dump())
