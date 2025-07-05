@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Any
 from domain.voucher import Company, Voucher as VoucherVo
+from infra.db_models.voucher import Voucher
 
 
 class IVoucherRepository(metaclass=ABCMeta):
@@ -10,7 +11,7 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_by_id(self, id) -> VoucherVo:
+    async def find_by_id(self, id) -> Voucher:
         raise NotImplementedError
 
     @abstractmethod
@@ -18,7 +19,7 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def update(self, id, file_data, file_name):
+    async def update(self, voucher: VoucherVo) -> Voucher:
         raise NotImplementedError
     
     @abstractmethod
@@ -26,9 +27,9 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_company(self, company: Company):
+    async def find_by_company(self, company: Company) -> list[Voucher]:
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_company_and_year(self, company: Company, year: int):
+    async def find_by_company_and_year(self, company: Company, year: int) -> list[Voucher]:
         raise NotImplementedError

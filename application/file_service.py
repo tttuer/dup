@@ -12,6 +12,7 @@ from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
 from domain.repository.user_repo import IUserRepository
+from domain.responses.file_response import FileResponse
 from infra.db_models.file import File as FileDocument
 from utils.pdf import Pdf
 
@@ -55,10 +56,10 @@ class FileService(BaseService[File]):
 
         return files
 
-    async def find_by_id(self, id: str):
-        file = await self.file_repo.find_by_id(id)
+    async def find_by_id(self, id: str) -> FileResponse:
+        file_doc = await self.file_repo.find_by_id(id)
 
-        return file
+        return FileResponse.from_document(file_doc)
 
     async def find_many(
         self,
@@ -92,7 +93,11 @@ class FileService(BaseService[File]):
         )
 
         total_page = (total_count - 1) // items_per_page + 1
-        return total_count, total_page, files
+        
+        # Document를 FileResponse로 변환
+        file_responses = [FileResponse.from_document(file) for file in files]
+        
+        return total_count, total_page, file_responses
     
     def _validate_date_range(self, start_at: Optional[str], end_at: Optional[str]):
         """Validate date range parameters."""
@@ -158,7 +163,7 @@ class FileService(BaseService[File]):
         name: str,
         file_data: UploadFile,
         lock: bool,
-    ):
+    ) -> FileResponse:
         now = datetime.now()
 
         file: File = File(
@@ -172,6 +177,6 @@ class FileService(BaseService[File]):
             lock=lock,
         )
 
-        update_file = await self.file_repo.update(file)
+        updated_file_doc = await self.file_repo.update(file)
 
-        return update_file
+        return FileResponse.from_document(updated_file_doc)

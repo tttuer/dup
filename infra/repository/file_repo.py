@@ -41,14 +41,14 @@ class FileRepository(BaseRepository[File], IFileRepository):
                 detail="File not found",
             )
 
-        return FileVo(**file.model_dump())
+        return file
 
     async def find_many(
         self,
         *filters: Any,
         page: int = 1,
         items_per_page: int = 10,
-    ) -> tuple[int, list[FileVo]]:
+    ) -> tuple[int, list[File]]:
         offset = (page - 1) * items_per_page
 
         if filters:
@@ -64,7 +64,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
 
             return (
                 total_count,
-                [FileVo(**file.model_dump()) for file in files],
+                files,
             )
         total_count = await File.count()
 
@@ -78,7 +78,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
 
         return (
             total_count,
-            [FileVo(**file.model_dump()) for file in files],
+            files,
         )
 
     async def delete(self, id: str):

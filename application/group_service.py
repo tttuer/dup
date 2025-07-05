@@ -8,6 +8,7 @@ from domain.file import Company
 from domain.repository.file_repo import IFileRepository
 from domain.repository.group_repo import IGroupRepository
 from domain.repository.user_repo import IUserRepository
+from domain.responses.group_response import GroupResponse
 from ulid import ULID
 from infra.db_models.group import Group as GroupDocument
 from common.db import client
@@ -42,14 +43,14 @@ class GroupService(BaseService[Group]):
             company=company,
             auth_users=[user_id] if Role.ADMIN not in roles else [],
         )
-        saved_group = await self.group_repo.save(group)
+        saved_group_doc = await self.group_repo.save(group)
 
-        return saved_group
+        return GroupResponse.from_document(saved_group_doc)
 
     async def find_by_id(self, id: str):
-        group = await self.group_repo.find_by_id(id)
+        group_doc = await self.group_repo.find_by_id(id)
 
-        return group
+        return GroupResponse.from_document(group_doc)
 
     async def find(self, company: Company, id: str, roles: list[Role]):
         filters = []
@@ -58,20 +59,20 @@ class GroupService(BaseService[Group]):
 
         filters.append(GroupDocument.company == company)
 
-        groups = await self.group_repo.find(And(*filters))
+        group_docs = await self.group_repo.find(And(*filters))
 
-        return groups
+        return [GroupResponse.from_document(group) for group in group_docs]
 
     async def delete(self, id: str, current_user_id: str, roles: list[Role]):
-        group = await self.group_repo.find_by_id(id)
+        group_doc = await self.group_repo.find_by_id(id)
 
-        if not group:
+        if not group_doc:
             raise HTTPException(
                 status_code=404,
                 detail="Group not found",
             )
         
-        await self._validate_group_permission(group, current_user_id, roles)
+        await self._validate_group_permission(group_doc, current_user_id, roles)
 
         async with await client.start_session() as session:
             async with session.start_transaction():
@@ -86,37 +87,42 @@ class GroupService(BaseService[Group]):
         id: str,
         name: str,
     ):
+        group_doc = await self.group_repo.find_by_id(id)
         
-        group: Group = Group(
-            id=id,
-            name=name,
-        )
+        if not group_doc:
+            raise HTTPException(
+                status_code=404,
+                detail="Group not found",
+            )
+        
+        # Document를 직접 수정
+        group_doc.name = name
+        updated_group_doc = await group_doc.save()
 
-        update_group = await self.group_repo.update(group)
-
-        return update_group
+        return GroupResponse.from_document(updated_group_doc)
 
     async def grant(
         self,
         id: str,
         auth_users: list[str],
     ):
-        group = await self.group_repo.find_by_id(id)
+        group_doc = await self.group_repo.find_by_id(id)
 
-        if not group:
+        if not group_doc:
             raise HTTPException(
                 status_code=404,
                 detail="Group not found",
             )
 
-        group.auth_users = auth_users
-        updated_group = await self.group_repo.update(group)
+        # Document를 직접 수정
+        group_doc.auth_users = auth_users
+        updated_group_doc = await group_doc.save()
 
-        return updated_group
+        return GroupResponse.from_document(updated_group_doc)
     
-    async def _validate_group_permission(self, group: Group, user_id: str, roles: list[Role]):
+    async def _validate_group_permission(self, group_doc, user_id: str, roles: list[Role]):
         """Validate that user has permission to access the group."""
-        if user_id not in group.auth_users and Role.ADMIN not in roles:
+        if user_id not in group_doc.auth_users and Role.ADMIN not in roles:
             raise HTTPException(
                 status_code=403,
                 detail="You do not have permission to access this group",
@@ -130,17 +136,18 @@ class GroupService(BaseService[Group]):
         current_user_roles: list[Role],
     ):
         """Grant access to group with proper permission validation."""
-        group = await self.group_repo.find_by_id(id)
+        group_doc = await self.group_repo.find_by_id(id)
         
-        if not group:
+        if not group_doc:
             raise HTTPException(
                 status_code=404,
                 detail="Group not found",
             )
         
-        await self._validate_group_permission(group, current_user_id, current_user_roles)
+        await self._validate_group_permission(group_doc, current_user_id, current_user_roles)
         
-        group.auth_users = auth_users
-        updated_group = await self.group_repo.update(group)
+        # Document를 직접 수정
+        group_doc.auth_users = auth_users
+        updated_group_doc = await group_doc.save()
         
-        return updated_group
+        return GroupResponse.from_document(updated_group_doc)

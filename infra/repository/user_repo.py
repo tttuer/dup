@@ -26,20 +26,22 @@ class UserRepository(BaseRepository[User], IUserRepository):
         user = await User.find_one(User.user_id == user_id)
         if not user:
             return None
-        return UserVo(**user.model_dump())
+        return user
     
     async def find(self) -> list[User]:
         users = await User.find().to_list()
         if not users:
             return []
-        return [UserVo(**user.model_dump()) for user in users]
+        return users
     
     async def update(self, user: UserVo):
-        db_user = await self.find_by_id_or_raise(user.id, "User")
+        db_user = await User.get(user.id)
+        if not db_user:
+            raise HTTPException(status_code=404, detail="User not found")
         db_user.name = user.name
         db_user.password = user.password
         db_user.roles = user.roles
         db_user.updated_at = user.updated_at
-        updated_user = await super().update(db_user)
+        updated_user = await db_user.save()
         
-        return UserVo(**updated_user.model_dump())
+        return updated_user

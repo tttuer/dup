@@ -21,34 +21,11 @@ from common.auth import CurrentUser
 from common.auth import get_current_user
 from containers import Container
 from domain.file import Company, Type
+from domain.responses.file_response import FileResponse
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 
-class FileResponse(BaseModel):
-    id: str
-    group_id: str
-    withdrawn_at: str
-    name: str
-    company: Company
-    type: Type
-    created_at: datetime
-    updated_at: datetime
-    file_data: bytes
-    file_name: str
-    lock: bool
-
-    @model_validator(mode="after")
-    def decompress_file_data(self):
-        try:
-            self.file_data = zlib.decompress(self.file_data)
-        except zlib.error:
-            pass  # 이미 풀려있거나 잘못된 경우는 그냥 넘어감
-        return self
-
-    @field_serializer("file_data", when_used="json")
-    def encode_file_data(self, file_data: bytes, _info):
-        return base64.b64encode(file_data).decode("utf-8")
 
 
 ALLOWED_CONTENT_TYPES = {
