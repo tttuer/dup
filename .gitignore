@@ -26,3 +26,6 @@ static/css/main.css
 .claude/
 
 .python-version
+
+logs/
+*.log
