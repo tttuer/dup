@@ -25,7 +25,9 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
         return GroupVo(**saved_group.model_dump())
 
     async def find_by_id(self, id: str) -> GroupVo:
-        group = await super().find_by_id_or_raise(id, "Group")
+        group = await Group.get(id)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
         return GroupVo(**group.model_dump())
 
     async def find(self, *filters: Any) -> list[GroupVo]:
