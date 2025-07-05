@@ -1,12 +1,13 @@
 from abc import ABCMeta, abstractmethod
 from typing import List, Optional
-from domain.user import User
+from domain.user import User as UserVo
+from infra.db_models.user import User
 
 
 class IUserRepository(metaclass=ABCMeta):
 
     @abstractmethod
-    async def save(self, user: User) -> None:
+    async def save(self, user: UserVo) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -18,5 +19,5 @@ class IUserRepository(metaclass=ABCMeta):
         raise NotImplementedError
     
     @abstractmethod
-    async def update(self, user: User) -> User:
+    async def update(self, user: UserVo) -> User:
         raise NotImplementedError

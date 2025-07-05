@@ -9,6 +9,7 @@ from ulid import ULID
 from domain.voucher import Company, SearchOption, VoucherFile
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher as VoucherDocument
+from domain.responses.voucher_response import VoucherResponse
 from utils.pdf import Pdf
 from utils.whg import Whg
 import asyncio
@@ -55,10 +56,10 @@ class VoucherService:
 
         return vouchers
 
-    async def find_by_id(self, id: str):
-        voucher = await self.voucher_repo.find_by_id(id)
+    async def find_by_id(self, id: str) -> VoucherResponse:
+        voucher_doc = await self.voucher_repo.find_by_id(id)
 
-        return voucher
+        return VoucherResponse.from_document(voucher_doc)
 
     async def find_many(
         self,
@@ -113,30 +114,36 @@ class VoucherService:
 
         total_page = (total_count - 1) // items_per_page + 1
 
-        return total_count, total_page, vouchers
+        # Document를 VoucherResponse로 변환
+        voucher_responses = [VoucherResponse.from_document(voucher) for voucher in vouchers]
+        
+        return total_count, total_page, voucher_responses
 
     async def update(
         self, id: str, items: list[tuple[Optional[str], Optional[UploadFile]]]
-    ):
-        voucher = await self.voucher_repo.find_by_id(id)
+    ) -> VoucherResponse:
+        voucher_doc = await self.voucher_repo.find_by_id(id)
 
         for file_id, upload_file in items:
             # 삭제 또는 교체 (file_id 있는 경우)
             if file_id:
-                voucher.files = [f for f in voucher.files if f.file_id != file_id]
-                if len(voucher.files) == 0:
-                    voucher.files = None
+                voucher_doc.files = [f for f in voucher_doc.files if f.file_id != file_id] if voucher_doc.files else []
+                if len(voucher_doc.files) == 0:
+                    voucher_doc.files = None
 
             # 추가 또는 교체 (파일 있는 경우)
             if upload_file:
-                if voucher.files is None:
-                    voucher.files = []
-                voucher.files.append(
-                    VoucherFile(
-                        file_name=upload_file.filename,
-                        file_data=await Pdf.compress(upload_file),
-                        uploaded_at=datetime.now(timezone.utc),
-                    )
+                if voucher_doc.files is None:
+                    voucher_doc.files = []
+                
+                # VoucherFile 객체로 저장
+                voucher_file = VoucherFile(
+                    file_name=upload_file.filename,
+                    file_data=await Pdf.compress(upload_file),
+                    uploaded_at=datetime.now(timezone.utc),
                 )
+                voucher_doc.files.append(voucher_file)
 
-        return await self.voucher_repo.update(voucher)
+        # Document를 직접 저장
+        updated_voucher_doc = await voucher_doc.save()
+        return VoucherResponse.from_document(updated_voucher_doc)

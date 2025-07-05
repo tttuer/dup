@@ -10,6 +10,7 @@ from application.base_service import BaseService
 from common.auth import create_access_token, create_refresh_token, Role
 from domain.repository.user_repo import IUserRepository
 from domain.user import User
+from domain.responses.user_response import UserResponse
 from utils.crypto import Crypto
 
 
@@ -51,16 +52,16 @@ class UserService(BaseService[User]):
         return user
 
     async def login(self, user_id: str, password: str):
-        user = await self.user_repo.find_by_user_id(user_id)
+        user_doc = await self.user_repo.find_by_user_id(user_id)
 
-        if not user or not self.crypto.verify(password, user.password):
+        if not user_doc or not self.crypto.verify(password, user_doc.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        access_token = await self.get_access_token(user_id, user.roles)
+        access_token = await self.get_access_token(user_id, user_doc.roles)
         refresh_token = await self.get_refresh_token(user_id)
 
         return access_token, refresh_token
@@ -77,12 +78,13 @@ class UserService(BaseService[User]):
         )
 
     async def find(self):
-        user = await self.user_repo.find()
+        user_docs = await self.user_repo.find()
 
-        return user
+        return [UserResponse.from_document(user) for user in user_docs]
     
-    async def find_by_user_id(self, user_id: str) -> User:
-        return await self.validate_user_exists(user_id)
+    async def find_by_user_id(self, user_id: str) -> UserResponse:
+        user_doc = await self.validate_user_exists(user_id)
+        return UserResponse.from_document(user_doc)
     
     async def update_user(
         self,
@@ -90,20 +92,19 @@ class UserService(BaseService[User]):
         name: Optional[str] = None,
         password: Optional[str] = None,
         roles: Optional[list[Role]] = None,
-    ) -> User:
-        user = await self.validate_user_exists(user_id)
+    ) -> UserResponse:
+        user_doc = await self.validate_user_exists(user_id)
 
         if password:
-            user.password = self.crypto.encrypt(password)
+            user_doc.password = self.crypto.encrypt(password)
 
         if name is not None:
-            user.name = name
+            user_doc.name = name
 
         if roles is not None:
-            user.roles = roles
+            user_doc.roles = roles
 
-        user.updated_at = datetime.now()
+        user_doc.updated_at = datetime.now()
+        updated_user_doc = await user_doc.save()
 
-        updated_user = await self.user_repo.update(user)
-
-        return updated_user
+        return UserResponse.from_document(updated_user_doc)

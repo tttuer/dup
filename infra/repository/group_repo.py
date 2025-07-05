@@ -22,35 +22,39 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
 
         saved_group = await Group.insert(new_group)
 
-        return GroupVo(**saved_group.model_dump())
+        return saved_group
 
-    async def find_by_id(self, id: str) -> GroupVo:
+    async def find_by_id(self, id: str) -> Group:
         group = await Group.get(id)
         if not group:
             raise HTTPException(status_code=404, detail="Group not found")
-        return GroupVo(**group.model_dump())
+        return group
 
-    async def find(self, *filters: Any) -> list[GroupVo]:
+    async def find(self, *filters: Any) -> list[Group]:
         groups = await Group.find(*filters).to_list()
 
         if not groups:
             return []
 
-        return [GroupVo(**group.model_dump()) for group in groups]
+        return groups
 
-    async def find_by_name_and_company(self, name: str, company: str) -> GroupVo:
+    async def find_by_name_and_company(self, name: str, company: str) -> Group:
         group = await Group.find_one(Group.name == name, Group.company == company)
 
         if not group:
             return None
-        return GroupVo(**group.model_dump())
+        return group
 
     async def delete(self, id: str, session=None):
-        group = await super().find_by_id_or_raise(id, "Group")
+        group = await Group.get(id)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
         await group.delete(session=session)
 
     async def update(self, update_group: GroupVo):
-        db_group = await super().find_by_id_or_raise(update_group.id, "Group")
+        db_group = await Group.get(update_group.id)
+        if not db_group:
+            raise HTTPException(status_code=404, detail="Group not found")
 
         update_data = asdict(update_group)
         update_data.pop("id", None)
@@ -59,5 +63,5 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
             if value is not None:
                 setattr(db_group, field, value)
 
-        updated_group = await super().update(db_group)
-        return GroupVo(**updated_group.model_dump())
+        updated_group = await db_group.save()
+        return updated_group

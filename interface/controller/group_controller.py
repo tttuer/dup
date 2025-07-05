@@ -15,6 +15,7 @@ from common.auth import CurrentUser, Role
 from common.auth import get_current_user
 from containers import Container
 from domain.file import Company
+from domain.responses.group_response import GroupResponse
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -24,11 +25,6 @@ class CreateGroupBody(BaseModel):
     company: Company
 
 
-class GroupResponse(BaseModel):
-    id: str
-    name: str
-    company: Company
-    auth_users: list[str] = []
 
 
 class GroupGrantBody(BaseModel):

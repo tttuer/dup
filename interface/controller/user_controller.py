@@ -17,17 +17,11 @@ from common.auth import (
     create_access_token,
 )
 from containers import Container
+from domain.responses.user_response import UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-class UserResponse(BaseModel):
-    id: str
-    name: Optional[str] = None
-    user_id: str
-    created_at: datetime
-    updated_at: datetime
-    roles: list[Role]
 
 
 class CreateUserBody(BaseModel):

@@ -65,7 +65,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
             f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}"
         )
 
-    async def find_by_id(self, id: str) -> VoucherVo:
+    async def find_by_id(self, id: str) -> Voucher:
         voucher = await Voucher.get(id)
 
         if not voucher:
@@ -74,7 +74,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
                 detail="Voucher not found",
             )
 
-        return VoucherVo(**voucher.model_dump())
+        return voucher
 
     async def find_many(
         self,
@@ -99,7 +99,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
 
             return (
                 total_count,
-                [VoucherVo(**voucher.model_dump()) for voucher in vouchers],
+                vouchers,
             )
         total_count = await Voucher.count()
 
@@ -113,7 +113,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
 
         return (
             total_count,
-            [VoucherVo(**voucher.model_dump()) for voucher in vouchers],
+            vouchers,
         )
 
     async def update(self, voucher: VoucherVo):
@@ -139,9 +139,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
     async def find_by_company(self, company: Company) -> list[Voucher]:
         db_vouchers = await Voucher.find(Voucher.company == company).to_list()
 
-        return [
-            VoucherVo.model_construct(**voucher.model_dump()) for voucher in db_vouchers
-        ]
+        return db_vouchers
 
     async def find_by_company_and_year(self, company: Company, year: int) -> list[Voucher]:
         db_vouchers = await Voucher.find(
@@ -151,6 +149,4 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
             )
         ).to_list()
 
-        return [
-            VoucherVo.model_construct(**voucher.model_dump()) for voucher in db_vouchers
-        ]
+        return db_vouchers
