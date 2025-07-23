@@ -6,6 +6,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import json
 import gzip
 import io
@@ -39,12 +41,18 @@ class Whg:
         try:
             if not self._login(driver, wehago_id, wehago_password):
                 return []
+            all_vouchers = []
+            for company in Company:
             
-            if not self._select_company_and_navigate(driver, company):
-                return []
-            
-            vouchers = self._extract_voucher_data(driver, company, year)
-            return vouchers
+                if not self._select_company_and_navigate(driver, company):
+                    return []
+                
+                vouchers = self._extract_voucher_data(driver, company, year)
+
+                vouchers = [v for v in vouchers if v.company == company]
+
+                all_vouchers.append(vouchers)
+            return all_vouchers
             
         except Exception as e:
             logger.error(f"크롤링 중 오류 발생: {e}")
@@ -59,12 +67,15 @@ class Whg:
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.page_load_strategy = "eager"
+
+        service = Service(ChromeDriverManager().install())
+        return webdriver.Chrome(service=service, options=options)
         
-        return webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            options=options,
-            desired_capabilities={"browserName": "chrome"},
-        )
+        # return webdriver.Remote(
+        #     command_executor="http://localhost:4444/wd/hub",
+        #     options=options,
+        #     desired_capabilities={"browserName": "chrome"},
+        # )
     
     def _login(self, driver, wehago_id: str, wehago_password: str) -> bool:
         """Handle login process and validation."""
@@ -184,7 +195,7 @@ class Whg:
         if not self._wait_for_voucher_page_load(driver):
             return []
         
-        return self._extract_monthly_vouchers(driver, year)
+        return self._extract_monthly_vouchers(driver, year, company)
     
     def _navigate_to_voucher_page(self, driver, company: Company, year: int) -> bool:
         """Navigate to the voucher page for the specified company and year."""
@@ -221,7 +232,6 @@ class Whg:
                 "extra": "&ledgerNum=7897095&ledger"
             }
         }
-        
         config = company_configs[company]
         url = f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno={config['cno']}&cd_com={config['cd_com']}&{base_params}&companyName={config['companyName']}"
         
@@ -240,7 +250,7 @@ class Whg:
             logger.error("전표 페이지 로딩 시간 초과")
             return False
 
-    def _extract_monthly_vouchers(self, driver, year: int) -> list:
+    def _extract_monthly_vouchers(self, driver, year: int, company: Company) -> list:
         """Extract vouchers for all months in the year."""
         month_inputs = self._setup_month_picker(driver)
         if not month_inputs:
@@ -255,7 +265,7 @@ class Whg:
             if str(year) == current_year and month > current_month:
                 break
             
-            vouchers = self._extract_month_vouchers(driver, month_inputs, year, month)
+            vouchers = self._extract_month_vouchers(driver, month_inputs, year, month, company)
             all_vouchers.extend(vouchers)
         
         logger.info(f"총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
@@ -273,7 +283,7 @@ class Whg:
             logger.error(f"월 선택기 설정 실패: {e}")
             return None
 
-    def _extract_month_vouchers(self, driver, month_inputs, year: int, month: str) -> list:
+    def _extract_month_vouchers(self, driver, month_inputs, year: int, month: str, company: Company) -> list:
         """Extract vouchers for a specific month."""
         if not self._set_month_input(driver, month_inputs, month):
             return []
@@ -282,7 +292,7 @@ class Whg:
         if not request_data:
             return []
         
-        return self._parse_voucher_response(request_data, year, month)
+        return self._parse_voucher_response(request_data, year, month, company)
     
     def _set_month_input(self, driver, month_inputs, month: str) -> bool:
         """Set the month in the input field."""
@@ -328,7 +338,7 @@ class Whg:
         logger.error("전표 데이터 요청을 찾지 못했습니다.")
         return None
     
-    def _parse_voucher_response(self, request, year: int, month: str) -> list:
+    def _parse_voucher_response(self, request, year: int, month: str, company: Company) -> list:
         """Parse voucher data from API response."""
         if f"start_date={year}{month}" not in request.url:
             logger.error("예상한 start_date가 아닌 요청입니다.")
@@ -347,19 +357,19 @@ class Whg:
                 logger.info("해당 월에 전표가 없습니다.")
                 return []
             
-            return self._convert_to_voucher_objects(voucher_list, year, month)
+            return self._convert_to_voucher_objects(voucher_list, year, month, company)
             
         except Exception as e:
             logger.error(f"전표 데이터 파싱 실패: {e}")
             return []
     
-    def _convert_to_voucher_objects(self, voucher_list: list, year: int, month: str) -> list:
+    def _convert_to_voucher_objects(self, voucher_list: list, year: int, month: str, company: Company) -> list:
         """Convert raw voucher data to Voucher objects."""
         vouchers = []
         for entry in voucher_list:
             try:
                 entry = dict(entry)
-                entry["id"] = str(entry["sq_acttax2"]) + "_" + str(year) + month
+                entry["id"] = str(entry["sq_acttax2"]) + "_" + company.value
                 vouchers.append(Voucher(**entry))
             except Exception as e:
                 logger.error(f"전표 변환 실패: {e}")
