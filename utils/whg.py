@@ -81,14 +81,14 @@ class Whg:
         options.add_argument("--no-sandbox")
         options.page_load_strategy = "eager"
 
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=options)
+        # service = Service(ChromeDriverManager().install())
+        # return webdriver.Chrome(service=service, options=options)
         
-        # return webdriver.Remote(
-        #     command_executor="http://localhost:4444/wd/hub",
-        #     options=options,
-        #     desired_capabilities={"browserName": "chrome"},
-        # )
+        return webdriver.Remote(
+            command_executor="http://localhost:4444/wd/hub",
+            options=options,
+            desired_capabilities={"browserName": "chrome"},
+        )
     
     def _login(self, driver, wehago_id: str, wehago_password: str) -> bool:
         """Handle login process and validation."""
