@@ -18,6 +18,18 @@ from domain.voucher import Voucher
 from datetime import datetime
 from domain.voucher import Company
 
+company_cnos = {
+    Company.BAEKSUNG: {
+        "cno": "7897095",
+    },
+    Company.PYEONGTAEK: {
+        "cno": "7929394", 
+    },
+    Company.PARAN: {
+        "cno": "7929524",
+    }
+}
+
 
 class Whg:
     def calculate_gisu(self, company: Company, year: int):
@@ -49,9 +61,10 @@ class Whg:
                 
                 vouchers = self._extract_voucher_data(driver, company, year)
 
-                vouchers = [v for v in vouchers if v.company == company]
+                for voucher in vouchers:
+                    voucher.company = company.value
 
-                all_vouchers.append(vouchers)
+                all_vouchers.extend(vouchers)
             return all_vouchers
             
         except Exception as e:
@@ -203,7 +216,13 @@ class Whg:
         sao_url = self._build_sao_url(company, gisu, year)
         
         try:
+            driver.requests.clear()
             driver.get(sao_url)
+            driver.refresh()
+
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "WSC_LUXMonthPicker"))
+            )
             return True
         except Exception as e:
             logger.error(f"전표 페이지 이동 실패: {e}")
@@ -237,7 +256,8 @@ class Whg:
         
         if "extra" in config:
             url += config["extra"]
-            
+        logger.info(f"전표 페이지 URL: {url}")
+        print(f"전표 페이지 URL: {url}")
         return url
     
     def _wait_for_voucher_page_load(self, driver) -> bool:
@@ -288,7 +308,7 @@ class Whg:
         if not self._set_month_input(driver, month_inputs, month):
             return []
         
-        request_data = self._wait_for_voucher_request(driver, year, month)
+        request_data = self._wait_for_voucher_request(driver, year, month, company)
         if not request_data:
             return []
         
@@ -318,7 +338,7 @@ class Whg:
             logger.error(f"월 입력 실패: {e}")
             return False
 
-    def _wait_for_voucher_request(self, driver, year: int, month: str, timeout: int = 15):
+    def _wait_for_voucher_request(self, driver, year: int, month: str, company: Company, timeout: int = 15, ):
         """Wait for voucher data request to complete."""
         logger.info("전표 데이터 로딩 대기 중...")
         
@@ -329,6 +349,7 @@ class Whg:
                     req.response
                     and "/smarta/sabk0102" in req.url
                     and f"start_date={year}{month}" in req.url
+                    and company_cnos[company]["cno"] in req.url
                     and req.response.status_code == 200
                     and req.response.body
                 ):
