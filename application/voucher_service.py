@@ -34,9 +34,6 @@ class VoucherService:
             lambda: Whg().crawl_whg(company, year, wehago_id, wehago_password)
         )
 
-        for v in vouchers:
-            v.company = company
-
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
 
