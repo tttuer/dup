@@ -50,4 +50,5 @@ dependencies = [
     "apscheduler>=3.11.0",
     "requests>=2.32.4",
     "pytz>=2025.2",
+    "webdriver-manager>=4.0.2",
 ]
