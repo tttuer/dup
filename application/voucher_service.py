@@ -144,3 +144,50 @@ class VoucherService:
         # Document를 직접 저장
         updated_voucher_doc = await voucher_doc.save()
         return VoucherResponse.from_document(updated_voucher_doc)
+
+    async def migrate_voucher_ids(self) -> int:
+        """
+        잘못 저장된 voucher ID를 올바른 {sq_acttax2}_{company} 형식으로 변경
+        기존 데이터는 보존되며, 새로운 ID로 복사 후 기존 ID 삭제
+        """
+        # 모든 voucher 조회
+        all_vouchers = await VoucherDocument.find_all().to_list()
+        
+        migrated_count = 0
+        vouchers_to_delete = []
+        vouchers_to_create = []
+        
+        for voucher in all_vouchers:
+            # 현재 ID가 올바른 형식인지 확인
+            if voucher.company and voucher.sq_acttax2:
+                correct_id = f"{voucher.sq_acttax2}_{voucher.company.value}"
+                
+                # 이미 올바른 형식이면 건너뛰기
+                if voucher.id == correct_id:
+                    continue
+                
+                # 잘못된 형식인지 확인 (예: {company}_{sq_acttax2} 또는 다른 형식)
+                wrong_format_id = f"{voucher.company.value}_{voucher.sq_acttax2}"
+                if voucher.id == wrong_format_id or voucher.id != correct_id:
+                    # 올바른 ID로 복사할 데이터 준비
+                    voucher_dict = voucher.model_dump()
+                    voucher_dict["id"] = correct_id
+                    
+                    # 새로운 voucher 문서 생성
+                    new_voucher = VoucherDocument(**voucher_dict)
+                    vouchers_to_create.append(new_voucher)
+                    
+                    # 기존 voucher 삭제 목록에 추가
+                    vouchers_to_delete.append(voucher.id)
+                    
+                    migrated_count += 1
+        
+        # 새로운 voucher들 일괄 생성
+        if vouchers_to_create:
+            await VoucherDocument.insert_many(vouchers_to_create)
+        
+        # 기존 voucher들 일괄 삭제
+        if vouchers_to_delete:
+            await VoucherDocument.find({"_id": {"$in": vouchers_to_delete}}).delete()
+        
+        return migrated_count

@@ -89,6 +89,20 @@ async def update_voucher(
     return await voucher_service.update(id=id, items=update_items)
 
 
+@router.post("/migrate-ids")
+@inject
+async def migrate_voucher_ids(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+):
+    """
+    잘못 저장된 voucher ID를 올바른 {sq_acttax2}_{company} 형식으로 변경
+    기존 데이터는 보존됨
+    """
+    result = await voucher_service.migrate_voucher_ids()
+    return {"message": "Voucher ID migration completed", "migrated_count": result}
+
+
 @router.get("")
 @inject
 async def find_vouchers(

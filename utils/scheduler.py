@@ -24,23 +24,24 @@ async def crawl_and_save_job():
     wehago_id = settings.wehago_id
     wehago_password = settings.wehago_password
 
-    for company in [Company.BAEKSUNG, Company.PYEONGTAEK, Company.PARAN]:
-        try:
-            vouchers = await voucher_service.sync(
-                year, company, wehago_id, wehago_password
-            )
-            send_slack_message(
-                f"✅ {company.name} 전표 수집 및 저장 성공 ({len(vouchers)}건)"
-            )
-        except Exception as e:
-            send_slack_message(f"❌ {company.name} 전표 수집 실패: {e}")
+    try:
+        vouchers = await voucher_service.sync(
+            year=year,
+            wehago_id=wehago_id,
+            wehago_password=wehago_password,
+        )
+        send_slack_message(
+            f"✅ 전표 수집 및 저장 성공 ({len(vouchers)}건)"
+        )
+    except Exception as e:
+        send_slack_message(f"❌ 전표 수집 실패: {e}")
 
 
 def start_scheduler():
     # 매일 오전 8시에 실행
     scheduler.add_job(
         crawl_and_save_job,
-        CronTrigger(hour=8, minute=0, timezone=timezone("Asia/Seoul")),
+        CronTrigger(hour=12, minute=0, timezone=timezone("Asia/Seoul")),
         id='whg_crawl_8am',
         replace_existing=True
     )
