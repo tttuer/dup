@@ -52,12 +52,12 @@ class Whg:
         
         try:
             if not self._login(driver, wehago_id, wehago_password):
-                return []
+                raise HTTPException(status_code=401, detail="로그인 실패")
             all_vouchers = []
             for company in Company:
             
                 if not self._select_company_and_navigate(driver, company):
-                    return []
+                    raise HTTPException(status_code=500, detail=f"회사 선택 및 페이지 이동 실패: {company.value}")
                 
                 vouchers = self._extract_voucher_data(driver, company, year)
 
@@ -69,7 +69,7 @@ class Whg:
             
         except Exception as e:
             logger.error(f"크롤링 중 오류 발생: {e}")
-            return []
+            raise HTTPException(status_code=500, detail=f"크롤링 중 오류 발생: {str(e)}")
         finally:
             driver.quit()
 
@@ -203,10 +203,10 @@ class Whg:
     def _extract_voucher_data(self, driver, company: Company, year: int) -> list:
         """Extract voucher data from the website."""
         if not self._navigate_to_voucher_page(driver, company, year):
-            return []
+            raise HTTPException(status_code=500, detail=f"전표 페이지 이동 실패: {company.value}")
         
         if not self._wait_for_voucher_page_load(driver):
-            return []
+            raise HTTPException(status_code=500, detail=f"전표 페이지 로딩 실패: {company.value}")
         
         return self._extract_monthly_vouchers(driver, year, company)
     
@@ -274,7 +274,7 @@ class Whg:
         """Extract vouchers for all months in the year."""
         month_inputs = self._setup_month_picker(driver)
         if not month_inputs:
-            return []
+            raise HTTPException(status_code=500, detail=f"월 선택기 설정 실패: {company.value}")
         
         all_vouchers = []
         months = [f"{i:02d}" for i in range(1, 13)]
@@ -306,10 +306,12 @@ class Whg:
     def _extract_month_vouchers(self, driver, month_inputs, year: int, month: str, company: Company) -> list:
         """Extract vouchers for a specific month."""
         if not self._set_month_input(driver, month_inputs, month):
+            logger.warning(f"월 입력 실패: {year}년 {month}월, 해당 월 건너뜀")
             return []
         
         request_data = self._wait_for_voucher_request(driver, year, month, company)
         if not request_data:
+            logger.warning(f"전표 데이터 요청 실패: {year}년 {month}월, 해당 월 건너뜀")
             return []
         
         return self._parse_voucher_response(request_data, year, month, company)
@@ -362,7 +364,7 @@ class Whg:
     def _parse_voucher_response(self, request, year: int, month: str, company: Company) -> list:
         """Parse voucher data from API response."""
         if f"start_date={year}{month}" not in request.url:
-            logger.error("예상한 start_date가 아닌 요청입니다.")
+            logger.warning(f"예상한 start_date가 아닌 요청: {year}년 {month}월")
             return []
         
         logger.info(f"전표 데이터 요청 발견: {request.url}")
@@ -381,7 +383,7 @@ class Whg:
             return self._convert_to_voucher_objects(voucher_list, year, month, company)
             
         except Exception as e:
-            logger.error(f"전표 데이터 파싱 실패: {e}")
+            logger.warning(f"전표 데이터 파싱 실패 ({year}년 {month}월): {e}")
             return []
     
     def _convert_to_voucher_objects(self, voucher_list: list, year: int, month: str, company: Company) -> list:
