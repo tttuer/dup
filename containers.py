@@ -24,8 +24,16 @@ class Container(containers.DeclarativeContainer):
     config.redis.port.from_value(settings.redis_port)
     config.redis.password.from_value(settings.redis_password)
 
+    redis = providers.Singleton(
+        Redis,
+        host=config.redis.host,
+        port=config.redis.port,
+        password=config.redis.password,
+        decode_responses=True,
+    )
+
     user_repo = providers.Factory(UserRepository)
-    user_service = providers.Factory(UserService, user_repo=user_repo)
+    user_service = providers.Factory(UserService, user_repo=user_repo, redis=redis)
 
     file_repo = providers.Factory(FileRepository)
     file_service = providers.Factory(FileService, file_repo=file_repo, user_repo=user_repo)
@@ -37,13 +45,5 @@ class Container(containers.DeclarativeContainer):
     group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo, user_repo=user_repo)
     
     websocket_manager = providers.Singleton(WebSocketManager)
-    
-    redis = providers.Singleton(
-        Redis,
-        host=config.redis.host,
-        port=config.redis.port,
-        password=config.redis.password,
-        decode_responses=True,
-    )
 
     sync_service = providers.Factory(SyncService, redis=redis)
