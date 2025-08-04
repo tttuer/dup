@@ -21,6 +21,12 @@ class Role(StrEnum):
     VOUCHER = "VOUCHER"
 
 
+class ApprovalStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 @dataclass
 class CurrentUser:
     id: str

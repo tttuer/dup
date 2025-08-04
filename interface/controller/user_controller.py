@@ -11,6 +11,7 @@ from application.user_service import UserService
 from common.auth import (
     CurrentUser,
     Role,
+    ApprovalStatus,
     get_current_user,
     clear_refresh_token_cookie,
     get_user_id_from_refresh_token,
@@ -30,10 +31,19 @@ class CreateUserBody(BaseModel):
     password: str
     roles: list[Role]
 
+class SignupUserBody(BaseModel):
+    user_id: str
+    name: Optional[str] = None
+    password: str
+
 class UpdateUserBody(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
     roles: Optional[list[Role]] = None
+
+class ApproveUserBody(BaseModel):
+    approval_status: ApprovalStatus
+    roles: list[Role]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -54,6 +64,21 @@ async def create_user(
         name=user.name,
         password=user.password,
         roles=user.roles,
+    )
+
+    return created_user
+
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
+@inject
+async def signup_user(
+    user: SignupUserBody,
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> UserResponse:
+    created_user = await user_service.signup_user(
+        user_id=user.user_id,
+        name=user.name,
+        password=user.password,
     )
 
     return created_user
@@ -135,3 +160,42 @@ async def update_user(
     )
 
     return updated_user
+
+
+@router.patch("/{user_id}/approval")
+@inject
+async def approve_user(
+    user_id: str,
+    approval: ApproveUserBody,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> UserResponse:
+    if Role.ADMIN not in current_user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin can approve users",
+        )
+    
+    approved_user = await user_service.approve_user(
+        user_id=user_id,
+        approval_status=approval.approval_status,
+        roles=approval.roles,
+    )
+
+    return approved_user
+
+
+@router.get("/pending")
+@inject
+async def get_pending_users(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> list[UserResponse]:
+    if Role.ADMIN not in current_user.roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin can view pending users",
+        )
+    
+    pending_users = await user_service.find_pending_users()
+    return pending_users
