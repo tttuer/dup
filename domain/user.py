@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from common.auth import Role
+from common.auth import Role, ApprovalStatus
 
 
 @dataclass
@@ -14,3 +14,4 @@ class User:
     updated_at: datetime
     roles: list[Role]
     name: Optional[str] = None
+    approval_status: Optional[ApprovalStatus] = None

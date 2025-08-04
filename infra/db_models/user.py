@@ -4,7 +4,7 @@ from typing import Optional
 from beanie import Document
 from pydantic import Field
 
-from common.auth import Role
+from common.auth import Role, ApprovalStatus
 
 
 class User(Document):
@@ -15,6 +15,7 @@ class User(Document):
     updated_at: datetime
     roles: list[Role]
     name: Optional[str] = Field(default=None)
+    approval_status: Optional[ApprovalStatus] = Field(default=None)
 
     class Settings:
         name = "users"
