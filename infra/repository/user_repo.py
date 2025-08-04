@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 
+from common.auth import ApprovalStatus
 from domain.repository.user_repo import IUserRepository
 from domain.user import User as UserVo
 from infra.db_models.user import User
@@ -18,6 +19,7 @@ class UserRepository(BaseRepository[User], IUserRepository):
             created_at=user.created_at,
             updated_at=user.updated_at,
             roles=user.roles,
+            approval_status=user.approval_status,
         )
 
         await new_user.insert()
@@ -45,3 +47,7 @@ class UserRepository(BaseRepository[User], IUserRepository):
         updated_user = await db_user.save()
         
         return updated_user
+
+    async def find_by_approval_status(self, approval_status: ApprovalStatus) -> list[User]:
+        users = await User.find(User.approval_status == approval_status).to_list()
+        return users or []

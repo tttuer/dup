@@ -1,13 +1,15 @@
 from datetime import datetime
 from typing import Optional
 
+import json
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
 from starlette import status
 from ulid import ULID
+from redis.asyncio import Redis
 
 from application.base_service import BaseService
-from common.auth import create_access_token, create_refresh_token, Role
+from common.auth import create_access_token, create_refresh_token, Role, ApprovalStatus
 from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from domain.responses.user_response import UserResponse
@@ -16,10 +18,11 @@ from utils.crypto import Crypto
 
 class UserService(BaseService[User]):
     @inject
-    def __init__(self, user_repo: IUserRepository):
+    def __init__(self, user_repo: IUserRepository, redis: Redis):
         super().__init__(user_repo)
         self.ulid = ULID()
         self.crypto = Crypto()
+        self.redis = redis
 
     async def create_user(self, user_id: str, name: Optional[str], password: str, roles: list[Role]) -> User:
         _user = None
@@ -45,9 +48,38 @@ class UserService(BaseService[User]):
             created_at=now,
             updated_at=now,
             roles=roles,
+            approval_status=ApprovalStatus.APPROVED,
         )
 
         await self.user_repo.save(user)
+
+        return user
+
+    async def signup_user(self, user_id: str, name: Optional[str], password: str) -> User:
+        _user = await self.user_repo.find_by_user_id(user_id)
+
+        if _user:
+            raise HTTPException(
+                status_code=409,
+                detail="User already exists",
+            )
+
+        now = datetime.now()
+        user: User = User(
+            id=self.ulid.generate(),
+            name=name,
+            user_id=user_id,
+            password=self.crypto.encrypt(password),
+            created_at=now,
+            updated_at=now,
+            roles=[],
+            approval_status=ApprovalStatus.PENDING,
+        )
+
+        await self.user_repo.save(user)
+
+        # 회원가입 시 pending 수 업데이트 브로드캐스트
+        await self._broadcast_pending_count()
 
         return user
 
@@ -59,6 +91,12 @@ class UserService(BaseService[User]):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if user_doc.approval_status is not None and user_doc.approval_status != ApprovalStatus.APPROVED:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account pending approval",
             )
 
         access_token = await self.get_access_token(user_id, user_doc.roles)
@@ -108,3 +146,44 @@ class UserService(BaseService[User]):
         updated_user_doc = await user_doc.save()
 
         return UserResponse.from_document(updated_user_doc)
+
+    async def approve_user(
+        self,
+        user_id: str,
+        approval_status: ApprovalStatus,
+        roles: list[Role],
+    ) -> UserResponse:
+        user_doc = await self.validate_user_exists(user_id)
+
+        if approval_status == ApprovalStatus.REJECTED:
+            await user_doc.delete()
+            # 거절 시 pending 수 업데이트 브로드캐스트
+            await self._broadcast_pending_count()
+            return UserResponse.from_document(user_doc)
+
+        user_doc.approval_status = approval_status
+        user_doc.roles = roles
+        user_doc.updated_at = datetime.now()
+        
+        updated_user_doc = await user_doc.save()
+
+        # 승인 시 pending 수 업데이트 브로드캐스트
+        await self._broadcast_pending_count()
+
+        return UserResponse.from_document(updated_user_doc)
+
+    async def find_pending_users(self) -> list[UserResponse]:
+        pending_users = await self.user_repo.find_by_approval_status(ApprovalStatus.PENDING)
+        return [UserResponse.from_document(user) for user in pending_users]
+
+    async def get_pending_users_count(self) -> int:
+        pending_users = await self.user_repo.find_by_approval_status(ApprovalStatus.PENDING)
+        return len(pending_users)
+
+    async def _broadcast_pending_count(self):
+        try:
+            pending_count = await self.get_pending_users_count()
+            message = {"pending_users_count": pending_count}
+            await self.redis.publish("pending_users_channel", json.dumps(message))
+        except Exception as e:
+            print(f"🚨 Failed to broadcast pending count: {e}")
