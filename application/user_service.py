@@ -56,13 +56,7 @@ class UserService(BaseService[User]):
         return user
 
     async def signup_user(self, user_id: str, name: Optional[str], password: str) -> User:
-        _user = None
-
-        try:
-            _user = await self.user_repo.find_by_user_id(user_id)
-        except HTTPException as e:
-            if e.status_code != 422 and e.status_code != 404:
-                raise e
+        _user = await self.user_repo.find_by_user_id(user_id)
 
         if _user:
             raise HTTPException(
