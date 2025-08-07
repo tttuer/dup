@@ -113,7 +113,7 @@ async def find_vouchers(
     end_at: Optional[str] = None,
     company: Optional[Company] = Company.BAEKSUNG,
     page: int = 1,
-    items_per_page: int = 20,
+    items_per_page: int = 2000,
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ) -> tuple[int, int, list[VoucherResponse]]:
     return await voucher_service.find_many(
