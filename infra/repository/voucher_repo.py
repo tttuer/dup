@@ -80,7 +80,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         self,
         *filters: Any,
         page: int = 1,
-        items_per_page: int = 10,
+        items_per_page: int = 1000,
     ) -> tuple[int, list[VoucherVo]]:
         offset = (page - 1) * items_per_page
 

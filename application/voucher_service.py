@@ -66,7 +66,7 @@ class VoucherService:
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
         page: int = 1,
-        items_per_page: int = 30,
+        items_per_page: int = 1000,
     ):
         filters = []
 
