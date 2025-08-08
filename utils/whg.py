@@ -105,6 +105,7 @@ class Whg:
         return webdriver.Remote(
             command_executor="http://localhost:4444/wd/hub",
             options=options,
+            desired_capabilities={"browserName": "chrome"},
         )
     
     def _login(self, driver, wehago_id: str, wehago_password: str) -> bool:
