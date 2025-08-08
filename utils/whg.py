@@ -76,18 +76,35 @@ class Whg:
     def _setup_browser(self):
         """Setup and configure the browser driver."""
         options = Options()
-        options.add_argument("--start-maximized")
-        options.add_argument("--disable-gpu")
+        
+        # --- 성능 최적화 옵션 ---
+        options.add_argument("--headless")  # UI 없이 백그라운드에서 실행하여 리소스 사용량 감소
+        options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (헤드리스 모드에서 권장)
         options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")  # 메모리 부족 문제 방지
+        options.add_argument("--window-size=1920,1080")  # 일부 웹페이지에서 필요할 수 있는 해상도 설정
+
+        # 페이지 로드 전략 수정: DOM 생성까지만 기다리고 이미지, CSS 등은 기다리지 않음
         options.page_load_strategy = "eager"
 
+        # 이미지 및 CSS 로딩 비활성화하여 페이지 로딩 속도 향상
+        prefs = {
+            "profile.managed_default_content_settings.images": 2,
+            "profile.default_content_setting_values.css": 2,
+        }
+        options.add_experimental_option("prefs", prefs)
+
+        # 로컬 드라이버를 사용할 경우 (아래 주석을 해제하고 Remote 부분을 주석 처리)
+        # from selenium.webdriver.chrome.service import Service
+        # from webdriver_manager.chrome import ChromeDriverManager
         # service = Service(ChromeDriverManager().install())
         # return webdriver.Chrome(service=service, options=options)
         
+        # 현재 사용 중인 Remote WebDriver 설정 유지
+        # 참고: desired_capabilities는 Selenium 4부터 options에 통합되었습니다.
         return webdriver.Remote(
             command_executor="http://localhost:4444/wd/hub",
             options=options,
-            desired_capabilities={"browserName": "chrome"},
         )
     
     def _login(self, driver, wehago_id: str, wehago_password: str) -> bool:
@@ -356,7 +373,7 @@ class Whg:
                     and req.response.body
                 ):
                     return req
-            time.sleep(0.2)
+            time.sleep(0.1)
         
         logger.error("전표 데이터 요청을 찾지 못했습니다.")
         return None
