@@ -43,8 +43,17 @@ class Whg:
             browser = await p.chromium.launch(
                 headless=True,
                 args=[
-                    "--disable-popup-blocking",  # 팝업 차단 비활성화
-                    "--disable-web-security",    # 웹 보안 비활성화 (같은 컨텍스트 공유)
+                    "--no-sandbox",                    # K3s에서 필수
+                    "--disable-dev-shm-usage",        # shared memory 절약
+                    "--disable-gpu",                   # GPU 비활성화
+                    "--disable-software-rasterizer",  # 소프트웨어 렌더링 비활성화
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--memory-pressure-off",           # 메모리 압력 알림 비활성화
+                    "--max_old_space_size=512",        # V8 힙 메모리 제한
+                    "--disable-popup-blocking",        # 팝업 차단 비활성화
+                    "--disable-web-security",          # 웹 보안 비활성화 (같은 컨텍스트 공유)
                     "--disable-features=VizDisplayCompositor"  # 새 창 방지
                 ]
             )
