@@ -13,7 +13,6 @@ from domain.responses.voucher_response import VoucherResponse
 from utils.pdf import Pdf
 from utils.whg import Whg
 import asyncio
-from anyio import to_thread
 
 
 class VoucherService:
@@ -29,10 +28,8 @@ class VoucherService:
         wehago_id: str = None,
         wehago_password: str = None,
     ):
-        # 🧵 크롤링을 별도 쓰레드에서 실행
-        vouchers = await to_thread.run_sync(
-            lambda: Whg().crawl_whg(company, year, wehago_id, wehago_password)
-        )
+        # 🚀 async 크롤링 직접 실행 (병렬 처리)
+        vouchers = await Whg().crawl_whg(company, year, wehago_id, wehago_password)
 
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
