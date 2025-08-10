@@ -1,6 +1,6 @@
-# 1. 베이스 이미지를 Microsoft의 공식 Playwright 이미지로 변경
-# 이 이미지에는 Python과 브라우저 실행에 필요한 모든 시스템 종속성이 포함되어 있습니다.
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+# 1. 베이스 이미지를 Microsoft의 공식 Playwright 최신 이미지로 변경
+# 이 이미지에는 Python 3.12와 브라우저 실행에 필요한 모든 시스템 종속성이 포함되어 있습니다.
+FROM mcr.microsoft.com/playwright/python:v1.53.0-noble
 
 # 2. prebuilt uv 바이너리 복사 (기존 Dockerfile의 방식을 그대로 활용)
 # 이 한 줄로 Playwright 이미지에 uv를 설치합니다.
