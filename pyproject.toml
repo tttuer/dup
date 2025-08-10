@@ -51,4 +51,5 @@ dependencies = [
     "requests>=2.32.4",
     "pytz>=2025.2",
     "webdriver-manager>=4.0.2",
+    "playwright>=1.54.0",
 ]
