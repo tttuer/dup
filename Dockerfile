@@ -16,9 +16,8 @@ RUN uv sync --no-cache
 # 최종적으로 사용할 경량화된 이미지 스테이지
 FROM mcr.microsoft.com/playwright/python:v1.54.0-noble
 
-# 보안을 위해 non-root 유저 생성 및 전환
-RUN groupadd -r pwuser && useradd -r -g pwuser -G audio,video pwuser
-USER pwuser
+# 브라우저 실행을 위해 root 사용자 유지 (보안보다 기능 우선)
+# USER pwuser
 
 WORKDIR /app
 
