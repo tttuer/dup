@@ -41,7 +41,7 @@ class Whg:
         """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                headless=False,
+                headless=True,
                 args=[
                     "--disable-popup-blocking",  # 팝업 차단 비활성화
                     "--disable-web-security",    # 웹 보안 비활성화 (같은 컨텍스트 공유)
