@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, HTTPException, Request, Response, status, Depends
+from fastapi import APIRouter, Request, Response, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from utils.settings import settings
@@ -19,6 +19,7 @@ from common.auth import (
 )
 from containers import Container
 from domain.responses.user_response import UserResponse
+from common.exceptions import PermissionError
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -54,10 +55,7 @@ async def create_user(
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
     if current_user.id != settings.wehago_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the admin can create users.",
-        )
+        raise PermissionError("Only the admin can create users.")
     
     created_user = await user_service.create_user(
         user_id=user.user_id,
@@ -171,10 +169,7 @@ async def approve_user(
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> UserResponse:
     if Role.ADMIN not in current_user.roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admin can approve users",
-        )
+        raise PermissionError("Only admin can approve users")
     
     approved_user = await user_service.approve_user(
         user_id=user_id,
@@ -192,10 +187,7 @@ async def get_pending_users(
     user_service: UserService = Depends(Provide[Container.user_service]),
 ) -> list[UserResponse]:
     if Role.ADMIN not in current_user.roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admin can view pending users",
-        )
+        raise PermissionError("Only admin can view pending users")
     
     pending_users = await user_service.find_pending_users()
     return pending_users

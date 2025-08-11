@@ -11,7 +11,6 @@ from fastapi import (
     Depends,
     Form,
     File,
-    HTTPException,
     Query,
 )
 from pydantic import BaseModel, field_serializer, model_validator
@@ -22,6 +21,7 @@ from common.auth import get_current_user
 from containers import Container
 from domain.file import Company, Type
 from domain.responses.file_response import FileResponse
+from common.exceptions import ValidationError
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -52,10 +52,7 @@ async def create_files(
     # 파일 타입 검사
     for file in file_datas:
         if file.content_type not in ALLOWED_CONTENT_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file type: {file.content_type}",
-            )
+            raise ValidationError(f"Unsupported file type: {file.content_type}")
 
     files = await file_service.save_files(
         name=name,
@@ -146,10 +143,7 @@ async def update_file(
 
     # 파일 타입 검사
     if file_data and file_data.content_type not in ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {file_data.content_type}",
-        )
+        raise ValidationError(f"Unsupported file type: {file_data.content_type}")
 
     file = await file_service.update(
         id=id,

@@ -1,9 +1,8 @@
 from dataclasses import asdict
 from typing import Any, override
 
-from fastapi import HTTPException
-
 from domain.voucher import Voucher as VoucherVo
+from common.exceptions import NotFoundError
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
 from infra.repository.base_repo import BaseRepository
@@ -69,10 +68,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         voucher = await Voucher.get(id)
 
         if not voucher:
-            raise HTTPException(
-                status_code=404,
-                detail="Voucher not found",
-            )
+            raise NotFoundError("Voucher not found")
 
         return voucher
 
@@ -121,10 +117,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         db_voucher = await Voucher.get(voucher.id)
 
         if not db_voucher:
-            raise HTTPException(
-                status_code=404,
-                detail="Voucher not found",
-            )
+            raise NotFoundError("Voucher not found")
 
         db_voucher.files = voucher.files
 

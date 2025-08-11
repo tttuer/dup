@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
 import json
 import gzip
@@ -8,6 +7,7 @@ from utils.logger import logger
 from domain.voucher import Voucher
 from datetime import datetime
 from domain.voucher import Company
+from common.exceptions import CrawlingError, LoginError
 
 company_cnos = {
     Company.BAEKSUNG: {
@@ -67,7 +67,7 @@ class Whg:
                 await main_page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
                 
                 if not await self._login(main_page, wehago_id, wehago_password):
-                    raise HTTPException(status_code=401, detail="로그인 실패")
+                    raise LoginError("로그인 실패")
                 
                 # 로그인 완료 후 메인 페이지 안정화 대기
                 await self._handle_duplicate_login(main_page)
@@ -101,10 +101,7 @@ class Whg:
                 
                 # 에러가 발생한 회사가 있으면 전체 크롤링 실패로 처리
                 if failed_companies:
-                    raise HTTPException(
-                        status_code=500, 
-                        detail=f"다음 회사에서 크롤링 실패: {', '.join(failed_companies)}. 기존 데이터 보호를 위해 저장하지 않습니다."
-                    )
+                    raise CrawlingError(f"다음 회사에서 크롤링 실패: {', '.join(failed_companies)}. 기존 데이터 보호를 위해 저장하지 않습니다.")
                 
                 return all_vouchers
 
@@ -112,9 +109,9 @@ class Whg:
                 logger.error(f"크롤링 중 오류 발생: {e}")
                 try:
                     await main_page.screenshot(path="error_screenshot.png")
-                except:
+                except Exception:
                     pass
-                raise HTTPException(status_code=500, detail=f"크롤링 중 오류 발생: {str(e)}")
+                raise CrawlingError(f"크롤링 중 오류 발생: {str(e)}")
             finally:
                 await browser.close()
 
@@ -170,19 +167,16 @@ class Whg:
         """로그인 API 응답 처리"""
         status_code = login_response.status
         if status_code != 200:
-            raise HTTPException(status_code=status_code, detail=f"로그인 실패 (HTTP {status_code})")
+            raise LoginError(f"로그인 실패 (HTTP {status_code})", status_code=status_code)
 
         try:
             data = await login_response.json()
             if data.get("resultCode") == 401:
-                raise HTTPException(
-                    status_code=460,
-                    detail="로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.",
-                )
+                raise LoginError("로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.", status_code=460)
             logger.info("로그인에 성공했습니다.")
             return True
         except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="로그인 응답 JSON 파싱 실패")
+            raise LoginError("로그인 응답 JSON 파싱 실패", status_code=500)
     
     def _decompress_response_body(self, compressed_body: bytes) -> str:
         """Decompress gzip response body."""
@@ -240,7 +234,7 @@ class Whg:
             logger.info("전표 페이지 로딩 완료.")
         except PlaywrightTimeoutError:
             logger.error("전표 페이지 로딩 시간 초과")
-            raise HTTPException(status_code=500, detail=f"전표 페이지 로딩 실패: {company.value}")
+            raise CrawlingError(f"전표 페이지 로딩 실패: {company.value}")
     
     def _build_sao_url(self, company: Company, gisu: int, year: int) -> str:
         """Build the SAO URL for the specified company."""

@@ -1,5 +1,4 @@
 from dependency_injector.wiring import inject
-from fastapi import HTTPException
 
 from application.base_service import BaseService
 from common.auth import CurrentUser, Role
@@ -13,6 +12,7 @@ from ulid import ULID
 from infra.db_models.group import Group as GroupDocument
 from common.db import client
 from beanie.operators import And, In
+from common.exceptions import ConflictError, NotFoundError, PermissionError
 
 
 class GroupService(BaseService[Group]):
@@ -32,10 +32,7 @@ class GroupService(BaseService[Group]):
     ):
         db_group = await self.group_repo.find_by_name_and_company(name, company)
         if db_group:
-            raise HTTPException(
-                status_code=409,
-                detail="Group with this name already exists",
-            )
+            raise ConflictError("Group with this name already exists")
 
         group = Group(
             id=self.ulid.generate(),
@@ -67,10 +64,7 @@ class GroupService(BaseService[Group]):
         group_doc = await self.group_repo.find_by_id(id)
 
         if not group_doc:
-            raise HTTPException(
-                status_code=404,
-                detail="Group not found",
-            )
+            raise NotFoundError("Group not found")
         
         await self._validate_group_permission(group_doc, current_user_id, roles)
 
@@ -90,10 +84,7 @@ class GroupService(BaseService[Group]):
         group_doc = await self.group_repo.find_by_id(id)
         
         if not group_doc:
-            raise HTTPException(
-                status_code=404,
-                detail="Group not found",
-            )
+            raise NotFoundError("Group not found")
         
         # Document를 직접 수정
         group_doc.name = name
@@ -109,10 +100,7 @@ class GroupService(BaseService[Group]):
         group_doc = await self.group_repo.find_by_id(id)
 
         if not group_doc:
-            raise HTTPException(
-                status_code=404,
-                detail="Group not found",
-            )
+            raise NotFoundError("Group not found")
 
         # Document를 직접 수정
         group_doc.auth_users = auth_users
@@ -123,10 +111,7 @@ class GroupService(BaseService[Group]):
     async def _validate_group_permission(self, group_doc, user_id: str, roles: list[Role]):
         """Validate that user has permission to access the group."""
         if user_id not in group_doc.auth_users and Role.ADMIN not in roles:
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have permission to access this group",
-            )
+            raise PermissionError("You do not have permission to access this group")
     
     async def grant_with_permission_check(
         self,
@@ -139,10 +124,7 @@ class GroupService(BaseService[Group]):
         group_doc = await self.group_repo.find_by_id(id)
         
         if not group_doc:
-            raise HTTPException(
-                status_code=404,
-                detail="Group not found",
-            )
+            raise NotFoundError("Group not found")
         
         await self._validate_group_permission(group_doc, current_user_id, current_user_roles)
         
