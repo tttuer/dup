@@ -1,9 +1,8 @@
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import HTTPException
-
 from domain.file import File as FileVo
+from common.exceptions import NotFoundError
 from domain.repository.file_repo import IFileRepository
 from infra.db_models.file import File
 from infra.repository.base_repo import BaseRepository
@@ -36,10 +35,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
         file = await File.get(id)
 
         if not file:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found",
-            )
+            raise NotFoundError("File not found")
 
         return file
 
@@ -85,9 +81,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
         file = await File.get(id)
 
         if not file:
-            raise HTTPException(
-                status_code=404,
-            )
+            raise NotFoundError("File not found")
 
         await file.delete()
 
@@ -101,10 +95,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
         db_file = await File.get(update_file.id)
 
         if not db_file:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found",
-            )
+            raise NotFoundError("File not found")
 
         update_data = asdict(update_file)
         update_data.pop("id", None)

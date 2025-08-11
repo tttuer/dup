@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from beanie.operators import And, RegEx
 from dependency_injector.wiring import inject
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile
 from ulid import ULID
 
 from domain.voucher import Company, SearchOption, VoucherFile
@@ -12,7 +12,7 @@ from infra.db_models.voucher import Voucher as VoucherDocument
 from domain.responses.voucher_response import VoucherResponse
 from utils.pdf import Pdf
 from utils.whg import Whg
-import asyncio
+from common.exceptions import ValidationError
 
 
 class VoucherService:
@@ -91,10 +91,7 @@ class VoucherService:
             filters.append(VoucherDocument.voucher_date >= start_at)
 
         if end_at and start_at and end_at < start_at:
-            raise HTTPException(
-                status_code=400,
-                detail="start_at must be less than end_at",
-            )
+            raise ValidationError("start_at must be less than end_at")
 
         total_count, vouchers = (
             await self.voucher_repo.find_many(

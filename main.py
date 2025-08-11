@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from beanie import init_beanie
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -22,6 +22,7 @@ from infra.db_models.group import Group
 from common.db import client
 from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
+from common.exceptions import AuthenticationError
 
 
 @asynccontextmanager
@@ -72,7 +73,7 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
         credentials.username != settings.wehago_id
         or credentials.password != settings.wehago_password
     ):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise AuthenticationError("인증되지 않은 접근입니다")
 
 
 # 보호된 OpenAPI JSON 제공
