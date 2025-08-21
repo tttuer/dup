@@ -27,6 +27,27 @@ class ApprovalStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class DocumentStatus(StrEnum):
+    DRAFT = "DRAFT"                    # 임시저장
+    SUBMITTED = "SUBMITTED"            # 상신완료
+    IN_PROGRESS = "IN_PROGRESS"        # 결재진행중
+    APPROVED = "APPROVED"              # 승인완료
+    REJECTED = "REJECTED"              # 반려
+    CANCELLED = "CANCELLED"            # 취소
+
+
+class ApprovalAction(StrEnum):
+    APPROVE = "APPROVE"                # 승인
+    REJECT = "REJECT"                  # 반려
+    CANCEL = "CANCEL"                  # 취소
+
+
+class DocumentVisibility(StrEnum):
+    PUBLIC = "PUBLIC"                  # 전체공개
+    PRIVATE = "PRIVATE"                # 비공개
+    DEPARTMENT = "DEPARTMENT"          # 부서공개
+
+
 @dataclass
 class CurrentUser:
     id: str
