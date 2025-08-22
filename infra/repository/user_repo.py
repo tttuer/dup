@@ -51,3 +51,7 @@ class UserRepository(BaseRepository[User], IUserRepository):
     async def find_by_approval_status(self, approval_status: ApprovalStatus) -> list[User]:
         users = await User.find(User.approval_status == approval_status).to_list()
         return users or []
+    
+    async def search_by_name(self, name: str) -> list[User]:
+        users = await User.find({"name": {"$regex": name, "$options": "i"}}).to_list()
+        return users or []

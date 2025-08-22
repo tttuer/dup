@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from ulid import ULID
 
 from application.base_service import BaseService
+from application.approval_notification_service import ApprovalNotificationService
 from domain.repository.approval_request_repo import IApprovalRequestRepository
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.approval_history_repo import IApprovalHistoryRepository
@@ -13,7 +14,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
 from domain.approval_history import ApprovalHistory
-from common.auth import DocumentStatus, DocumentVisibility, ApprovalStatus, ApprovalAction
+from common.auth import DocumentStatus, ApprovalStatus, ApprovalAction
 
 
 class ApprovalService(BaseService[ApprovalRequest]):
@@ -25,12 +26,14 @@ class ApprovalService(BaseService[ApprovalRequest]):
         history_repo: IApprovalHistoryRepository,
         template_repo: IDocumentTemplateRepository,
         user_repo: IUserRepository,
+        notification_service: ApprovalNotificationService,
     ):
         super().__init__(user_repo)
         self.approval_repo = approval_repo
         self.line_repo = line_repo
         self.history_repo = history_repo
         self.template_repo = template_repo
+        self.notification_service = notification_service
         self.ulid = ULID()
 
     async def create_approval_request(
@@ -39,7 +42,6 @@ class ApprovalService(BaseService[ApprovalRequest]):
         content: str,
         requester_id: str,
         template_id: Optional[str] = None,
-        visibility: DocumentVisibility = DocumentVisibility.PRIVATE,
         form_data: Optional[Dict[str, Any]] = None,
         department_id: Optional[str] = None,
     ) -> ApprovalRequest:
@@ -70,7 +72,6 @@ class ApprovalService(BaseService[ApprovalRequest]):
             form_data=form_data or {},
             requester_id=requester_id,
             department_id=department_id,
-            visibility=visibility,
             status=DocumentStatus.DRAFT,
             current_step=0,
             created_at=now,
@@ -103,7 +104,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
         request.submitted_at = datetime.now()
         request.updated_at = datetime.now()
 
-        return await self.approval_repo.update(request)
+        result = await self.approval_repo.update(request)
+
+        # 첫 번째 결재자들에게 알림 전송
+        first_step_approvers = [line.approver_id for line in approval_lines if line.step_order == 1]
+        await self.notification_service.notify_new_approval_request(request_id, first_step_approvers)
+
+        return result
 
     async def approve_request(
         self,
@@ -112,6 +119,10 @@ class ApprovalService(BaseService[ApprovalRequest]):
         comment: Optional[str] = None,
     ) -> ApprovalRequest:
         await self._process_approval(request_id, approver_id, ApprovalAction.APPROVE, comment)
+        
+        # 웹소켓 알림 전송
+        await self.notification_service.notify_approval_status_changed(request_id, "APPROVED", approver_id)
+        
         return await self.approval_repo.find_by_id(request_id)
 
     async def reject_request(
@@ -121,6 +132,10 @@ class ApprovalService(BaseService[ApprovalRequest]):
         comment: Optional[str] = None,
     ) -> ApprovalRequest:
         await self._process_approval(request_id, approver_id, ApprovalAction.REJECT, comment)
+        
+        # 웹소켓 알림 전송
+        await self.notification_service.notify_approval_status_changed(request_id, "REJECTED", approver_id)
+        
         return await self.approval_repo.find_by_id(request_id)
 
     async def cancel_request(self, request_id: str, requester_id: str) -> ApprovalRequest:
@@ -137,7 +152,12 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 이력 추가
         await self._add_approval_history(request_id, requester_id, ApprovalAction.CANCEL)
 
-        return await self.approval_repo.update(request)
+        result = await self.approval_repo.update(request)
+
+        # 웹소켓 알림 전송
+        await self.notification_service.notify_approval_cancelled(request_id)
+
+        return result
 
     async def get_my_requests(self, requester_id: str) -> List[ApprovalRequest]:
         return await self.approval_repo.find_by_requester_id(requester_id)
@@ -252,6 +272,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         request = await self.approval_repo.find_by_id(request_id)
         approval_lines = await self.line_repo.find_by_request_id(request_id)
         
+        old_status = request.status
+        
         # 반려가 있는지 확인
         if any(line.status == ApprovalStatus.REJECTED for line in approval_lines):
             request.status = DocumentStatus.REJECTED
@@ -269,3 +291,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         
         request.updated_at = datetime.now()
         await self.approval_repo.update(request)
+        
+        # 최종 상태 변경 시 완료 알림 전송
+        if old_status != request.status and request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED]:
+            await self.notification_service.notify_approval_completed(request_id, request.status)

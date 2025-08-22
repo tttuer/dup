@@ -18,6 +18,7 @@ from interface.controller.document_template_controller import router as template
 from interface.controller.approval_controller import router as approval_router
 from interface.controller.approval_line_controller import router as approval_line_router
 from interface.controller.file_attachment_controller import router as file_attachment_router
+from interface.controller.approval_websocket_controller import router as approval_websocket_router
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
@@ -70,6 +71,7 @@ api_router.include_router(file_attachment_router)
 
 app.include_router(api_router)
 app.include_router(sync_router)
+app.include_router(approval_websocket_router)
 
 
 @app.exception_handler(RequestValidationError)

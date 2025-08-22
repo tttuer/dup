@@ -199,3 +199,15 @@ async def get_pending_users(
     
     pending_users = await user_service.find_pending_users()
     return pending_users
+
+
+@router.get("/search")
+@inject
+async def search_users_by_name(
+    name: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> list[UserResponse]:
+    """이름으로 사용자 검색 (결재자 선택용)"""
+    users = await user_service.search_users_by_name(name)
+    return users

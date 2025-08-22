@@ -26,3 +26,7 @@ class IUserRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_approval_status(self, approval_status: ApprovalStatus) -> List[User]:
         raise NotImplementedError
+    
+    @abstractmethod
+    async def search_by_name(self, name: str) -> List[User]:
+        raise NotImplementedError

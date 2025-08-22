@@ -180,6 +180,10 @@ class UserService(BaseService[User]):
         pending_users = await self.user_repo.find_by_approval_status(ApprovalStatus.PENDING)
         return len(pending_users)
 
+    async def search_users_by_name(self, name: str) -> list[UserResponse]:
+        users = await self.user_repo.search_by_name(name)
+        return [UserResponse.from_document(user) for user in users]
+
     async def _broadcast_pending_count(self):
         try:
             pending_count = await self.get_pending_users_count()
