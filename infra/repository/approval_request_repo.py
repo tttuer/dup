@@ -20,6 +20,7 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
             content=request.content,
             form_data=request.form_data,
             requester_id=request.requester_id,
+            requester_name=request.requester_name,
             department_id=request.department_id,
             status=request.status,
             current_step=request.current_step,

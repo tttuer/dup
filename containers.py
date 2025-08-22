@@ -87,6 +87,7 @@ class Container(containers.DeclarativeContainer):
         FileAttachmentService,
         file_repo=attached_file_repo,
         approval_repo=approval_request_repo,
+        line_repo=approval_line_repo,
         user_repo=user_repo
     )
     

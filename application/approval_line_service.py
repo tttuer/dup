@@ -54,12 +54,12 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         approval_lines = []
         for line_data in approval_lines_data:
             # 결재자 확인
-            await self.validate_user_exists(line_data["approver_id"])
+            await self.validate_user_exists(line_data["approver_user_id"])
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
-                approver_id=line_data["approver_id"],
+                approver_id=line_data["approver_user_id"],
                 step_order=line_data["step_order"],
                 is_required=line_data.get("is_required", True),
                 is_parallel=line_data.get("is_parallel", False),

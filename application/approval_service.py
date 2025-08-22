@@ -46,7 +46,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         department_id: Optional[str] = None,
     ) -> ApprovalRequest:
         # 사용자 확인
-        await self.validate_user_exists(requester_id)
+        requester = await self.validate_user_exists(requester_id)
         
         # 템플릿 확인 (옵셔널)
         template = None
@@ -71,6 +71,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             content=content,
             form_data=form_data or {},
             requester_id=requester_id,
+            requester_name=requester.name,
             department_id=department_id,
             status=DocumentStatus.DRAFT,
             current_step=0,
@@ -163,7 +164,52 @@ class ApprovalService(BaseService[ApprovalRequest]):
         return await self.approval_repo.find_by_requester_id(requester_id)
 
     async def get_pending_approvals(self, approver_id: str) -> List[ApprovalRequest]:
-        return await self.approval_repo.find_by_approver_id(approver_id)
+        # 해당 결재자의 모든 PENDING 결재선 조회
+        pending_lines = await self.line_repo.find_pending_by_approver(approver_id)
+        
+        if not pending_lines:
+            return []
+        
+        # 각 결재선에 대해 이전 단계가 완료되었는지 확인하여 결재 가능한 것만 필터링
+        available_lines = []
+        for line in pending_lines:
+            if await self._is_step_available(line):
+                available_lines.append(line)
+        
+        # 해당 결재선들의 요청서들을 조회
+        request_ids = [line.request_id for line in available_lines]
+        if not request_ids:
+            return []
+        
+        requests = []
+        for request_id in request_ids:
+            request = await self.approval_repo.find_by_id(request_id)
+            if request:
+                requests.append(request)
+        
+        return requests
+    
+    async def _is_step_available(self, current_line) -> bool:
+        """현재 결재선이 결재 가능한 상태인지 확인"""
+        # 같은 요청서의 모든 결재선 조회
+        all_lines = await self.line_repo.find_by_request_id(current_line.request_id)
+        current_step = current_line.step_order
+        
+        # 병렬 결재인 경우, 같은 단계의 다른 결재선들도 확인
+        if current_line.is_parallel:
+            # 이전 단계만 완료되면 됨
+            for line in all_lines:
+                if line.step_order < current_step and line.status == ApprovalStatus.PENDING:
+                    # 이전 단계가 필수이고 아직 미완료인 경우
+                    if line.is_required:
+                        return False
+            return True
+        else:
+            # 순차 결재인 경우, 이전 모든 단계가 완료되어야 함
+            for line in all_lines:
+                if line.step_order < current_step and line.status == ApprovalStatus.PENDING:
+                    return False
+            return True
 
     async def get_request_by_id(self, request_id: str, user_id: str) -> ApprovalRequest:
         request = await self.approval_repo.find_by_id(request_id)

@@ -41,7 +41,7 @@ async def get_files(
     return await file_service.get_files(request_id, current_user.id)
 
 
-@router.get("/{file_id}")
+@router.get("/approvals/{file_id}/info")
 @inject
 async def get_file_info(
     file_id: str,
@@ -52,7 +52,7 @@ async def get_file_info(
     return await file_service.get_file_info(file_id, current_user.id)
 
 
-@router.get("/{file_id}/download")
+@router.get("/approvals/{file_id}/download")
 @inject
 async def download_file(
     file_id: str,
@@ -72,7 +72,7 @@ async def download_file(
     )
 
 
-@router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/approvals/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 @inject
 async def delete_file(
     file_id: str,
