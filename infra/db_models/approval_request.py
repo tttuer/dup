@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 from beanie import Document
 from pydantic import Field
 
-from common.auth import DocumentVisibility, DocumentStatus
+from common.auth import DocumentStatus
 
 
 class ApprovalRequest(Document):
@@ -16,7 +16,6 @@ class ApprovalRequest(Document):
     form_data: Dict[str, Any] = Field(default_factory=dict) # 양식별 추가 데이터
     requester_id: str         # 기안자 ID
     department_id: Optional[str] = Field(default=None)        # 기안 부서
-    visibility: DocumentVisibility  # 공개범위
     status: DocumentStatus    # 결재 상태
     current_step: int = Field(default=0)         # 현재 결재 단계
     created_at: datetime

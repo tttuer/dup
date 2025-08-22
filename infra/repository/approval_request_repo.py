@@ -21,7 +21,6 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
             form_data=request.form_data,
             requester_id=request.requester_id,
             department_id=request.department_id,
-            visibility=request.visibility,
             status=request.status,
             current_step=request.current_step,
             created_at=request.created_at,
@@ -64,7 +63,6 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
         db_request.form_data = request.form_data
         db_request.requester_id = request.requester_id
         db_request.department_id = request.department_id
-        db_request.visibility = request.visibility
         db_request.status = request.status
         db_request.current_step = request.current_step
         db_request.updated_at = request.updated_at

@@ -20,6 +20,7 @@ from infra.repository.approval_history_repo import ApprovalHistoryRepository
 from infra.repository.attached_file_repo import AttachedFileRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
+from application.approval_notification_service import ApprovalNotificationService
 from application.sync_service import SyncService
 from utils.settings import settings
 
@@ -68,15 +69,6 @@ class Container(containers.DeclarativeContainer):
         user_repo=user_repo
     )
     
-    approval_service = providers.Factory(
-        ApprovalService,
-        approval_repo=approval_request_repo,
-        line_repo=approval_line_repo,
-        history_repo=approval_history_repo,
-        template_repo=document_template_repo,
-        user_repo=user_repo
-    )
-    
     approval_line_service = providers.Factory(
         ApprovalLineService,
         line_repo=approval_line_repo,
@@ -99,5 +91,22 @@ class Container(containers.DeclarativeContainer):
     )
     
     websocket_manager = providers.Singleton(WebSocketManager)
+    
+    approval_notification_service = providers.Factory(
+        ApprovalNotificationService,
+        websocket_manager=websocket_manager,
+        approval_line_repo=approval_line_repo,
+        approval_request_repo=approval_request_repo
+    )
+
+    approval_service = providers.Factory(
+        ApprovalService,
+        approval_repo=approval_request_repo,
+        line_repo=approval_line_repo,
+        history_repo=approval_history_repo,
+        template_repo=document_template_repo,
+        user_repo=user_repo,
+        notification_service=approval_notification_service
+    )
 
     sync_service = providers.Factory(SyncService, redis=redis)

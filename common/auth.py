@@ -42,11 +42,6 @@ class ApprovalAction(StrEnum):
     CANCEL = "CANCEL"                  # 취소
 
 
-class DocumentVisibility(StrEnum):
-    PUBLIC = "PUBLIC"                  # 전체공개
-    PRIVATE = "PRIVATE"                # 비공개
-    DEPARTMENT = "DEPARTMENT"          # 부서공개
-
 
 @dataclass
 class CurrentUser:

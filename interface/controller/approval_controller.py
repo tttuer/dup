@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from application.approval_service import ApprovalService
 from application.approval_line_service import ApprovalLineService
-from common.auth import CurrentUser, get_current_user, DocumentVisibility
+from common.auth import CurrentUser, get_current_user
 from containers import Container
 from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
@@ -17,7 +17,6 @@ class CreateApprovalBody(BaseModel):
     title: str
     content: str
     template_id: Optional[str] = None
-    visibility: DocumentVisibility = DocumentVisibility.PRIVATE
     form_data: Optional[Dict[str, Any]] = None
     department_id: Optional[str] = None
 
@@ -47,7 +46,6 @@ async def create_approval_request(
         content=body.content,
         requester_id=current_user.id,
         template_id=body.template_id,
-        visibility=body.visibility,
         form_data=body.form_data,
         department_id=body.department_id,
     )
