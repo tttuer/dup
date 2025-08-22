@@ -12,6 +12,7 @@ class ApprovalRequest(BaseModel):
     content: str              # 결재 내용 (HTML)
     form_data: Dict[str, Any] = Field(default_factory=dict) # 양식별 추가 데이터
     requester_id: str         # 기안자 ID
+    requester_name: str       # 기안자 이름
     department_id: Optional[str] = None        # 기안 부서
     status: DocumentStatus    # 결재 상태
     current_step: int = 0         # 현재 결재 단계

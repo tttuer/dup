@@ -8,6 +8,7 @@ from ulid import ULID
 from application.base_service import BaseService
 from domain.repository.attached_file_repo import IAttachedFileRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
+from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.user_repo import IUserRepository
 from domain.attached_file import AttachedFile
 from common.auth import DocumentStatus
@@ -19,11 +20,13 @@ class FileAttachmentService(BaseService[AttachedFile]):
         self,
         file_repo: IAttachedFileRepository,
         approval_repo: IApprovalRequestRepository,
+        line_repo: IApprovalLineRepository,
         user_repo: IUserRepository,
     ):
         super().__init__(user_repo)
         self.file_repo = file_repo
         self.approval_repo = approval_repo
+        self.line_repo = line_repo
         self.ulid = ULID()
         self.upload_dir = "uploads/approvals"  # 설정으로 분리 가능
         self.max_file_size = 20 * 1024 * 1024  # 20MB
@@ -163,8 +166,12 @@ class FileAttachmentService(BaseService[AttachedFile]):
             return
         
         # 결재자인지 확인
-        from domain.repository.approval_line_repo import IApprovalLineRepository
-        # 여기서는 간단히 처리하고, 실제로는 DI로 주입받아야 함
+        approval_lines = await self.line_repo.find_by_request_id(request_id)
+        print(f"Approval lines for request {user_id}: {approval_lines}")
+        is_approver = any(line.approver_id == user_id for line in approval_lines)
+        
+        if is_approver:
+            return
         
         # 관리자인지 확인
         user = await self.validate_user_exists(user_id)

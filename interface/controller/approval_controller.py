@@ -19,6 +19,7 @@ class CreateApprovalBody(BaseModel):
     template_id: Optional[str] = None
     form_data: Optional[Dict[str, Any]] = None
     department_id: Optional[str] = None
+    approval_lines: Optional[List[Dict[str, Any]]] = None
 
 
 class ApproveBody(BaseModel):
@@ -39,9 +40,11 @@ async def create_approval_request(
     body: CreateApprovalBody,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
+    line_service: ApprovalLineService = Depends(Provide[Container.approval_line_service]),
 ) -> ApprovalRequest:
     """결재 요청 생성"""
-    return await approval_service.create_approval_request(
+    # 결재 요청 생성
+    request = await approval_service.create_approval_request(
         title=body.title,
         content=body.content,
         requester_id=current_user.id,
@@ -49,6 +52,16 @@ async def create_approval_request(
         form_data=body.form_data,
         department_id=body.department_id,
     )
+    
+    # 결재선이 있는 경우 함께 설정
+    if body.approval_lines:
+        await line_service.set_approval_lines(
+            request_id=request.id,
+            requester_id=current_user.id,
+            approval_lines_data=body.approval_lines,
+        )
+    
+    return request
 
 
 @router.get("")

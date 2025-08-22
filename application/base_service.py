@@ -18,7 +18,7 @@ class BaseService(ABC, Generic[T]):
         """Validate that a user exists and return the user object.
         
         Args:
-            user_id: The ID of the user to validate
+            user_id: The user_id field of the user to validate
             
         Returns:
             User: The user object if found
