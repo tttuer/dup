@@ -107,7 +107,8 @@ class Container(containers.DeclarativeContainer):
         history_repo=approval_history_repo,
         template_repo=document_template_repo,
         user_repo=user_repo,
-        notification_service=approval_notification_service
+        notification_service=approval_notification_service,
+        file_service=file_attachment_service
     )
 
     sync_service = providers.Factory(SyncService, redis=redis)

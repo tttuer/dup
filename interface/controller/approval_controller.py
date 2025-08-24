@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any, Annotated
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 
 from application.approval_service import ApprovalService
@@ -37,30 +37,42 @@ class SetApprovalLinesBody(BaseModel):
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
 async def create_approval_request(
-    body: CreateApprovalBody,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    title: str = Form(...),
+    content: str = Form(...),
+    template_id: Optional[str] = Form(None),
+    form_data: Optional[str] = Form(None),  # JSON string
+    department_id: Optional[str] = Form(None),
+    approval_lines: Optional[str] = Form(None),  # JSON string
+    files: List[UploadFile] = File(default=[]),
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
-    line_service: ApprovalLineService = Depends(Provide[Container.approval_line_service]),
+    line_service: ApprovalLineService = Depends(
+        Provide[Container.approval_line_service]
+    ),
 ) -> ApprovalRequest:
-    """결재 요청 생성"""
-    # 결재 요청 생성
+    """결재 요청 생성 (파일 업로드 포함)"""
+    import json
+
+    # JSON 문자열 파싱
+    parsed_form_data = json.loads(form_data) if form_data else None
+    parsed_approval_lines = json.loads(approval_lines) if approval_lines else None
+
+    # 결재선 필수 체크
+    if not parsed_approval_lines:
+        raise HTTPException(status_code=400, detail="Approval lines are required")
+    
+    # 결재 요청 생성 (파일 업로드 및 결재선 설정 포함)
     request = await approval_service.create_approval_request(
-        title=body.title,
-        content=body.content,
+        title=title,
+        content=content,
         requester_id=current_user.id,
-        template_id=body.template_id,
-        form_data=body.form_data,
-        department_id=body.department_id,
+        approval_lines_data=parsed_approval_lines,
+        template_id=template_id,
+        form_data=parsed_form_data,
+        department_id=department_id,
+        files=files,
     )
-    
-    # 결재선이 있는 경우 함께 설정
-    if body.approval_lines:
-        await line_service.set_approval_lines(
-            request_id=request.id,
-            requester_id=current_user.id,
-            approval_lines_data=body.approval_lines,
-        )
-    
+
     return request
 
 
@@ -74,6 +86,40 @@ async def get_my_approval_requests(
     return await approval_service.get_my_requests(current_user.id)
 
 
+@router.get("/search")
+@inject
+async def search_approval_requests(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    q: Optional[str] = None,  # 검색어
+    status: Optional[str] = None,  # 상태
+    start_date: Optional[str] = None,  # 시작 날짜
+    end_date: Optional[str] = None,  # 종료 날짜
+    skip: int = 0,  # 페이징 시작
+    limit: int = 50,  # 페이징 크기
+    approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
+) -> List[ApprovalRequest]:
+    """전자결재 검색 및 조회"""
+    from common.auth import DocumentStatus
+    
+    # 상태 변환
+    status_enum = None
+    if status:
+        try:
+            status_enum = DocumentStatus(status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+    
+    return await approval_service.get_all_approval_requests(
+        user_id=current_user.id,
+        search_query=q,
+        status=status_enum,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=limit
+    )
+
+
 @router.get("/pending")
 @inject
 async def get_pending_approvals(
@@ -82,6 +128,16 @@ async def get_pending_approvals(
 ) -> List[ApprovalRequest]:
     """내가 결재할 요청 목록"""
     return await approval_service.get_pending_approvals(current_user.id)
+
+
+@router.get("/completed")
+@inject
+async def get_completed_approvals(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
+) -> List[ApprovalRequest]:
+    """내가 결재 완료한 목록"""
+    return await approval_service.get_completed_approvals(current_user.id)
 
 
 @router.get("/{request_id}")
@@ -154,7 +210,9 @@ async def cancel_request(
 async def get_approval_lines(
     request_id: str,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    line_service: ApprovalLineService = Depends(Provide[Container.approval_line_service]),
+    line_service: ApprovalLineService = Depends(
+        Provide[Container.approval_line_service]
+    ),
 ) -> List[ApprovalLine]:
     """결재선 조회"""
     return await line_service.get_approval_lines(request_id, current_user.id)
@@ -166,7 +224,9 @@ async def set_approval_lines(
     request_id: str,
     body: SetApprovalLinesBody,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    line_service: ApprovalLineService = Depends(Provide[Container.approval_line_service]),
+    line_service: ApprovalLineService = Depends(
+        Provide[Container.approval_line_service]
+    ),
 ) -> List[ApprovalLine]:
     """결재선 설정"""
     return await line_service.set_approval_lines(

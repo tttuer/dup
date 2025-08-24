@@ -1,8 +1,6 @@
 from typing import List, Annotated
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
-from fastapi.responses import FileResponse
-import os
 
 from application.file_attachment_service import FileAttachmentService
 from common.auth import CurrentUser, get_current_user
@@ -59,17 +57,8 @@ async def download_file(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     file_service: FileAttachmentService = Depends(Provide[Container.file_attachment_service]),
 ):
-    """파일 다운로드"""
-    file_info = await file_service.get_file_info(file_id, current_user.id)
-    
-    if not os.path.exists(file_info.file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
-    
-    return FileResponse(
-        path=file_info.file_path,
-        filename=file_info.file_name,
-        media_type='application/octet-stream'
-    )
+    """파일 다운로드 (GridFS에서)"""
+    return await file_service.get_file_stream(file_id, current_user.id)
 
 
 @router.delete("/approvals/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

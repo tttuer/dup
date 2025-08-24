@@ -1,9 +1,11 @@
-import os
 from datetime import datetime
 from typing import List, Optional
 from dependency_injector.wiring import inject
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, Response
 from ulid import ULID
+from motor.motor_asyncio import AsyncIOMotorGridFSBucket
+from bson import ObjectId
+import io
 
 from application.base_service import BaseService
 from domain.repository.attached_file_repo import IAttachedFileRepository
@@ -12,6 +14,7 @@ from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.user_repo import IUserRepository
 from domain.attached_file import AttachedFile
 from common.auth import DocumentStatus
+from common.db import client
 
 
 class FileAttachmentService(BaseService[AttachedFile]):
@@ -28,8 +31,10 @@ class FileAttachmentService(BaseService[AttachedFile]):
         self.approval_repo = approval_repo
         self.line_repo = line_repo
         self.ulid = ULID()
-        self.upload_dir = "uploads/approvals"  # 설정으로 분리 가능
         self.max_file_size = 20 * 1024 * 1024  # 20MB
+        # GridFS 설정
+        self.db = client.dup
+        self.fs = AsyncIOMotorGridFSBucket(self.db)
         self.allowed_extensions = {
             '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
             '.txt', '.jpg', '.jpeg', '.png', '.gif', '.zip', '.rar'
@@ -57,15 +62,15 @@ class FileAttachmentService(BaseService[AttachedFile]):
         # 파일 검증
         await self._validate_file(file)
 
-        # 파일 저장
-        file_path = await self._save_file(file, request_id)
+        # GridFS에 파일 저장
+        gridfs_file_id = await self._save_file_to_gridfs(file, request_id)
 
         # DB에 저장
         attached_file = AttachedFile(
             id=self.ulid.generate(),
             request_id=request_id,
             file_name=file.filename,
-            file_path=file_path,
+            gridfs_file_id=str(gridfs_file_id),
             file_size=file.size or 0,
             file_type=file.content_type or "",
             is_reference=is_reference,
@@ -99,12 +104,11 @@ class FileAttachmentService(BaseService[AttachedFile]):
         if request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
             raise HTTPException(status_code=400, detail="Cannot delete files from completed requests")
 
-        # 실제 파일 삭제
+        # GridFS에서 파일 삭제
         try:
-            if os.path.exists(file.file_path):
-                os.remove(file.file_path)
+            await self.fs.delete(ObjectId(file.gridfs_file_id))
         except Exception as e:
-            print(f"Failed to delete physical file: {e}")
+            print(f"Failed to delete file from GridFS: {e}")
 
         # DB에서 삭제
         await self.file_repo.delete(file_id)
@@ -129,32 +133,54 @@ class FileAttachmentService(BaseService[AttachedFile]):
 
         # 파일 확장자 확인
         if file.filename:
-            file_ext = os.path.splitext(file.filename)[1].lower()
+            file_ext = "." + file.filename.split(".")[-1].lower() if "." in file.filename else ""
             if file_ext not in self.allowed_extensions:
                 raise HTTPException(
                     status_code=400,
                     detail=f"File type not allowed. Allowed types: {', '.join(self.allowed_extensions)}"
                 )
-
-    async def _save_file(self, file: UploadFile, request_id: str) -> str:
-        # 업로드 디렉토리 생성
-        request_dir = os.path.join(self.upload_dir, request_id)
-        os.makedirs(request_dir, exist_ok=True)
-
-        # 고유한 파일명 생성
-        file_ext = os.path.splitext(file.filename)[1] if file.filename else ""
-        unique_filename = f"{self.ulid.generate()}{file_ext}"
-        file_path = os.path.join(request_dir, unique_filename)
-
-        # 파일 저장
+    
+    async def get_file_stream(self, file_id: str, user_id: str):
+        """GridFS에서 파일을 스트리밍으로 반환"""
+        file = await self.file_repo.find_by_id(file_id)
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
+            
+        # 권한 확인
+        await self._validate_request_access(file.request_id, user_id)
+        
         try:
-            with open(file_path, "wb") as buffer:
-                content = await file.read()
-                buffer.write(content)
+            # GridFS에서 파일 스트림 가져오기
+            grid_out = await self.fs.open_download_stream(ObjectId(file.gridfs_file_id))
+            content = await grid_out.read()
+            
+            return Response(
+                content=content,
+                media_type=file.file_type,
+                headers={"Content-Disposition": f"attachment; filename={file.file_name}"}
+            )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve file: {str(e)}")
 
-        return file_path
+    async def _save_file_to_gridfs(self, file: UploadFile, request_id: str) -> ObjectId:
+        try:
+            # 파일 내용 읽기
+            content = await file.read()
+            
+            # GridFS에 저장
+            file_id = await self.fs.upload_from_stream(
+                filename=file.filename or "unknown",
+                source=io.BytesIO(content),
+                metadata={
+                    "request_id": request_id,
+                    "content_type": file.content_type or "",
+                    "uploaded_at": datetime.now()
+                }
+            )
+            
+            return file_id
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to save file to GridFS: {str(e)}")
 
     async def _validate_request_access(self, request_id: str, user_id: str) -> None:
         request = await self.approval_repo.find_by_id(request_id)

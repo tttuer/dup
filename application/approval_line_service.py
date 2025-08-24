@@ -44,8 +44,9 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         if request.requester_id != requester_id:
             raise HTTPException(status_code=403, detail="No permission to modify this request")
         
-        if request.status != DocumentStatus.DRAFT:
-            raise HTTPException(status_code=400, detail="Cannot modify approval lines after submission")
+        # 결재가 진행 중이거나 완료된 경우 수정 불가 (current_step > 0)
+        if request.current_step > 0 or request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
+            raise HTTPException(status_code=400, detail="Cannot modify approval lines after approval process started")
 
         # 기존 결재선 삭제
         await self.line_repo.delete_by_request_id(request_id)
@@ -54,12 +55,13 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         approval_lines = []
         for line_data in approval_lines_data:
             # 결재자 확인
-            await self.validate_user_exists(line_data["approver_user_id"])
+            approver = await self.validate_user_exists(line_data["approver_user_id"])
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
                 approver_id=line_data["approver_user_id"],
+                approver_name=approver.name,
                 step_order=line_data["step_order"],
                 is_required=line_data.get("is_required", True),
                 is_parallel=line_data.get("is_parallel", False),
@@ -88,11 +90,12 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         if request.requester_id != requester_id:
             raise HTTPException(status_code=403, detail="No permission to modify this request")
         
-        if request.status != DocumentStatus.DRAFT:
-            raise HTTPException(status_code=400, detail="Cannot modify approval lines after submission")
+        # 결재가 진행 중이거나 완료된 경우 수정 불가 (current_step > 0)
+        if request.current_step > 0 or request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
+            raise HTTPException(status_code=400, detail="Cannot modify approval lines after approval process started")
 
         # 결재자 확인
-        await self.validate_user_exists(approver_id)
+        approver = await self.validate_user_exists(approver_id)
 
         # 중복 확인
         existing_lines = await self.line_repo.find_by_request_and_step(request_id, step_order)
@@ -103,6 +106,7 @@ class ApprovalLineService(BaseService[ApprovalLine]):
             id=self.ulid.generate(),
             request_id=request_id,
             approver_id=approver_id,
+            approver_name=approver.name,
             step_order=step_order,
             is_required=is_required,
             is_parallel=is_parallel,
@@ -129,8 +133,9 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         if request.requester_id != requester_id:
             raise HTTPException(status_code=403, detail="No permission to modify this request")
         
-        if request.status != DocumentStatus.DRAFT:
-            raise HTTPException(status_code=400, detail="Cannot modify approval lines after submission")
+        # 결재가 진행 중이거나 완료된 경우 수정 불가 (current_step > 0)
+        if request.current_step > 0 or request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
+            raise HTTPException(status_code=400, detail="Cannot modify approval lines after approval process started")
 
         await self.line_repo.delete_by_request_id(line_id)
 
