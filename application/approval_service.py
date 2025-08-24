@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from ulid import ULID
 
 from application.base_service import BaseService
 from application.approval_notification_service import ApprovalNotificationService
+from application.file_attachment_service import FileAttachmentService
+from common.db import client
 from domain.repository.approval_request_repo import IApprovalRequestRepository
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.approval_history_repo import IApprovalHistoryRepository
@@ -27,6 +29,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         template_repo: IDocumentTemplateRepository,
         user_repo: IUserRepository,
         notification_service: ApprovalNotificationService,
+        file_service: FileAttachmentService,
     ):
         super().__init__(user_repo)
         self.approval_repo = approval_repo
@@ -34,6 +37,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         self.history_repo = history_repo
         self.template_repo = template_repo
         self.notification_service = notification_service
+        self.file_service = file_service
         self.ulid = ULID()
 
     async def create_approval_request(
@@ -41,51 +45,74 @@ class ApprovalService(BaseService[ApprovalRequest]):
         title: str,
         content: str,
         requester_id: str,
+        approval_lines_data: List[Dict[str, Any]],
         template_id: Optional[str] = None,
         form_data: Optional[Dict[str, Any]] = None,
         department_id: Optional[str] = None,
+        files: List[UploadFile] = None,
     ) -> ApprovalRequest:
-        # 사용자 확인
-        requester = await self.validate_user_exists(requester_id)
+        files = files or []
         
-        # 템플릿 확인 (옵셔널)
-        template = None
-        if template_id:
-            template = await self.template_repo.find_by_id(template_id)
-            if not template:
-                raise HTTPException(status_code=404, detail="Template not found")
+        # 트랜잭션으로 전자결재 생성과 파일 업로드를 묶어서 처리
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                try:
+                    # 사용자 확인
+                    requester = await self.validate_user_exists(requester_id)
+                    
+                    # 템플릿 확인 (옵셔널)
+                    template = None
+                    if template_id:
+                        template = await self.template_repo.find_by_id(template_id)
+                        if not template:
+                            raise HTTPException(status_code=404, detail="Template not found")
 
-        # 필수 필드 검증
-        title = self.validate_required_field(title, "Title")
-        content = self.validate_required_field(content, "Content")
+                    # 필수 필드 검증
+                    title = self.validate_required_field(title, "Title")
+                    content = self.validate_required_field(content, "Content")
 
-        # 문서번호 생성
-        document_number = await self._generate_document_number(template)
+                    # 문서번호 생성
+                    document_number = await self._generate_document_number(template)
 
-        now = datetime.now()
-        approval_request = ApprovalRequest(
-            id=self.ulid.generate(),
-            template_id=template_id or "",
-            document_number=document_number,
-            title=title,
-            content=content,
-            form_data=form_data or {},
-            requester_id=requester_id,
-            requester_name=requester.name,
-            department_id=department_id,
-            status=DocumentStatus.DRAFT,
-            current_step=0,
-            created_at=now,
-            updated_at=now,
-        )
+                    now = datetime.now()
+                    approval_request = ApprovalRequest(
+                        id=self.ulid.generate(),
+                        template_id=template_id or "",
+                        document_number=document_number,
+                        title=title,
+                        content=content,
+                        form_data=form_data or {},
+                        requester_id=requester_id,
+                        requester_name=requester.name,
+                        department_id=department_id,
+                        status=DocumentStatus.SUBMITTED,
+                        current_step=0,
+                        created_at=now,
+                        updated_at=now,
+                    )
 
-        await self.approval_repo.save(approval_request)
+                    await self.approval_repo.save(approval_request)
 
-        # 템플릿의 기본 결재선으로 결재선 생성 (템플릿이 있는 경우만)
-        if template and template.default_approval_steps:
-            await self._create_approval_lines(approval_request.id, template.default_approval_steps)
+                    # 결재선 생성 (필수)
+                    await self._create_approval_lines_from_data(approval_request.id, approval_lines_data)
+                    
+                    # 파일 업로드 처리
+                    for file in files:
+                        if file.filename:  # 빈 파일이 아닌 경우만
+                            await self.file_service.upload_file(
+                                request_id=approval_request.id,
+                                file=file,
+                                uploaded_by=requester_id,
+                            )
 
-        return approval_request
+                    return approval_request
+                    
+                except Exception as e:
+                    # 트랜잭션 자동 롤백
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to create approval request: {str(e)}"
+                    )
 
     async def submit_approval_request(self, request_id: str, requester_id: str) -> ApprovalRequest:
         # 요청서 확인 및 권한 검증
@@ -159,9 +186,81 @@ class ApprovalService(BaseService[ApprovalRequest]):
         await self.notification_service.notify_approval_cancelled(request_id)
 
         return result
+    
+    async def get_completed_approvals(self, approver_id: str) -> List[ApprovalRequest]:
+        """내가 결재 완료한 목록"""
+        # 해당 결재자의 모든 완료된 결재선 조회 (APPROVED 또는 REJECTED)
+        completed_lines = await self.line_repo.find_completed_by_approver(approver_id)
+        
+        if not completed_lines:
+            return []
+        
+        # 중복 제거를 위해 set 사용
+        request_ids = list(set(line.request_id for line in completed_lines))
+        
+        # 해당 요청들 조회
+        requests = []
+        for request_id in request_ids:
+            request = await self.approval_repo.find_by_id(request_id)
+            if request:
+                requests.append(request)
+        
+        # 최신 순으로 정렬
+        requests.sort(key=lambda x: x.updated_at or x.created_at, reverse=True)
+        return requests
 
     async def get_my_requests(self, requester_id: str) -> List[ApprovalRequest]:
         return await self.approval_repo.find_by_requester_id(requester_id)
+    
+    async def get_all_approval_requests(
+        self, 
+        user_id: str,
+        search_query: Optional[str] = None,
+        status: Optional[DocumentStatus] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> List[ApprovalRequest]:
+        """모든 전자결재 조회 및 검색"""
+        await self.validate_user_exists(user_id)
+        
+        # 관리자 권한 확인 (필요한 경우)
+        # is_admin = any(role.value == "ADMIN" for role in user.roles)
+        # if not is_admin:
+        #     raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # 검색 쿼리 구성
+        query = {}
+        
+        # 텍스트 검색 (제목, 내용, 기안자명, 문서번호)
+        if search_query:
+            query["$or"] = [
+                {"title": {"$regex": search_query, "$options": "i"}},
+                {"content": {"$regex": search_query, "$options": "i"}},
+                {"requester_name": {"$regex": search_query, "$options": "i"}},
+                {"document_number": {"$regex": search_query, "$options": "i"}},
+            ]
+        
+        # 상태 필터
+        if status:
+            query["status"] = status
+        
+        # 날짜 범위 필터
+        if start_date or end_date:
+            from datetime import datetime, time
+            date_query = {}
+            if start_date:
+                # 시작 날짜의 00:00:00
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                date_query["$gte"] = datetime.combine(start_dt.date(), time.min)
+            if end_date:
+                # 종료 날짜의 23:59:59
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                date_query["$lte"] = datetime.combine(end_dt.date(), time.max)
+            query["created_at"] = date_query
+        
+        return await self.approval_repo.search_by_query(query, skip, limit)
 
     async def get_pending_approvals(self, approver_id: str) -> List[ApprovalRequest]:
         # 해당 결재자의 모든 PENDING 결재선 조회
@@ -248,17 +347,38 @@ class ApprovalService(BaseService[ApprovalRequest]):
             prefix = template.document_prefix or template.name
         else:
             prefix = "일반결재"
-        return f"{prefix}-{now.year}-{now.strftime('%m%d')}-{self.ulid.generate()[:6]}"
+        return f"{prefix}-{now.year}-{now.strftime('%m%d')}-{self.ulid.generate()}"
 
     async def _create_approval_lines(self, request_id: str, default_steps) -> None:
         for step in default_steps:
+            # 결재자 정보 조회
+            approver = await self.validate_user_exists(step.approver_id)
+            
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
                 approver_id=step.approver_id,
+                approver_name=approver.name,
                 step_order=step.step_order,
                 is_required=step.is_required,
                 is_parallel=step.is_parallel,
+                status=ApprovalStatus.PENDING,
+            )
+            await self.line_repo.save(line)
+    
+    async def _create_approval_lines_from_data(self, request_id: str, approval_lines_data: List[Dict[str, Any]]) -> None:
+        for line_data in approval_lines_data:
+            # 결재자 정보 조회
+            approver = await self.validate_user_exists(line_data["approver_user_id"])
+            
+            line = ApprovalLine(
+                id=self.ulid.generate(),
+                request_id=request_id,
+                approver_id=line_data["approver_user_id"],
+                approver_name=approver.name,
+                step_order=line_data["step_order"],
+                is_required=line_data.get("is_required", True),
+                is_parallel=line_data.get("is_parallel", False),
                 status=ApprovalStatus.PENDING,
             )
             await self.line_repo.save(line)

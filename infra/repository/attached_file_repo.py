@@ -15,7 +15,7 @@ class AttachedFileRepository(BaseRepository[AttachedFile], IAttachedFileReposito
             id=file.id,
             request_id=file.request_id,
             file_name=file.file_name,
-            file_path=file.file_path,
+            gridfs_file_id=file.gridfs_file_id,
             file_size=file.file_size,
             file_type=file.file_type,
             is_reference=file.is_reference,

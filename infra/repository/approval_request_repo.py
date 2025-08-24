@@ -77,3 +77,8 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
     
     async def find_by_document_number(self, document_number: str) -> Optional[ApprovalRequest]:
         return await ApprovalRequest.find_one(ApprovalRequest.document_number == document_number)
+    
+    async def search_by_query(self, query: dict, skip: int = 0, limit: int = 50) -> List[ApprovalRequest]:
+        """MongoDB 쿼리로 전자결재 검색"""
+        requests = await ApprovalRequest.find(query).sort(-ApprovalRequest.created_at).skip(skip).limit(limit).to_list()
+        return requests or []

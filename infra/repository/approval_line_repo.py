@@ -16,6 +16,7 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
             id=line.id,
             request_id=line.request_id,
             approver_id=line.approver_id,
+            approver_name=line.approver_name,
             step_order=line.step_order,
             is_required=line.is_required,
             is_parallel=line.is_parallel,
@@ -48,6 +49,13 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
             ApprovalLine.approver_id == approver_id,
             ApprovalLine.status == ApprovalStatus.PENDING
         ).to_list()
+        return lines or []
+    
+    async def find_completed_by_approver(self, approver_id: str) -> List[ApprovalLine]:
+        lines = await ApprovalLine.find(
+            ApprovalLine.approver_id == approver_id,
+            {"status": {"$in": [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]}}
+        ).sort(-ApprovalLine.approved_at).to_list()
         return lines or []
     
     async def update(self, line: ApprovalLineVo) -> ApprovalLine:
