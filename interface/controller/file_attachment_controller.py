@@ -1,6 +1,9 @@
 from typing import List, Annotated
 from dependency_injector.wiring import inject, Provide
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
+import zipfile
+import io
 
 from application.file_attachment_service import FileAttachmentService
 from common.auth import CurrentUser, get_current_user
@@ -59,6 +62,17 @@ async def download_file(
 ):
     """파일 다운로드 (GridFS에서)"""
     return await file_service.get_file_stream(file_id, current_user.id)
+
+
+@router.get("/approvals/{request_id}/download-all")
+@inject
+async def download_all_files(
+    request_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    file_service: FileAttachmentService = Depends(Provide[Container.file_attachment_service]),
+):
+    """결재 요청의 모든 파일을 ZIP으로 일괄 다운로드"""
+    return await file_service.download_all_files_as_zip(request_id, current_user.id)
 
 
 @router.delete("/approvals/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

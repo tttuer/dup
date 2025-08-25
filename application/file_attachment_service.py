@@ -2,10 +2,13 @@ from datetime import datetime
 from typing import List, Optional
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile, Response
+from fastapi.responses import StreamingResponse
 from ulid import ULID
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 from bson import ObjectId
 import io
+import zipfile
+from urllib.parse import quote
 
 from application.base_service import BaseService
 from domain.repository.attached_file_repo import IAttachedFileRepository
@@ -154,13 +157,63 @@ class FileAttachmentService(BaseService[AttachedFile]):
             grid_out = await self.fs.open_download_stream(ObjectId(file.gridfs_file_id))
             content = await grid_out.read()
             
+            # 파일명을 UTF-8로 인코딩하여 HTTP 헤더에 안전하게 전달
+            encoded_filename = quote(file.file_name.encode('utf-8'))
+            
             return Response(
                 content=content,
                 media_type=file.file_type,
-                headers={"Content-Disposition": f"attachment; filename={file.file_name}"}
+                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to retrieve file: {str(e)}")
+
+    async def download_all_files_as_zip(self, request_id: str, user_id: str):
+        """결재 요청의 모든 파일을 ZIP으로 일괄 다운로드"""
+        # 권한 확인
+        await self._validate_request_access(request_id, user_id)
+        
+        # 파일 목록 조회
+        files = await self.file_repo.find_by_request_id(request_id)
+        if not files:
+            raise HTTPException(status_code=404, detail="No files found for this request")
+        
+        try:
+            # ZIP 파일을 메모리에서 생성
+            zip_buffer = io.BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for file in files:
+                    try:
+                        # GridFS에서 파일 내용 가져오기
+                        grid_out = await self.fs.open_download_stream(ObjectId(file.gridfs_file_id))
+                        content = await grid_out.read()
+                        
+                        # ZIP에 파일 추가
+                        zip_file.writestr(file.file_name, content)
+                    except Exception as e:
+                        print(f"Failed to add file {file.file_name} to ZIP: {e}")
+                        continue
+            
+            zip_buffer.seek(0)
+            
+            # 파일명을 UTF-8로 인코딩
+            zip_filename = f"approval_{request_id}_files.zip"
+            encoded_filename = quote(zip_filename.encode('utf-8'))
+            
+            def generate_zip():
+                yield zip_buffer.read()
+            
+            return StreamingResponse(
+                generate_zip(),
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+                }
+            )
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create ZIP file: {str(e)}")
 
     async def _save_file_to_gridfs(self, file: UploadFile, request_id: str) -> ObjectId:
         try:

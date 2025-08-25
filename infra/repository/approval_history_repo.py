@@ -16,6 +16,7 @@ class ApprovalHistoryRepository(BaseRepository[ApprovalHistory], IApprovalHistor
             id=history.id,
             request_id=history.request_id,
             approver_id=history.approver_id,
+            approver_name=history.approver_name,
             action=history.action,
             comment=history.comment,
             created_at=history.created_at,

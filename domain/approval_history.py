@@ -8,6 +8,7 @@ class ApprovalHistory(BaseModel):
     id: str
     request_id: str
     approver_id: str
+    approver_name: str
     action: ApprovalAction    # APPROVE, REJECT, CANCEL
     comment: Optional[str] = None
     created_at: datetime
