@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from common.auth import DocumentStatus
+from domain.approval_history import ApprovalHistory
 
 
 class ApprovalRequest(BaseModel):
@@ -20,5 +21,6 @@ class ApprovalRequest(BaseModel):
     updated_at: datetime
     submitted_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    histories: Optional[List[ApprovalHistory]] = Field(default_factory=list)
     
     model_config = ConfigDict(extra="ignore")

@@ -11,6 +11,7 @@ class ApprovalHistory(Document):
     id: str
     request_id: str
     approver_id: str
+    approver_name: str
     action: ApprovalAction    # APPROVE, REJECT, CANCEL
     comment: Optional[str] = Field(default=None)
     created_at: datetime

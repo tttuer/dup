@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile
 from ulid import ULID
+from motor.motor_asyncio import AsyncIOMotorClientSession
 
 from application.base_service import BaseService
 from application.approval_notification_service import ApprovalNotificationService
@@ -328,7 +329,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
             if not is_approver and not is_admin:
                 raise HTTPException(status_code=403, detail="No permission to view this request")
         
-        return request
+        # 히스토리 정보 추가
+        histories = await self.history_repo.find_by_request_id(request_id)
+        
+        # 히스토리를 포함한 새로운 인스턴스 생성
+        request_data = request.model_dump()
+        request_data['histories'] = [h.model_dump() for h in histories]
+        return ApprovalRequest.model_validate(request_data)
 
     async def _validate_request_permission(self, request_id: str, user_id: str) -> ApprovalRequest:
         request = await self.approval_repo.find_by_id(request_id)
@@ -403,19 +410,27 @@ class ApprovalService(BaseService[ApprovalRequest]):
         if approver_line.status != ApprovalStatus.PENDING:
             raise HTTPException(status_code=400, detail="This approval has already been processed")
 
-        # 결재선 업데이트
-        status = ApprovalStatus.APPROVED if action == ApprovalAction.APPROVE else ApprovalStatus.REJECTED
-        approver_line.status = status
-        approver_line.approved_at = datetime.now()
-        approver_line.comment = comment
-        
-        await self.line_repo.update(approver_line)
-        
-        # 이력 추가
-        await self._add_approval_history(request_id, approver_id, action, comment)
-        
-        # 요청서 상태 업데이트
-        await self._update_request_status(request_id)
+        # 트랜잭션으로 결재선 업데이트와 이력 생성을 묶어서 처리
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                try:
+                    # 결재선 업데이트
+                    status = ApprovalStatus.APPROVED if action == ApprovalAction.APPROVE else ApprovalStatus.REJECTED
+                    approver_line.status = status
+                    approver_line.approved_at = datetime.now()
+                    approver_line.comment = comment
+                    
+                    await self.line_repo.update(approver_line)
+                    
+                    # 이력 추가
+                    await self._add_approval_history(request_id, approver_id, action, comment)
+                    
+                    # 요청서 상태 업데이트
+                    await self._update_request_status(request_id)
+                    
+                except Exception as e:
+                    # 트랜잭션 자동 롤백
+                    raise HTTPException(status_code=500, detail=f"Approval process failed: {str(e)}")
 
     async def _add_approval_history(
         self,
@@ -424,10 +439,16 @@ class ApprovalService(BaseService[ApprovalRequest]):
         action: ApprovalAction,
         comment: Optional[str] = None,
     ) -> None:
+        # approver 이름 조회
+        approver = await self.user_repo.find_by_user_id(approver_id)
+        print(approver)
+        approver_name = approver.name
+        
         history = ApprovalHistory(
             id=self.ulid.generate(),
             request_id=request_id,
             approver_id=approver_id,
+            approver_name=approver_name,
             action=action,
             comment=comment,
             created_at=datetime.now(),
