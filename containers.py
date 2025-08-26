@@ -7,6 +7,7 @@ from application.user_service import UserService
 from application.document_template_service import DocumentTemplateService
 from application.approval_service import ApprovalService
 from application.approval_line_service import ApprovalLineService
+from application.approval_favorite_group_service import ApprovalFavoriteGroupService
 from application.document_number_service import DocumentNumberService
 from application.file_attachment_service import FileAttachmentService
 from infra.repository.file_repo import FileRepository
@@ -16,6 +17,7 @@ from infra.repository.group_repo import GroupRepository
 from infra.repository.document_template_repo import DocumentTemplateRepository
 from infra.repository.approval_request_repo import ApprovalRequestRepository
 from infra.repository.approval_line_repo import ApprovalLineRepository
+from infra.repository.approval_favorite_group_repo import ApprovalFavoriteGroupRepository
 from infra.repository.approval_history_repo import ApprovalHistoryRepository
 from infra.repository.attached_file_repo import AttachedFileRepository
 from application.group_service import GroupService
@@ -59,6 +61,7 @@ class Container(containers.DeclarativeContainer):
     document_template_repo = providers.Factory(DocumentTemplateRepository)
     approval_request_repo = providers.Factory(ApprovalRequestRepository)
     approval_line_repo = providers.Factory(ApprovalLineRepository)
+    approval_favorite_group_repo = providers.Factory(ApprovalFavoriteGroupRepository)
     approval_history_repo = providers.Factory(ApprovalHistoryRepository)
     attached_file_repo = providers.Factory(AttachedFileRepository)
     
@@ -73,6 +76,12 @@ class Container(containers.DeclarativeContainer):
         ApprovalLineService,
         line_repo=approval_line_repo,
         approval_repo=approval_request_repo,
+        user_repo=user_repo
+    )
+    
+    approval_favorite_group_service = providers.Factory(
+        ApprovalFavoriteGroupService,
+        favorite_group_repo=approval_favorite_group_repo,
         user_repo=user_repo
     )
     
