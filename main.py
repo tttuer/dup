@@ -27,6 +27,7 @@ from infra.db_models.group import Group
 from infra.db_models.document_template import DocumentTemplate
 from infra.db_models.approval_request import ApprovalRequest
 from infra.db_models.approval_line import ApprovalLine
+from infra.db_models.approval_favorite_group import ApprovalFavoriteGroup
 from infra.db_models.approval_history import ApprovalHistory
 from infra.db_models.attached_file import AttachedFile
 from common.db import client
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI):
     await init_beanie(
         database=client.dup, document_models=[
             File, User, Voucher, Group, 
-            DocumentTemplate, ApprovalRequest, ApprovalLine, ApprovalHistory, AttachedFile
+            DocumentTemplate, ApprovalRequest, ApprovalLine, ApprovalFavoriteGroup, ApprovalHistory, AttachedFile
         ]
     )
     start_scheduler()
