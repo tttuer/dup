@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from beanie.operators import And, RegEx, Or, In
 from dependency_injector.wiring import inject
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile
 from ulid import ULID
 
 from application.base_service import BaseService
@@ -15,6 +15,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.responses.file_response import FileResponse
 from infra.db_models.file import File as FileDocument
 from utils.pdf import Pdf
+from common.exceptions import ValidationError
 
 
 class FileService(BaseService[File]):
@@ -102,10 +103,7 @@ class FileService(BaseService[File]):
     def _validate_date_range(self, start_at: Optional[str], end_at: Optional[str]):
         """Validate date range parameters."""
         if end_at and start_at and end_at < start_at:
-            raise HTTPException(
-                status_code=400,
-                detail="start_at must be less than end_at",
-            )
+            raise ValidationError("start_at must be less than end_at")
     
     def _build_search_filters(self, search: Optional[str], search_option: Optional[str]) -> list:
         """Build search filters based on search criteria."""

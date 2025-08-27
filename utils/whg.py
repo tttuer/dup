@@ -1,22 +1,13 @@
-from fastapi import HTTPException
-from seleniumwire import webdriver  # type: ignore
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
 import json
 import gzip
 import io
-from utils.settings import settings
+import asyncio
 from utils.logger import logger
-import time
 from domain.voucher import Voucher
 from datetime import datetime
 from domain.voucher import Company
+from common.exceptions import CrawlingError, LoginError
 
 company_cnos = {
     Company.BAEKSUNG: {
@@ -46,132 +37,146 @@ class Whg:
         config = company_configs[company]
         return config["gisu"] - (config["year"] - year)
 
-    def crawl_whg(self, company: Company, year: int, wehago_id: str, wehago_password: str):
-        """Main crawling method - orchestrates the entire crawling process."""
-        driver = self._setup_browser()
-        
-        try:
-            if not self._login(driver, wehago_id, wehago_password):
-                raise HTTPException(status_code=401, detail="로그인 실패")
-            all_vouchers = []
-            for company in Company:
+    async def crawl_whg(self, company: Company, year: int, wehago_id: str, wehago_password: str):
+        """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",                    # K3s에서 필수
+                    "--disable-dev-shm-usage",        # shared memory 절약
+                    "--disable-gpu",                   # GPU 비활성화
+                    "--disable-software-rasterizer",  # 소프트웨어 렌더링 비활성화
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--memory-pressure-off",           # 메모리 압력 알림 비활성화
+                    "--max_old_space_size=512",        # V8 힙 메모리 제한
+                    "--disable-popup-blocking",        # 팝업 차단 비활성화
+                    "--disable-web-security",          # 웹 보안 비활성화 (같은 컨텍스트 공유)
+                    "--disable-features=VizDisplayCompositor"  # 새 창 방지
+                ]
+            )
             
-                if not self._select_company_and_navigate(driver, company):
-                    raise HTTPException(status_code=500, detail=f"회사 선택 및 페이지 이동 실패: {company.value}")
+            # 브라우저 컨텍스트 생성 (세션 공유 보장)
+            context = await browser.new_context(locale="ko-KR", timezone_id="Asia/Seoul")
+            
+            try:
+                # 1. 메인 페이지에서 로그인
+                main_page = await context.new_page()
+                await main_page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
                 
-                vouchers = self._extract_voucher_data(driver, company, year)
+                if not await self._login(main_page, wehago_id, wehago_password):
+                    raise LoginError("로그인 실패")
+                
+                # 로그인 완료 후 메인 페이지 안정화 대기
+                await self._handle_duplicate_login(main_page)
+                await main_page.locator(".snbnext").wait_for(state="visible", timeout=10000)
+                logger.info("메인 페이지 로그인 완료 확인됨")
+                
+                # 2. 각 회사별로 병렬 처리
+                tasks = []
+                for company_enum_member in Company:
+                    task = self._extract_company_data_parallel(context, company_enum_member, year)
+                    tasks.append(task)
+                
+                # 3. 모든 회사 데이터를 동시에 가져오기
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # 4. 결과 통합 및 에러 체크
+                all_vouchers = []
+                failed_companies = []
+                
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        company_name = list(Company)[i].value
+                        logger.error(f"{company_name} 처리 중 오류: {result}")
+                        failed_companies.append(company_name)
+                        continue
+                    
+                    company_vouchers, company_enum = result
+                    for voucher in company_vouchers:
+                        voucher.company = company_enum.value
+                    all_vouchers.extend(company_vouchers)
+                
+                # 에러가 발생한 회사가 있으면 전체 크롤링 실패로 처리
+                if failed_companies:
+                    raise CrawlingError(f"다음 회사에서 크롤링 실패: {', '.join(failed_companies)}. 기존 데이터 보호를 위해 저장하지 않습니다.")
+                
+                return all_vouchers
 
-                for voucher in vouchers:
-                    voucher.company = company.value
+            except Exception as e:
+                logger.error(f"크롤링 중 오류 발생: {e}")
+                try:
+                    await main_page.screenshot(path="error_screenshot.png")
+                except Exception:
+                    pass
+                raise CrawlingError(f"크롤링 중 오류 발생: {str(e)}")
+            finally:
+                await browser.close()
 
-                all_vouchers.extend(vouchers)
-            return all_vouchers
+    
+    async def _extract_company_data_parallel(self, context, company: Company, year: int):
+        """각 회사별 데이터를 별도 탭에서 처리"""
+        try:
+            # 새 탭 생성 (컨텍스트 공유로 세션 보장)
+            page = await context.new_page()
+            await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
+            
+            # 바로 전표 데이터 추출 (로그인은 이미 메인 탭에서 완료됨)
+            vouchers = await self._extract_voucher_data(page, company, year)
+            
+            await page.close()
+            return vouchers, company
             
         except Exception as e:
-            logger.error(f"크롤링 중 오류 발생: {e}")
-            raise HTTPException(status_code=500, detail=f"크롤링 중 오류 발생: {str(e)}")
-        finally:
-            driver.quit()
+            logger.error(f"{company.value} 처리 중 오류: {e}")
+            raise e
 
-    def _setup_browser(self):
-        """Setup and configure the browser driver."""
-        options = Options()
-        
-        # --- 성능 최적화 옵션 ---
-        options.add_argument("--headless")  # UI 없이 백그라운드에서 실행하여 리소스 사용량 감소
-        options.add_argument("--disable-gpu")  # GPU 가속 비활성화 (헤드리스 모드에서 권장)
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")  # 메모리 부족 문제 방지
-        options.add_argument("--window-size=1920,1080")  # 일부 웹페이지에서 필요할 수 있는 해상도 설정
+    async def _login(self, page: Page, wehago_id: str, wehago_password: str) -> bool:
+        """Playwright를 사용한 로그인 처리"""
+        logger.info("로그인 페이지로 이동합니다.")
+        await page.goto("https://www.wehago.com/#/login", wait_until="domcontentloaded")
 
-        # 페이지 로드 전략 수정: DOM 생성까지만 기다리고 이미지, CSS 등은 기다리지 않음
-        options.page_load_strategy = "eager"
+        logger.info("로그인 정보를 입력합니다.")
+        await page.locator("#inputId").fill(wehago_id)
+        await page.locator("#inputPw").fill(wehago_password)
 
-        # 이미지 및 CSS 로딩 비활성화하여 페이지 로딩 속도 향상
-        prefs = {
-            "profile.managed_default_content_settings.images": 2,
-            "profile.default_content_setting_values.css": 2,
-        }
-        options.add_experimental_option("prefs", prefs)
+        login_api_url_substring = "api0.wehago.com/auth/login"
+        logger.info(f"로그인 API 'POST' 응답을 기다립니다. (URL 포함 문자열: {login_api_url_substring})")
 
-        # 로컬 드라이버를 사용할 경우 (아래 주석을 해제하고 Remote 부분을 주석 처리)
-        # from selenium.webdriver.chrome.service import Service
-        # from webdriver_manager.chrome import ChromeDriverManager
-        # service = Service(ChromeDriverManager().install())
-        # return webdriver.Chrome(service=service, options=options)
-        
-        # 현재 사용 중인 Remote WebDriver 설정 유지
-        # 참고: desired_capabilities는 Selenium 4부터 options에 통합되었습니다.
-        return webdriver.Remote(
-            command_executor="http://localhost:4444/wd/hub",
-            options=options,
-            desired_capabilities={"browserName": "chrome"},
-        )
-    
-    def _login(self, driver, wehago_id: str, wehago_password: str) -> bool:
-        """Handle login process and validation."""
-        wait = WebDriverWait(driver, 10)
-        
-        # Navigate to login page
-        driver.set_page_load_timeout(10)
         try:
-            driver.get("https://www.wehago.com/#/login")
-        except TimeoutException:
-            logger.error("페이지 로딩 시간 초과")
-            return False
+            async with page.expect_response(
+                lambda r: login_api_url_substring in r.url and r.request.method == "POST",
+                timeout=15000
+            ) as response_info:
+                logger.info("비밀번호 필드에서 Enter 키를 눌러 로그인을 실행합니다.")
+                await page.locator("#inputPw").press("Enter")
+            
+            login_response = await response_info.value
+            return await self._process_login_response(login_response)
 
-        # Enter credentials
-        wait.until(EC.presence_of_element_located((By.ID, "inputId"))).send_keys(wehago_id)
-        wait.until(EC.presence_of_element_located((By.ID, "inputPw"))).send_keys(
-            wehago_password, Keys.RETURN
-        )
-
-        return self._validate_login_response(driver)
+        except PlaywrightTimeoutError:
+            logger.error("로그인 API 'POST' 응답 시간 초과.")
+            logger.error("네트워크 문제, 또는 웹사이트의 로그인 방식에 변경이 있을 수 있습니다.")
+            await page.screenshot(path="login_post_timeout_error.png")
+            raise
     
-    def _validate_login_response(self, driver) -> bool:
-        """Validate login response and handle errors."""
-        login_response = self._wait_for_login_response(driver)
-        
-        if not login_response:
-            raise HTTPException(status_code=504, detail="로그인 응답 없음 (타임아웃)")
-        
-        return self._process_login_response(login_response)
-    
-    def _wait_for_login_response(self, driver, timeout: int = 10):
-        """Wait for login API response."""
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            for req in reversed(driver.requests):
-                if (
-                    req.method == "POST"
-                    and req.response
-                    and "api0.wehago.com/auth/login" in req.url
-                    and req.response.body
-                ):
-                    return req
-            time.sleep(0.2)
-        
-        return None
 
-    def _process_login_response(self, login_response) -> bool:
-        """Process and validate login response."""
-        status_code = login_response.response.status_code
-        response_body = self._decompress_response_body(login_response.response.body)
-        data = json.loads(response_body)
-        
-        if status_code == 200:
+    async def _process_login_response(self, login_response: Response) -> bool:
+        """로그인 API 응답 처리"""
+        status_code = login_response.status
+        if status_code != 200:
+            raise LoginError(f"로그인 실패 (HTTP {status_code})", status_code=status_code)
+
+        try:
+            data = await login_response.json()
             if data.get("resultCode") == 401:
-                raise HTTPException(
-                    status_code=460,
-                    detail="로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.",
-                )
+                raise LoginError("로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.", status_code=460)
+            logger.info("로그인에 성공했습니다.")
             return True
-        else:
-            raise HTTPException(
-                status_code=status_code,
-                detail="로그인 실패(응답코드)",
-            )
+        except json.JSONDecodeError:
+            raise LoginError("로그인 응답 JSON 파싱 실패", status_code=500)
     
     def _decompress_response_body(self, compressed_body: bytes) -> str:
         """Decompress gzip response body."""
@@ -183,68 +188,53 @@ class Whg:
         except OSError:
             return compressed_body.decode("utf-8")
 
-    def _handle_duplicate_login(self, driver) -> bool:
-        """Handle duplicate login dialog if present."""
-        wait = WebDriverWait(driver, 10)
-        
+    async def _handle_duplicate_login(self, page: Page) -> bool:
+        """중복 로그인 팝업 처리"""
         try:
-            duplicate_login_div = wait.until(
-                EC.presence_of_element_located((By.CLASS_NAME, "duplicate_login"))
-            )
-            buttons = duplicate_login_div.find_elements(By.TAG_NAME, "button")
-            if len(buttons) >= 2:
-                buttons[1].click()  # Click second button
-                return True
-            else:
-                logger.error("duplicate_login 대화상자에 버튼이 2개 미만입니다.")
-                return False
-        except TimeoutException:
-            # No duplicate login dialog - normal login
-            return True
-    
-    def _select_company_and_navigate(self, driver, company: Company) -> bool:
-        """Select company and navigate to voucher page."""
-        if not self._handle_duplicate_login(driver):
-            return False
-        
-        # Wait for login completion
-        wait = WebDriverWait(driver, 10)
-        try:
-            wait.until(EC.presence_of_element_located((By.CLASS_NAME, "snbnext")))
-        except TimeoutException:
-            logger.error("로그인 완료 대기 시간 초과")
-            return False
-
+            duplicate_login_div = page.locator(".duplicate_login")
+            await duplicate_login_div.wait_for(state="visible", timeout=5000)
+            
+            logger.info("중복 로그인 팝업 발견. 확인 버튼을 클릭합니다.")
+            await duplicate_login_div.locator("button").nth(1).click()
+        except PlaywrightTimeoutError:
+            logger.info("중복 로그인 팝업이 나타나지 않았습니다.")
+        except Exception as e:
+            logger.info(f"중복 로그인 팝업 처리 중 예외: {e}")
         return True
     
-    
-    def _extract_voucher_data(self, driver, company: Company, year: int) -> list:
-        """Extract voucher data from the website."""
-        if not self._navigate_to_voucher_page(driver, company, year):
-            raise HTTPException(status_code=500, detail=f"전표 페이지 이동 실패: {company.value}")
+    async def _select_company_and_navigate(self, page: Page, company: Company) -> bool:
+        """회사 선택 및 메인 페이지 네비게이션"""
+        await self._handle_duplicate_login(page)
         
-        if not self._wait_for_voucher_page_load(driver):
-            raise HTTPException(status_code=500, detail=f"전표 페이지 로딩 실패: {company.value}")
-        
-        return self._extract_monthly_vouchers(driver, year, company)
+        try:
+            await page.locator(".snbnext").wait_for(state="visible", timeout=10000)
+            logger.info(f"{company.value} 회사 처리를 시작합니다.")
+            return True
+        except PlaywrightTimeoutError:
+            logger.error("로그인 후 메인 페이지 로딩 시간 초과")
+            return False
     
-    def _navigate_to_voucher_page(self, driver, company: Company, year: int) -> bool:
-        """Navigate to the voucher page for the specified company and year."""
+    
+    async def _extract_voucher_data(self, page: Page, company: Company, year: int) -> list:
+        """전표 데이터 추출 로직"""
+        await self._navigate_to_voucher_page(page, company, year)
+        return await self._extract_monthly_vouchers(page, year, company)
+    
+    async def _navigate_to_voucher_page(self, page: Page, company: Company, year: int):
+        """전표 페이지로 직접 URL 이동"""
         gisu = self.calculate_gisu(company, year)
         sao_url = self._build_sao_url(company, gisu, year)
         
-        try:
-            driver.requests.clear()
-            driver.get(sao_url)
-            driver.refresh()
+        logger.info(f"전표 페이지로 이동: {sao_url}")
+        await page.goto(sao_url, wait_until="domcontentloaded")
+        await page.reload()
 
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "WSC_LUXMonthPicker"))
-            )
-            return True
-        except Exception as e:
-            logger.error(f"전표 페이지 이동 실패: {e}")
-            return False
+        try:
+            await page.locator(".WSC_LUXMonthPicker").wait_for(state="visible", timeout=15000)
+            logger.info("전표 페이지 로딩 완료.")
+        except PlaywrightTimeoutError:
+            logger.error("전표 페이지 로딩 시간 초과")
+            raise CrawlingError(f"전표 페이지 로딩 실패: {company.value}")
     
     def _build_sao_url(self, company: Company, gisu: int, year: int) -> str:
         """Build the SAO URL for the specified company."""
@@ -278,142 +268,96 @@ class Whg:
         print(f"전표 페이지 URL: {url}")
         return url
     
-    def _wait_for_voucher_page_load(self, driver) -> bool:
-        """Wait for the voucher page to fully load."""
-        wait = WebDriverWait(driver, 10)
-        try:
-            wait.until(EC.presence_of_element_located((By.CLASS_NAME, "WSC_LUXMonthPicker")))
-            return True
-        except TimeoutException:
-            logger.error("전표 페이지 로딩 시간 초과")
-            return False
 
-    def _extract_monthly_vouchers(self, driver, year: int, company: Company) -> list:
-        """Extract vouchers for all months in the year."""
-        month_inputs = self._setup_month_picker(driver)
-        if not month_inputs:
-            raise HTTPException(status_code=500, detail=f"월 선택기 설정 실패: {company.value}")
-        
+    async def _extract_monthly_vouchers(self, page: Page, year: int, company: Company) -> list:
+        """월별 데이터 추출"""
         all_vouchers = []
         months = [f"{i:02d}" for i in range(1, 13)]
-        current_month = datetime.now().strftime("%m")
-        current_year = datetime.now().strftime("%Y")
-        
+        current_month_str = datetime.now().strftime("%m")
+        current_year_str = datetime.now().strftime("%Y")
+
         for month in months:
-            if str(year) == current_year and month > current_month:
+            if str(year) == current_year_str and month > current_month_str:
                 break
+
+            logger.info(f"{year}년 {month}월 데이터 추출을 시작합니다.")
             
-            vouchers = self._extract_month_vouchers(driver, month_inputs, year, month, company)
-            all_vouchers.extend(vouchers)
+            try:
+                async with page.expect_response(
+                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url and company_cnos[company]["cno"] in r.url,
+                    timeout=15000
+                ) as response_info:
+                    await self._set_month_input(page, month)
+                
+                response = await response_info.value
+                vouchers = await self._parse_voucher_response(response, year, month, company)
+                all_vouchers.extend(vouchers)
+
+            except PlaywrightTimeoutError:
+                logger.warning(f"전표 데이터 요청 시간 초과: {year}년 {month}월, 해당 월 건너뛀")
+                continue
+            except Exception as e:
+                logger.error(f"{year}년 {month}월 처리 중 오류 발생: {e}")
+                continue
         
         logger.info(f"총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
         return all_vouchers
     
-    def _setup_month_picker(self, driver):
-        """Setup the month picker and return input elements."""
-        try:
-            month_picker = driver.find_element(By.CLASS_NAME, "WSC_LUXMonthPicker")
-            inner_div = month_picker.find_element(By.TAG_NAME, "div")
-            span = inner_div.find_element(By.TAG_NAME, "span")
-            span.click()
-            return span.find_elements(By.TAG_NAME, "input")
-        except Exception as e:
-            logger.error(f"월 선택기 설정 실패: {e}")
-            return None
+    async def _set_month_input(self, page: Page, month: str):
+        """월 선택기에서 월을 변경"""
+        month_picker = page.locator(".WSC_LUXMonthPicker")
+        await month_picker.locator("div > span").first.click()
+        
+        target_input = month_picker.locator("input").nth(1)
+        await target_input.wait_for(state="visible", timeout=5000)
+        
+        await page.evaluate(
+            f"""
+            const input = document.querySelector('.WSC_LUXMonthPicker input:nth-child(2)');
+            if (input) {{
+                input.value = '{month}';
+                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            }}
+            """
+        )
+        
+        # 조회 버튼 클릭 - 첫 번째 조회 버튼 선택
+        inquiry_button = page.locator(".inquiry_btnarea .LUX_basic_btn.Default.basic.grey span").filter(has_text="조회").first
+        await inquiry_button.click()
 
-    def _extract_month_vouchers(self, driver, month_inputs, year: int, month: str, company: Company) -> list:
-        """Extract vouchers for a specific month."""
-        if not self._set_month_input(driver, month_inputs, month):
-            logger.warning(f"월 입력 실패: {year}년 {month}월, 해당 월 건너뜀")
-            return []
-        
-        request_data = self._wait_for_voucher_request(driver, year, month, company)
-        if not request_data:
-            logger.warning(f"전표 데이터 요청 실패: {year}년 {month}월, 해당 월 건너뜀")
-            return []
-        
-        return self._parse_voucher_response(request_data, year, month, company)
     
-    def _set_month_input(self, driver, month_inputs, month: str) -> bool:
-        """Set the month in the input field."""
-        driver.requests.clear()
-        
-        if len(month_inputs) < 2:
-            logger.error("두 번째 input을 찾지 못했습니다.")
-            return False
+    async def _parse_voucher_response(self, response: Response, year: int, month: str, company: Company) -> list:
+        """전표 데이터 파싱"""
+        if response.status != 200:
+            logger.warning(f"전표 데이터 요청 실패 ({year}년 {month}월): HTTP {response.status}")
+            return []
         
         try:
-            target_input = month_inputs[1]
-            driver.execute_script(
-                f"""
-                arguments[0].value = '{month}';
-                arguments[0].dispatchEvent(new Event('input', {{ bubbles: true }}));
-                arguments[0].dispatchEvent(new Event('change', {{ bubbles: true }}));
-                """,
-                target_input,
-            )
-            target_input.send_keys(Keys.ENTER, Keys.ENTER)
-            return True
-        except Exception as e:
-            logger.error(f"월 입력 실패: {e}")
-            return False
-
-    def _wait_for_voucher_request(self, driver, year: int, month: str, company: Company, timeout: int = 15, ):
-        """Wait for voucher data request to complete."""
-        logger.info("전표 데이터 로딩 대기 중...")
-        
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            for req in reversed(driver.requests):
-                if (
-                    req.response
-                    and "/smarta/sabk0102" in req.url
-                    and f"start_date={year}{month}" in req.url
-                    and company_cnos[company]["cno"] in req.url
-                    and req.response.status_code == 200
-                    and req.response.body
-                ):
-                    return req
-            time.sleep(0.1)
-        
-        logger.error("전표 데이터 요청을 찾지 못했습니다.")
-        return None
-    
-    def _parse_voucher_response(self, request, year: int, month: str, company: Company) -> list:
-        """Parse voucher data from API response."""
-        if f"start_date={year}{month}" not in request.url:
-            logger.warning(f"예상한 start_date가 아닌 요청: {year}년 {month}월")
-            return []
-        
-        logger.info(f"전표 데이터 요청 발견: {request.url}")
-        
-        try:
-            response_body = self._decompress_response_body(request.response.body)
-            target_data = json.loads(response_body)
+            body = self._decompress_response_body(await response.body())
+            target_data = json.loads(body)
             
             voucher_list = target_data.get("list", [])
             logger.info(f"{year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
             
             if not voucher_list:
-                logger.info("해당 월에 전표가 없습니다.")
                 return []
             
-            return self._convert_to_voucher_objects(voucher_list, year, month, company)
+            return self._convert_to_voucher_objects(voucher_list, company)
             
         except Exception as e:
             logger.warning(f"전표 데이터 파싱 실패 ({year}년 {month}월): {e}")
             return []
     
-    def _convert_to_voucher_objects(self, voucher_list: list, year: int, month: str, company: Company) -> list:
-        """Convert raw voucher data to Voucher objects."""
+    def _convert_to_voucher_objects(self, voucher_list: list, company: Company) -> list:
+        """Voucher 객체 변환 로직"""
         vouchers = []
         for entry in voucher_list:
             try:
-                entry = dict(entry)
-                entry["id"] = str(entry["sq_acttax2"]) + "_" + company.value
-                vouchers.append(Voucher(**entry))
+                entry_dict = dict(entry)
+                entry_dict["id"] = str(entry_dict["sq_acttax2"]) + "_" + company.value
+                vouchers.append(Voucher(**entry_dict))
             except Exception as e:
-                logger.error(f"전표 변환 실패: {e}")
+                logger.error(f"전표 객체 변환 실패: {entry_dict.get('sq_acttax2', 'N/A')} - {e}")
                 continue
-        
         return vouchers

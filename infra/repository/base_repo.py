@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Optional, List, Any
-from fastapi import HTTPException
 from beanie import Document
+from common.exceptions import NotFoundError, InternalServerError
 
 T = TypeVar('T', bound=Document)
 
@@ -22,12 +22,12 @@ class BaseRepository(ABC, Generic[T]):
             T: The created entity
             
         Raises:
-            HTTPException: 500 if creation fails
+            InternalServerError: if creation fails
         """
         try:
             return await entity.insert()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to create {self.model.__name__}: {str(e)}")
+            raise InternalServerError(f"Failed to create {self.model.__name__}: {str(e)}")
     
     async def find_by_id(self, entity_id: str) -> Optional[T]:
         """Find an entity by its ID.
@@ -54,12 +54,12 @@ class BaseRepository(ABC, Generic[T]):
             T: The entity if found
             
         Raises:
-            HTTPException: 404 if entity is not found
+            NotFoundError: if entity is not found
         """
         entity = await self.find_by_id(entity_id)
         if not entity:
             name = entity_name or self.model.__name__
-            raise HTTPException(status_code=404, detail=f"{name} not found: {entity_id}")
+            raise NotFoundError(f"{name} not found: {entity_id}")
         return entity
     
     async def find_all(self, skip: int = 0, limit: int = 100) -> List[T]:
@@ -84,12 +84,12 @@ class BaseRepository(ABC, Generic[T]):
             T: The updated entity
             
         Raises:
-            HTTPException: 500 if update fails
+            InternalServerError: if update fails
         """
         try:
             return await entity.save()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to update {self.model.__name__}: {str(e)}")
+            raise InternalServerError(f"Failed to update {self.model.__name__}: {str(e)}")
     
     async def delete(self, entity: T) -> bool:
         """Delete an entity.
@@ -101,13 +101,13 @@ class BaseRepository(ABC, Generic[T]):
             bool: True if deletion was successful
             
         Raises:
-            HTTPException: 500 if deletion fails
+            InternalServerError: if deletion fails
         """
         try:
             await entity.delete()
             return True
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to delete {self.model.__name__}: {str(e)}")
+            raise InternalServerError(f"Failed to delete {self.model.__name__}: {str(e)}")
     
     async def delete_by_id(self, entity_id: str) -> bool:
         """Delete an entity by its ID.
@@ -119,7 +119,8 @@ class BaseRepository(ABC, Generic[T]):
             bool: True if deletion was successful
             
         Raises:
-            HTTPException: 404 if entity is not found, 500 if deletion fails
+            NotFoundError: if entity is not found
+            InternalServerError: if deletion fails
         """
         entity = await self.find_by_id_or_raise(entity_id)
         return await self.delete(entity)

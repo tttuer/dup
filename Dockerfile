@@ -1,32 +1,38 @@
-# 1. Python 베이스 이미지
-FROM python:3.13-slim-bookworm
+# --- 1단계: Builder ---
+# 종속성을 설치하고 가상 환경을 만드는 빌더 스테이지
+FROM mcr.microsoft.com/playwright/python:v1.54.0-noble AS builder
 
-# 2. prebuilt uv 바이너리 복사 (FROM 공식 이미지)
+# uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# 3. 환경변수
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
-# 4. 시스템 패키지 설치 (필요시 최소화 가능)
-RUN apt-get update && apt-get install -y --no-install-recommends && apt-get install -y curl \
-    build-essential \
-    gcc \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# 가상 환경 생성
+# --no-cache 옵션으로 캐시를 남기지 않아 빌드 최적화
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --no-cache
 
-# 5. pyproject.toml, uv.lock 복사
-COPY pyproject.toml uv.lock /app/
-COPY .env .env
+# --- 2단계: Final ---
+# 최종적으로 사용할 경량화된 이미지 스테이지
+FROM mcr.microsoft.com/playwright/python:v1.54.0-noble
 
+# 브라우저 실행을 위해 root 사용자 유지 (보안보다 기능 우선)
+# USER pwuser
 
+WORKDIR /app
 
-# 6. 패키지 설치
-RUN uv sync
+# Builder 스테이지에서 생성한 가상 환경만 복사
+COPY --from=builder /app/.venv ./.venv
 
-# 7. 애플리케이션 코드 복사
-COPY . /app
+# 애플리케이션 코드 복사
+COPY . .
 
-# 8. FastAPI 실행
-CMD [".venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 불필요한 브라우저(Firefox, WebKit) 삭제하여 용량 확보
+RUN rm -rf /ms-playwright/firefox-* && \
+    rm -rf /ms-playwright/webkit-*
+
+# 가상 환경의 경로를 PATH에 추가
+ENV PATH="/app/.venv/bin:$PATH"
+
+# FastAPI 실행
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
