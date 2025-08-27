@@ -1,16 +1,16 @@
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from application.websocket_manager import WebSocketManager
-from infra.repository.approval_line_repo import ApprovalLineRepository
-from infra.repository.approval_request_repo import ApprovalRequestRepository
+from domain.repository.approval_line_repo import IApprovalLineRepository
+from domain.repository.approval_request_repo import IApprovalRequestRepository
 
 
 class ApprovalNotificationService:
     def __init__(
         self,
         websocket_manager: WebSocketManager,
-        approval_line_repo: ApprovalLineRepository,
-        approval_request_repo: ApprovalRequestRepository
+        approval_line_repo: IApprovalLineRepository,
+        approval_request_repo: IApprovalRequestRepository
     ):
         self.websocket_manager = websocket_manager
         self.approval_line_repo = approval_line_repo
@@ -29,7 +29,7 @@ class ApprovalNotificationService:
             "data": {
                 "user_id": user_id,
                 "count": count,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
         await self.websocket_manager.send_to_user(user_id, message)
@@ -47,7 +47,7 @@ class ApprovalNotificationService:
                 "title": request.title,
                 "requester_id": request.requester_id,
                 "document_number": request.document_number,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
 
@@ -71,7 +71,7 @@ class ApprovalNotificationService:
                 "status": status,
                 "approver_id": approver_id,
                 "document_number": request.document_number,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
         
@@ -104,7 +104,7 @@ class ApprovalNotificationService:
                 "title": request.title,
                 "final_status": final_status,
                 "document_number": request.document_number,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
 
@@ -142,7 +142,7 @@ class ApprovalNotificationService:
                 "request_id": request_id,
                 "title": request.title,
                 "document_number": request.document_number,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         }
 

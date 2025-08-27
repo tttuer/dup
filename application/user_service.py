@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import json
@@ -39,7 +39,7 @@ class UserService(BaseService[User]):
                 detail="User already exists",
             )
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -64,7 +64,7 @@ class UserService(BaseService[User]):
                 detail="User already exists",
             )
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -142,7 +142,7 @@ class UserService(BaseService[User]):
         if roles is not None:
             user_doc.roles = roles
 
-        user_doc.updated_at = datetime.now()
+        user_doc.updated_at = datetime.now(timezone.utc)
         updated_user_doc = await user_doc.save()
 
         return UserResponse.from_document(updated_user_doc)
@@ -163,7 +163,7 @@ class UserService(BaseService[User]):
 
         user_doc.approval_status = approval_status
         user_doc.roles = roles
-        user_doc.updated_at = datetime.now()
+        user_doc.updated_at = datetime.now(timezone.utc)
         
         updated_user_doc = await user_doc.save()
 

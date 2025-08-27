@@ -161,17 +161,19 @@ async def apply_favorite_group_to_request(
     existing_lines = await line_service.get_approval_lines(request_id, current_user.id)
     max_order = max([line.step_order for line in existing_lines], default=0)
     
-    # 그룹의 결재자들을 순차적으로 추가
-    added_lines = []
+    # 그룹의 모든 결재자 데이터를 한 번에 준비
+    approver_data = []
     for i, approver_id in enumerate(group.approver_ids):
-        line = await line_service.add_approval_line(
-            request_id=request_id,
-            requester_id=current_user.id,
-            approver_id=approver_id,
-            step_order=max_order + i + 1,
-            is_required=True,
-            is_parallel=False,
-        )
-        added_lines.append(line)
+        approver_data.append({
+            "approver_id": approver_id,
+            "step_order": max_order + i + 1,
+            "is_required": True,
+            "is_parallel": False,
+        })
     
-    return added_lines
+    # 모든 결재자를 한 번에 추가
+    return await line_service.bulk_add_approval_lines(
+        request_id=request_id,
+        requester_id=current_user.id,
+        approver_data=approver_data,
+    )

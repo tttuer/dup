@@ -115,6 +115,50 @@ class ApprovalLineService(BaseService[ApprovalLine]):
 
         await self.line_repo.save(line)
         return line
+    
+    async def bulk_add_approval_lines(
+        self,
+        request_id: str,
+        requester_id: str,
+        approver_data: List[dict],  # [{"approver_id": str, "step_order": int}, ...]
+    ) -> List[ApprovalLine]:
+        """여러 결재자를 한 번에 추가"""
+        # 요청서 확인 및 권한 검증
+        request = await self.approval_repo.find_by_id(request_id)
+        if not request:
+            raise HTTPException(status_code=404, detail="Approval request not found")
+        
+        if request.requester_id != requester_id:
+            raise HTTPException(status_code=403, detail="No permission to modify this request")
+        
+        # 결재가 진행 중이거나 완료된 경우 수정 불가
+        if request.current_step > 0 or request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
+            raise HTTPException(status_code=400, detail="Cannot modify approval lines after approval process started")
+
+        # 모든 결재자 검증 및 결재선 생성
+        lines_to_create = []
+        for data in approver_data:
+            approver_id = data["approver_id"]
+            step_order = data["step_order"]
+            
+            # 결재자 확인
+            approver = await self.validate_user_exists(approver_id)
+            
+            line = ApprovalLine(
+                id=self.ulid.generate(),
+                request_id=request_id,
+                approver_id=approver_id,
+                approver_name=approver.name,
+                step_order=step_order,
+                is_required=data.get("is_required", True),
+                is_parallel=data.get("is_parallel", False),
+                status=ApprovalStatus.PENDING,
+            )
+            lines_to_create.append(line)
+        
+        # 한 번에 저장
+        await self.line_repo.bulk_save(lines_to_create)
+        return lines_to_create
 
     async def remove_approval_line(
         self,

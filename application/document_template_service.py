@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
@@ -36,7 +36,7 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         name = self.validate_required_field(name, "Template name")
         category = self.validate_required_field(category, "Category")
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         template = DocumentTemplate(
             id=self.ulid.generate(),
             name=name,
@@ -101,7 +101,7 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         if is_active is not None:
             template.is_active = is_active
         
-        template.updated_at = datetime.now()
+        template.updated_at = datetime.now(timezone.utc)
         
         return await self.template_repo.update(template)
 

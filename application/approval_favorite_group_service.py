@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from dependency_injector.wiring import inject
 from fastapi import HTTPException
@@ -44,8 +44,8 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
             name=name,
             approver_ids=approver_ids,
             approver_names=approver_names,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         return await self.favorite_group_repo.save(group)
@@ -84,7 +84,7 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
             group.approver_ids = approver_ids
             group.approver_names = approver_names
 
-        group.updated_at = datetime.utcnow()
+        group.updated_at = datetime.now(timezone.utc)
         return await self.favorite_group_repo.save(group)
 
     async def delete_favorite_group(self, group_id: str, user_id: str) -> None:
