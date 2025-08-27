@@ -82,3 +82,13 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
         """MongoDB 쿼리로 전자결재 검색"""
         requests = await ApprovalRequest.find(query).sort(-ApprovalRequest.created_at).skip(skip).limit(limit).to_list()
         return requests or []
+    
+    async def find_by_ids(self, request_ids: List[str]) -> List[ApprovalRequest]:
+        """여러 request_id의 결재 요청을 한 번에 조회"""
+        if not request_ids:
+            return []
+            
+        requests = await ApprovalRequest.find(
+            {"_id": {"$in": request_ids}}
+        ).sort(-ApprovalRequest.updated_at).to_list()
+        return requests or []

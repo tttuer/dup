@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile
@@ -75,7 +75,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     # 문서번호 생성
                     document_number = await self._generate_document_number(template)
 
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     approval_request = ApprovalRequest(
                         id=self.ulid.generate(),
                         template_id=template_id or "",
@@ -130,8 +130,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 상태 변경
         request.status = DocumentStatus.SUBMITTED
         request.current_step = 1
-        request.submitted_at = datetime.now()
-        request.updated_at = datetime.now()
+        request.submitted_at = datetime.now(timezone.utc)
+        request.updated_at = datetime.now(timezone.utc)
 
         result = await self.approval_repo.update(request)
 
@@ -176,7 +176,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
         # 상태 변경
         request.status = DocumentStatus.CANCELLED
-        request.updated_at = datetime.now()
+        request.updated_at = datetime.now(timezone.utc)
         
         # 이력 추가
         await self._add_approval_history(request_id, requester_id, ApprovalAction.CANCEL)
@@ -270,24 +270,24 @@ class ApprovalService(BaseService[ApprovalRequest]):
         if not pending_lines:
             return []
         
-        # 각 결재선에 대해 이전 단계가 완료되었는지 확인하여 결재 가능한 것만 필터링
-        available_lines = []
-        for line in pending_lines:
-            if await self._is_step_available(line):
-                available_lines.append(line)
+        # request_id 목록 추출 (중복 제거)
+        request_ids = list(set(line.request_id for line in pending_lines))
         
-        # 해당 결재선들의 요청서들을 조회
-        request_ids = [line.request_id for line in available_lines]
-        if not request_ids:
+        # 모든 관련 결재선을 한 번에 조회
+        all_lines = await self.line_repo.find_by_request_ids(request_ids)
+        all_lines_by_request = self._group_lines_by_request(all_lines)
+        
+        # 결재 가능한 request_id만 필터링 (메모리에서 처리)
+        available_request_ids = []
+        for line in pending_lines:
+            if self._is_step_available_optimized(line, all_lines_by_request.get(line.request_id, [])):
+                available_request_ids.append(line.request_id)
+        
+        if not available_request_ids:
             return []
         
-        requests = []
-        for request_id in request_ids:
-            request = await self.approval_repo.find_by_id(request_id)
-            if request:
-                requests.append(request)
-        
-        return requests
+        # 결재 요청서들을 한 번에 조회
+        return await self.approval_repo.find_by_ids(available_request_ids)
     
     async def _is_step_available(self, current_line) -> bool:
         """현재 결재선이 결재 가능한 상태인지 확인"""
@@ -349,7 +349,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
     async def _generate_document_number(self, template) -> str:
         # 간단한 문서번호 생성 로직 (추후 개선 가능)
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         if template:
             prefix = template.document_prefix or template.name
         else:
@@ -417,7 +417,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     # 결재선 업데이트
                     status = ApprovalStatus.APPROVED if action == ApprovalAction.APPROVE else ApprovalStatus.REJECTED
                     approver_line.status = status
-                    approver_line.approved_at = datetime.now()
+                    approver_line.approved_at = datetime.now(timezone.utc)
                     approver_line.comment = comment
                     
                     await self.line_repo.update(approver_line)
@@ -451,7 +451,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             approver_name=approver_name,
             action=action,
             comment=comment,
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         await self.history_repo.save(history)
 
@@ -464,7 +464,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 반려가 있는지 확인
         if any(line.status == ApprovalStatus.REJECTED for line in approval_lines):
             request.status = DocumentStatus.REJECTED
-            request.completed_at = datetime.now()
+            request.completed_at = datetime.now(timezone.utc)
         # 모든 필수 결재가 완료되었는지 확인
         elif all(
             line.status == ApprovalStatus.APPROVED 
@@ -472,13 +472,35 @@ class ApprovalService(BaseService[ApprovalRequest]):
             if line.is_required
         ):
             request.status = DocumentStatus.APPROVED
-            request.completed_at = datetime.now()
+            request.completed_at = datetime.now(timezone.utc)
         else:
             request.status = DocumentStatus.IN_PROGRESS
         
-        request.updated_at = datetime.now()
+        request.updated_at = datetime.now(timezone.utc)
         await self.approval_repo.update(request)
         
         # 최종 상태 변경 시 완료 알림 전송
         if old_status != request.status and request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED]:
             await self.notification_service.notify_approval_completed(request_id, request.status)
+    
+    def _group_lines_by_request(self, all_lines: List) -> Dict[str, List]:
+        """결재선들을 request_id별로 그룹화"""
+        from collections import defaultdict
+        
+        lines_by_request = defaultdict(list)
+        for line in all_lines:
+            lines_by_request[line.request_id].append(line)
+        
+        return dict(lines_by_request)
+    
+    def _is_step_available_optimized(self, current_line, all_lines: List) -> bool:
+        """순차 결재에서 이전 모든 단계가 완료되었는지 확인"""
+        current_step = current_line.step_order
+        
+        # 이전 단계 중 PENDING 상태가 있으면 아직 결재 불가
+        for line in all_lines:
+            if (line.step_order < current_step and 
+                line.status == ApprovalStatus.PENDING):
+                return False
+        
+        return True

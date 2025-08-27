@@ -75,3 +75,37 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         lines = await self.find_by_request_id(request_id)
         for line in lines:
             await line.delete()
+    
+    async def find_by_request_ids(self, request_ids: List[str]) -> List[ApprovalLine]:
+        """여러 request_id의 결재선을 한 번에 조회"""
+        if not request_ids:
+            return []
+        
+        lines = await ApprovalLine.find(
+            {"request_id": {"$in": request_ids}}
+        ).sort(+ApprovalLine.step_order).to_list()
+        return lines or []
+    
+    async def bulk_save(self, lines: List[ApprovalLineVo]) -> None:
+        """여러 결재선을 한 번에 저장"""
+        if not lines:
+            return
+        
+        db_lines = []
+        for line in lines:
+            db_line = ApprovalLine(
+                id=line.id,
+                request_id=line.request_id,
+                approver_id=line.approver_id,
+                approver_name=line.approver_name,
+                step_order=line.step_order,
+                is_required=line.is_required,
+                is_parallel=line.is_parallel,
+                status=line.status,
+                approved_at=line.approved_at,
+                comment=line.comment,
+            )
+            db_lines.append(db_line)
+        
+        # MongoDB bulk insert
+        await ApprovalLine.insert_many(db_lines)

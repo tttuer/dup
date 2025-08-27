@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile, Response
@@ -77,7 +77,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
             file_size=file.size or 0,
             file_type=file.content_type or "",
             is_reference=is_reference,
-            uploaded_at=datetime.now(),
+            uploaded_at=datetime.now(timezone.utc),
             uploaded_by=uploaded_by,
         )
 
@@ -227,7 +227,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
                 metadata={
                     "request_id": request_id,
                     "content_type": file.content_type or "",
-                    "uploaded_at": datetime.now()
+                    "uploaded_at": datetime.now(timezone.utc)
                 }
             )
             

@@ -77,28 +77,3 @@ async def approval_websocket_status(
             for user_id, connections in ws_manager.user_connections.items()
         }
     }
-
-
-@router.post("/api/ws/test-approval-notification/{user_id}")
-@inject
-async def test_approval_notification(
-    user_id: str,
-    notification_service: ApprovalNotificationService = Depends(Provide[Container.approval_notification_service])
-):
-    """테스트용 전자결재 알림 전송"""
-    # 테스트 메시지 전송
-    test_message = {
-        "type": "new_approval_request",
-        "data": {
-            "request_id": "test-123",
-            "title": "테스트 결재 요청",
-            "requester_id": "test-user",
-            "document_number": "TEST-2025-0822-001",
-            "timestamp": "2025-08-22T10:00:00"
-        }
-    }
-    
-    await notification_service.websocket_manager.send_to_user(user_id, test_message)
-    await notification_service.notify_pending_count(user_id)
-    
-    return {"message": f"Test approval notification sent to user {user_id}"}
