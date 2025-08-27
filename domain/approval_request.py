@@ -1,11 +1,12 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import Field, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from common.auth import DocumentStatus
 from domain.approval_history import ApprovalHistory
+from domain.responses.base_response import BaseResponse
 
 
-class ApprovalRequest(BaseModel):
+class ApprovalRequest(BaseResponse):
     id: str
     template_id: str           # 사용한 양식 ID
     document_number: str       # 자동 생성 문서번호

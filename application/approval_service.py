@@ -18,6 +18,7 @@ from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
 from domain.approval_history import ApprovalHistory
 from common.auth import DocumentStatus, ApprovalStatus, ApprovalAction
+from utils.time import get_utc_now_naive
 
 
 class ApprovalService(BaseService[ApprovalRequest]):
@@ -75,7 +76,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     # 문서번호 생성
                     document_number = await self._generate_document_number(template)
 
-                    now = datetime.now(timezone.utc)
+                    now = get_utc_now_naive()
                     approval_request = ApprovalRequest(
                         id=self.ulid.generate(),
                         template_id=template_id or "",
@@ -130,8 +131,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 상태 변경
         request.status = DocumentStatus.SUBMITTED
         request.current_step = 1
-        request.submitted_at = datetime.now(timezone.utc)
-        request.updated_at = datetime.now(timezone.utc)
+        request.submitted_at = get_utc_now_naive()
+        request.updated_at = get_utc_now_naive()
 
         result = await self.approval_repo.update(request)
 
@@ -176,7 +177,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
         # 상태 변경
         request.status = DocumentStatus.CANCELLED
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = get_utc_now_naive()
         
         # 이력 추가
         await self._add_approval_history(request_id, requester_id, ApprovalAction.CANCEL)
@@ -341,7 +342,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
     async def _generate_document_number(self, template) -> str:
         # 간단한 문서번호 생성 로직 (추후 개선 가능)
-        now = datetime.now(timezone.utc)
+        now = get_utc_now_naive()
         if template:
             prefix = template.document_prefix or template.name
         else:
@@ -426,7 +427,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     # 결재선 업데이트
                     status = ApprovalStatus.APPROVED if action == ApprovalAction.APPROVE else ApprovalStatus.REJECTED
                     approver_line.status = status
-                    approver_line.approved_at = datetime.now(timezone.utc)
+                    approver_line.approved_at = get_utc_now_naive()
                     approver_line.comment = comment
                     
                     await self.line_repo.update(approver_line)
@@ -460,7 +461,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             approver_name=approver_name,
             action=action,
             comment=comment,
-            created_at=datetime.now(timezone.utc),
+            created_at=get_utc_now_naive(),
         )
         await self.history_repo.save(history)
 
@@ -473,7 +474,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 반려가 있는지 확인
         if any(line.status == ApprovalStatus.REJECTED for line in approval_lines):
             request.status = DocumentStatus.REJECTED
-            request.completed_at = datetime.now(timezone.utc)
+            request.completed_at = get_utc_now_naive()
         # 모든 필수 결재가 완료되었는지 확인
         elif all(
             line.status == ApprovalStatus.APPROVED 
@@ -481,11 +482,11 @@ class ApprovalService(BaseService[ApprovalRequest]):
             if line.is_required
         ):
             request.status = DocumentStatus.APPROVED
-            request.completed_at = datetime.now(timezone.utc)
+            request.completed_at = get_utc_now_naive()
         else:
             request.status = DocumentStatus.IN_PROGRESS
         
-        request.updated_at = datetime.now(timezone.utc)
+        request.updated_at = get_utc_now_naive()
         await self.approval_repo.update(request)
         
         # 최종 상태 변경 시 완료 알림 전송

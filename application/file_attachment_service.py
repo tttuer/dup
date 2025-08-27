@@ -18,6 +18,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.attached_file import AttachedFile
 from common.auth import DocumentStatus
 from common.db import client
+from utils.time import get_utc_now_naive
 
 
 class FileAttachmentService(BaseService[AttachedFile]):
@@ -77,7 +78,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
             file_size=file.size or 0,
             file_type=file.content_type or "",
             is_reference=is_reference,
-            uploaded_at=datetime.now(timezone.utc),
+            uploaded_at=get_utc_now_naive(),
             uploaded_by=uploaded_by,
         )
 
@@ -88,7 +89,9 @@ class FileAttachmentService(BaseService[AttachedFile]):
         # 권한 확인
         await self._validate_request_access(request_id, user_id)
         
-        return await self.file_repo.find_by_request_id(request_id)
+        files = await self.file_repo.find_by_request_id(request_id)
+        
+        return files
 
     async def delete_file(self, file_id: str, user_id: str) -> None:
         file = await self.file_repo.find_by_id(file_id)
@@ -227,7 +230,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
                 metadata={
                     "request_id": request_id,
                     "content_type": file.content_type or "",
-                    "uploaded_at": datetime.now(timezone.utc)
+                    "uploaded_at": get_utc_now_naive()
                 }
             )
             

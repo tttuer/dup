@@ -13,6 +13,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from domain.responses.user_response import UserResponse
 from utils.crypto import Crypto
+from utils.time import get_utc_now_naive
 
 
 class UserService(BaseService[User]):
@@ -35,7 +36,7 @@ class UserService(BaseService[User]):
         if _user:
             raise ConflictError("User already exists")
 
-        now = datetime.now(timezone.utc)
+        now = get_utc_now_naive()
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -57,7 +58,7 @@ class UserService(BaseService[User]):
         if _user:
             raise ConflictError("User already exists")
 
-        now = datetime.now(timezone.utc)
+        now = get_utc_now_naive()
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -128,7 +129,7 @@ class UserService(BaseService[User]):
         if roles is not None:
             user_doc.roles = roles
 
-        user_doc.updated_at = datetime.now(timezone.utc)
+        user_doc.updated_at = get_utc_now_naive()
         updated_user_doc = await user_doc.save()
 
         return UserResponse.from_document(updated_user_doc)
@@ -149,7 +150,7 @@ class UserService(BaseService[User]):
 
         user_doc.approval_status = approval_status
         user_doc.roles = roles
-        user_doc.updated_at = datetime.now(timezone.utc)
+        user_doc.updated_at = get_utc_now_naive()
         
         updated_user_doc = await user_doc.save()
 

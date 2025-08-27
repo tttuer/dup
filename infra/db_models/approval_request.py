@@ -10,7 +10,7 @@ from common.auth import DocumentStatus
 class ApprovalRequest(Document):
     id: str
     template_id: str           # 사용한 양식 ID
-    document_number: str       # 자동 생성 문서번호
+    document_number: str       # 자동 생성 문서번호d
     title: str                # 결재 제목
     content: str              # 결재 내용 (HTML)
     form_data: Dict[str, Any] = Field(default_factory=dict) # 양식별 추가 데이터

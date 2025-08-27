@@ -1,9 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional
+from domain.responses.base_response import BaseResponse
 
 
-class AttachedFile(BaseModel):
+class AttachedFile(BaseResponse):
     id: str
     request_id: str
     file_name: str

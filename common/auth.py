@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta, datetime, UTC
+from datetime import timedelta
 from enum import StrEnum
 from typing import Annotated
 
@@ -9,6 +9,7 @@ from jose import jwt, JWTError
 
 from utils.settings import settings
 from common.exceptions import AuthenticationError, PermissionError
+from utils.time import get_kst_now
 
 SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
@@ -74,7 +75,7 @@ def create_access_token(
     roles: list[Role],
     expires_delta: timedelta = timedelta(hours=3),
 ):
-    expire = datetime.now(UTC) + expires_delta
+    expire = get_kst_now() + expires_delta
     payload.update({"exp": expire, "roles": roles})
 
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -86,7 +87,7 @@ def create_refresh_token(
     payload: dict, expires_delta: timedelta = timedelta(hours=12)
 ) -> str:
     data = payload.copy()
-    data["exp"] = datetime.now(UTC) + expires_delta
+    data["exp"] = get_kst_now() + expires_delta
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
 
