@@ -1,9 +1,8 @@
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import HTTPException
-
 from domain.group import Group as GroupVo
+from common.exceptions import NotFoundError
 from domain.repository.group_repo import IGroupRepository
 from infra.db_models.group import Group
 from infra.repository.base_repo import BaseRepository
@@ -27,7 +26,7 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
     async def find_by_id(self, id: str) -> Group:
         group = await Group.get(id)
         if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
+            raise NotFoundError("Group not found")
         return group
 
     async def find(self, *filters: Any) -> list[Group]:
@@ -48,13 +47,13 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
     async def delete(self, id: str, session=None):
         group = await Group.get(id)
         if not group:
-            raise HTTPException(status_code=404, detail="Group not found")
+            raise NotFoundError("Group not found")
         await group.delete(session=session)
 
     async def update(self, update_group: GroupVo):
         db_group = await Group.get(update_group.id)
         if not db_group:
-            raise HTTPException(status_code=404, detail="Group not found")
+            raise NotFoundError("Group not found")
 
         update_data = asdict(update_group)
         update_data.pop("id", None)

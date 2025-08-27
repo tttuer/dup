@@ -2,6 +2,7 @@ from typing import List
 from fastapi import HTTPException
 
 from common.auth import ApprovalStatus
+from common.exceptions import NotFoundError
 from domain.repository.user_repo import IUserRepository
 from domain.user import User as UserVo
 from infra.db_models.user import User
@@ -40,7 +41,7 @@ class UserRepository(BaseRepository[User], IUserRepository):
     async def update(self, user: UserVo):
         db_user = await User.get(user.id)
         if not db_user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise NotFoundError("User not found")
         db_user.name = user.name
         db_user.password = user.password
         db_user.roles = user.roles

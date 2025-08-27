@@ -3,12 +3,12 @@ from datetime import timedelta, datetime, UTC
 from enum import StrEnum
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, Response
+from fastapi import Depends, Request, Response
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from starlette import status
 
 from utils.settings import settings
+from common.exceptions import AuthenticationError, PermissionError
 
 SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
@@ -56,9 +56,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     roles = payload.get("roles", [])
 
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
+        raise PermissionError("토큰에서 사용자 ID를 찾을 수 없습니다")
 
     return CurrentUser(id=user_id, roles=[Role(r) for r in roles])
 
@@ -68,10 +66,7 @@ def decode_token(token: str):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
+        raise AuthenticationError("토큰 검증에 실패했습니다")
 
 
 def create_access_token(
@@ -101,18 +96,18 @@ def get_user_id_from_refresh_token(request: Request) -> str:
 
     if not refresh_token:
         print("Refresh token not found in cookies")
-        raise HTTPException(status_code=401, detail="Refresh token missing")
+        raise AuthenticationError("리프레시 토큰이 없습니다")
 
     try:
         payload = decode_token(refresh_token)
     except JWTError:
         print("Invalid or expired refresh token")
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+        raise AuthenticationError("유효하지 않거나 만료된 리프레시 토큰입니다")
 
     user_id = payload.get("user_id")
     if not user_id:
         print("Invalid token payload: user_id not found")
-        raise HTTPException(status_code=401, detail="Invalid token payload")
+        raise AuthenticationError("토큰 페이로드가 유효하지 않습니다")
 
     return user_id
 

@@ -3,7 +3,7 @@ from typing import Optional, List
 
 from beanie.operators import And, RegEx
 from dependency_injector.wiring import inject
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile
 from ulid import ULID
 
 from domain.voucher import Company, SearchOption, VoucherFile
@@ -12,8 +12,7 @@ from infra.db_models.voucher import Voucher as VoucherDocument
 from domain.responses.voucher_response import VoucherResponse
 from utils.pdf import Pdf
 from utils.whg import Whg
-import asyncio
-from anyio import to_thread
+from common.exceptions import ValidationError
 
 
 class VoucherService:
@@ -29,10 +28,8 @@ class VoucherService:
         wehago_id: str = None,
         wehago_password: str = None,
     ):
-        # 🧵 크롤링을 별도 쓰레드에서 실행
-        vouchers = await to_thread.run_sync(
-            lambda: Whg().crawl_whg(company, year, wehago_id, wehago_password)
-        )
+        # 🚀 async 크롤링 직접 실행 (병렬 처리)
+        vouchers = await Whg().crawl_whg(company, year, wehago_id, wehago_password)
 
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
@@ -94,10 +91,7 @@ class VoucherService:
             filters.append(VoucherDocument.voucher_date >= start_at)
 
         if end_at and start_at and end_at < start_at:
-            raise HTTPException(
-                status_code=400,
-                detail="start_at must be less than end_at",
-            )
+            raise ValidationError("start_at must be less than end_at")
 
         total_count, vouchers = (
             await self.voucher_repo.find_many(

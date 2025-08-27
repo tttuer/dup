@@ -28,7 +28,7 @@ class BaseService(ABC, Generic[T]):
         """
         user = await self.user_repo.find_by_user_id(user_id)
         if not user:
-            raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+            raise NotFoundError(f"User not found: {user_id}")
         return user
     
     async def validate_user_is_admin(self, user_id: str) -> User:
@@ -45,7 +45,7 @@ class BaseService(ABC, Generic[T]):
         """
         user = await self.validate_user_exists(user_id)
         if not user.is_admin:
-            raise HTTPException(status_code=403, detail="Admin privileges required")
+            raise PermissionError("Admin privileges required")
         return user
     
     def validate_required_field(self, field_value: Optional[str], field_name: str) -> str:
@@ -62,7 +62,7 @@ class BaseService(ABC, Generic[T]):
             HTTPException: 400 if field is empty or None
         """
         if not field_value or field_value.strip() == "":
-            raise HTTPException(status_code=400, detail=f"{field_name} is required")
+            raise ValidationError(f"{field_name} is required")
         return field_value.strip()
     
     async def validate_users_exist(self, user_ids: List[str]) -> Dict[str, User]:

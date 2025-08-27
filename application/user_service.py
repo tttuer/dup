@@ -3,8 +3,7 @@ from typing import Optional
 
 import json
 from dependency_injector.wiring import inject
-from fastapi import HTTPException
-from starlette import status
+from common.exceptions import ConflictError, AuthenticationError, PermissionError
 from ulid import ULID
 from redis.asyncio import Redis
 
@@ -29,15 +28,12 @@ class UserService(BaseService[User]):
 
         try:
             _user = await self.user_repo.find_by_user_id(user_id)
-        except HTTPException as e:
-            if e.status_code != 422 and e.status_code != 404:
+        except Exception as e:
+            if hasattr(e, 'status_code') and e.status_code not in [422, 404]:
                 raise e
 
         if _user:
-            raise HTTPException(
-                status_code=409,
-                detail="User already exists",
-            )
+            raise ConflictError("User already exists")
 
         now = datetime.now(timezone.utc)
         user: User = User(
@@ -59,10 +55,7 @@ class UserService(BaseService[User]):
         _user = await self.user_repo.find_by_user_id(user_id)
 
         if _user:
-            raise HTTPException(
-                status_code=409,
-                detail="User already exists",
-            )
+            raise ConflictError("User already exists")
 
         now = datetime.now(timezone.utc)
         user: User = User(
@@ -87,17 +80,10 @@ class UserService(BaseService[User]):
         user_doc = await self.user_repo.find_by_user_id(user_id)
 
         if not user_doc or not self.crypto.verify(password, user_doc.password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise AuthenticationError("Incorrect username or password")
 
         if user_doc.approval_status is not None and user_doc.approval_status != ApprovalStatus.APPROVED:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account pending approval",
-            )
+            raise PermissionError("Account pending approval")
 
         access_token = await self.get_access_token(user_id, user_doc.roles)
         refresh_token = await self.get_refresh_token(user_id)
