@@ -51,25 +51,30 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         # 기존 결재선 삭제
         await self.line_repo.delete_by_request_id(request_id)
 
-        # 새 결재선 생성
+        # 모든 결재자 ID 추출 및 한 번에 검증
+        approver_ids = [line_data["approver_user_id"] for line_data in approval_lines_data]
+        users_dict = await self.validate_users_exist(approver_ids)
+        
+        # 검증된 사용자 정보로 결재선 생성
         approval_lines = []
         for line_data in approval_lines_data:
-            # 결재자 확인
-            approver = await self.validate_user_exists(line_data["approver_user_id"])
+            approver_id = line_data["approver_user_id"]
+            approver = users_dict[approver_id]
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
-                approver_id=line_data["approver_user_id"],
+                approver_id=approver_id,
                 approver_name=approver.name,
                 step_order=line_data["step_order"],
                 is_required=line_data.get("is_required", True),
                 is_parallel=line_data.get("is_parallel", False),
                 status=ApprovalStatus.PENDING,
             )
-            
-            await self.line_repo.save(line)
             approval_lines.append(line)
+        
+        # 한 번에 저장
+        await self.line_repo.bulk_save(approval_lines)
 
         return approval_lines
 
@@ -135,21 +140,22 @@ class ApprovalLineService(BaseService[ApprovalLine]):
         if request.current_step > 0 or request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
             raise HTTPException(status_code=400, detail="Cannot modify approval lines after approval process started")
 
-        # 모든 결재자 검증 및 결재선 생성
+        # 모든 결재자를 한 번에 검증
+        approver_ids = [data["approver_id"] for data in approver_data]
+        users_dict = await self.validate_users_exist(approver_ids)
+        
+        # 검증된 사용자 정보로 결재선 생성
         lines_to_create = []
         for data in approver_data:
             approver_id = data["approver_id"]
-            step_order = data["step_order"]
-            
-            # 결재자 확인
-            approver = await self.validate_user_exists(approver_id)
+            approver = users_dict[approver_id]
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
                 approver_id=approver_id,
                 approver_name=approver.name,
-                step_order=step_order,
+                step_order=data["step_order"],
                 is_required=data.get("is_required", True),
                 is_parallel=data.get("is_parallel", False),
                 status=ApprovalStatus.PENDING,

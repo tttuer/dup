@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TypeVar, Generic, Optional
+from typing import TypeVar, Generic, Optional, List, Dict
 from fastapi import HTTPException
 
 from domain.user import User
@@ -64,3 +64,37 @@ class BaseService(ABC, Generic[T]):
         if not field_value or field_value.strip() == "":
             raise HTTPException(status_code=400, detail=f"{field_name} is required")
         return field_value.strip()
+    
+    async def validate_users_exist(self, user_ids: List[str]) -> Dict[str, User]:
+        """Validate that multiple users exist and return them as a dictionary.
+        
+        Args:
+            user_ids: List of user_id fields to validate
+            
+        Returns:
+            Dict[str, User]: Dictionary mapping user_id to User object
+            
+        Raises:
+            HTTPException: 404 if any user is not found
+        """
+        if not user_ids:
+            return {}
+        
+        # 중복 제거
+        unique_user_ids = list(set(user_ids))
+        
+        # 한 번에 모든 사용자 조회
+        users = await self.user_repo.find_by_user_ids(unique_user_ids)
+        
+        # 딕셔너리로 변환
+        users_dict = {user.user_id: user for user in users}
+        
+        # 누락된 사용자 체크
+        missing_users = [user_id for user_id in unique_user_ids if user_id not in users_dict]
+        if missing_users:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Users not found: {', '.join(missing_users)}"
+            )
+        
+        return users_dict

@@ -1,5 +1,5 @@
 import zlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from beanie.operators import And, RegEx, Or, In
@@ -34,7 +34,7 @@ class FileService(BaseService[File]):
         type: Type,
         lock: bool,
     ):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         files: list[File] = [
             File(
                 id=self.ulid.generate(),
@@ -164,7 +164,7 @@ class FileService(BaseService[File]):
         file_data: UploadFile,
         lock: bool,
     ) -> FileResponse:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         file: File = File(
             id=id,

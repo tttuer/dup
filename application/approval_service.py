@@ -199,16 +199,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 중복 제거를 위해 set 사용
         request_ids = list(set(line.request_id for line in completed_lines))
         
-        # 해당 요청들 조회
-        requests = []
-        for request_id in request_ids:
-            request = await self.approval_repo.find_by_id(request_id)
-            if request:
-                requests.append(request)
-        
-        # 최신 순으로 정렬
-        requests.sort(key=lambda x: x.updated_at or x.created_at, reverse=True)
-        return requests
+        # 해당 요청들을 한 번에 조회 (bulk query)
+        return await self.approval_repo.find_by_ids(request_ids)
 
     async def get_my_requests(self, requester_id: str) -> List[ApprovalRequest]:
         return await self.approval_repo.find_by_requester_id(requester_id)
@@ -357,9 +349,14 @@ class ApprovalService(BaseService[ApprovalRequest]):
         return f"{prefix}-{now.year}-{now.strftime('%m%d')}-{self.ulid.generate()}"
 
     async def _create_approval_lines(self, request_id: str, default_steps) -> None:
+        # 모든 결재자 ID 추출 및 한 번에 검증
+        approver_ids = [step.approver_id for step in default_steps]
+        users_dict = await self.validate_users_exist(approver_ids)
+        
+        # 검증된 사용자 정보로 결재선 생성
+        lines_to_create = []
         for step in default_steps:
-            # 결재자 정보 조회
-            approver = await self.validate_user_exists(step.approver_id)
+            approver = users_dict[step.approver_id]
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
@@ -371,24 +368,36 @@ class ApprovalService(BaseService[ApprovalRequest]):
                 is_parallel=step.is_parallel,
                 status=ApprovalStatus.PENDING,
             )
-            await self.line_repo.save(line)
+            lines_to_create.append(line)
+        
+        # 한 번에 저장
+        await self.line_repo.bulk_save(lines_to_create)
     
     async def _create_approval_lines_from_data(self, request_id: str, approval_lines_data: List[Dict[str, Any]]) -> None:
+        # 모든 결재자 ID 추출 및 한 번에 검증
+        approver_ids = [line_data["approver_user_id"] for line_data in approval_lines_data]
+        users_dict = await self.validate_users_exist(approver_ids)
+        
+        # 검증된 사용자 정보로 결재선 생성
+        lines_to_create = []
         for line_data in approval_lines_data:
-            # 결재자 정보 조회
-            approver = await self.validate_user_exists(line_data["approver_user_id"])
+            approver_id = line_data["approver_user_id"]
+            approver = users_dict[approver_id]
             
             line = ApprovalLine(
                 id=self.ulid.generate(),
                 request_id=request_id,
-                approver_id=line_data["approver_user_id"],
+                approver_id=approver_id,
                 approver_name=approver.name,
                 step_order=line_data["step_order"],
                 is_required=line_data.get("is_required", True),
                 is_parallel=line_data.get("is_parallel", False),
                 status=ApprovalStatus.PENDING,
             )
-            await self.line_repo.save(line)
+            lines_to_create.append(line)
+        
+        # 한 번에 저장
+        await self.line_repo.bulk_save(lines_to_create)
 
     async def _process_approval(
         self,
