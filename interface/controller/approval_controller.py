@@ -46,9 +46,6 @@ async def create_approval_request(
     approval_lines: Optional[str] = Form(None),  # JSON string
     files: List[UploadFile] = File(default=[]),
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
-    line_service: ApprovalLineService = Depends(
-        Provide[Container.approval_line_service]
-    ),
 ) -> ApprovalRequest:
     """결재 요청 생성 (파일 업로드 포함)"""
     import json
