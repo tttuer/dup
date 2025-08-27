@@ -30,3 +30,7 @@ class IUserRepository(metaclass=ABCMeta):
     @abstractmethod
     async def search_by_name(self, name: str) -> List[User]:
         raise NotImplementedError
+    
+    @abstractmethod
+    async def find_by_user_ids(self, user_ids: List[str]) -> List[User]:
+        raise NotImplementedError

@@ -1,7 +1,7 @@
 import logging
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 def setup_logger(name: str = "dup", level: str = "INFO") -> logging.Logger:
     """Setup a standardized logger for the application."""
@@ -30,7 +30,7 @@ def setup_logger(name: str = "dup", level: str = "INFO") -> logging.Logger:
     log_dir.mkdir(exist_ok=True)
     
     file_handler = logging.FileHandler(
-        log_dir / f"dup_{datetime.now().strftime('%Y%m%d')}.log",
+        log_dir / f"dup_{datetime.now(timezone.utc).strftime('%Y%m%d')}.log",
         encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)

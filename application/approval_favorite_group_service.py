@@ -33,10 +33,8 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
             raise HTTPException(status_code=400, detail="Group with this name already exists")
 
         # 결재자들 유효성 확인 및 이름 가져오기
-        approver_names = []
-        for approver_id in approver_ids:
-            approver = await self.validate_user_exists(approver_id)
-            approver_names.append(approver.name)
+        users_dict = await self.validate_users_exist(approver_ids)
+        approver_names = [users_dict[approver_id].name for approver_id in approver_ids]
 
         group = ApprovalFavoriteGroup(
             id=self.ulid.generate(),
@@ -76,10 +74,8 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
 
         # 결재자 목록 변경 시 유효성 확인
         if approver_ids is not None:
-            approver_names = []
-            for approver_id in approver_ids:
-                approver = await self.validate_user_exists(approver_id)
-                approver_names.append(approver.name)
+            users_dict = await self.validate_users_exist(approver_ids)
+            approver_names = [users_dict[approver_id].name for approver_id in approver_ids]
             
             group.approver_ids = approver_ids
             group.approver_names = approver_names

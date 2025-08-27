@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from dependency_injector.wiring import inject
 from ulid import ULID
@@ -36,7 +36,7 @@ class DocumentNumberService(BaseService):
         if not template:
             raise ValueError("Template not found")
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         year = now.year
         
         # 프리픽스 결정

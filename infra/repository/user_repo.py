@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import HTTPException
 
 from common.auth import ApprovalStatus
@@ -54,4 +55,12 @@ class UserRepository(BaseRepository[User], IUserRepository):
     
     async def search_by_name(self, name: str) -> list[User]:
         users = await User.find({"name": {"$regex": name, "$options": "i"}}).to_list()
+        return users or []
+    
+    async def find_by_user_ids(self, user_ids: List[str]) -> List[User]:
+        """여러 user_id를 한 번에 조회"""
+        if not user_ids:
+            return []
+        
+        users = await User.find({"user_id": {"$in": user_ids}}).to_list()
         return users or []
