@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from datetime import datetime, timezone
+from utils.time import get_kst_now
 from application.websocket_manager import WebSocketManager
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
@@ -29,7 +29,7 @@ class ApprovalNotificationService:
             "data": {
                 "user_id": user_id,
                 "count": count,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_kst_now().isoformat()
             }
         }
         await self.websocket_manager.send_to_user(user_id, message)
@@ -47,7 +47,7 @@ class ApprovalNotificationService:
                 "title": request.title,
                 "requester_id": request.requester_id,
                 "document_number": request.document_number,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_kst_now().isoformat()
             }
         }
 
@@ -71,7 +71,7 @@ class ApprovalNotificationService:
                 "status": status,
                 "approver_id": approver_id,
                 "document_number": request.document_number,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_kst_now().isoformat()
             }
         }
         
@@ -104,7 +104,7 @@ class ApprovalNotificationService:
                 "title": request.title,
                 "final_status": final_status,
                 "document_number": request.document_number,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_kst_now().isoformat()
             }
         }
 
@@ -142,7 +142,7 @@ class ApprovalNotificationService:
                 "request_id": request_id,
                 "title": request.title,
                 "document_number": request.document_number,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_kst_now().isoformat()
             }
         }
 

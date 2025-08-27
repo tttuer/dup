@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from typing import Optional
 from datetime import datetime
 from common.auth import ApprovalStatus
+from domain.responses.base_response import BaseResponse
 
 
-class ApprovalLine(BaseModel):
+class ApprovalLine(BaseResponse):
     id: str
     request_id: str           # 결재 요청 ID
     approver_id: str          # 결재자 ID

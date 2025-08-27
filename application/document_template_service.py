@@ -9,6 +9,7 @@ from domain.repository.document_template_repo import IDocumentTemplateRepository
 from domain.repository.user_repo import IUserRepository
 from domain.document_template import DocumentTemplate, DefaultApprovalStep
 from common.auth import Role
+from utils.time import get_utc_now_naive, utc_to_kst_naive
 
 
 class DocumentTemplateService(BaseService[DocumentTemplate]):
@@ -36,7 +37,7 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         name = self.validate_required_field(name, "Template name")
         category = self.validate_required_field(category, "Category")
 
-        now = datetime.now(timezone.utc)
+        now = get_utc_now_naive()
         template = DocumentTemplate(
             id=self.ulid.generate(),
             name=name,
@@ -101,9 +102,15 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         if is_active is not None:
             template.is_active = is_active
         
-        template.updated_at = datetime.now(timezone.utc)
+        template.updated_at = get_utc_now_naive()
         
-        return await self.template_repo.update(template)
+        updated_template = await self.template_repo.update(template)
+        
+        # UTC → KST 변환
+        updated_template.created_at = utc_to_kst_naive(updated_template.created_at)
+        updated_template.updated_at = utc_to_kst_naive(updated_template.updated_at)
+        
+        return updated_template
 
     async def delete_template(self, template_id: str, current_user_id: str) -> None:
         # 관리자 권한 확인

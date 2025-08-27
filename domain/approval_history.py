@@ -1,10 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from typing import Optional
 from datetime import datetime
 from common.auth import ApprovalAction
+from domain.responses.base_response import BaseResponse
 
 
-class ApprovalHistory(BaseModel):
+class ApprovalHistory(BaseResponse):
     id: str
     request_id: str
     approver_id: str

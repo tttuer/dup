@@ -7,6 +7,7 @@ from application.base_service import BaseService
 from domain.repository.document_template_repo import IDocumentTemplateRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
 from domain.repository.user_repo import IUserRepository
+from utils.time import get_utc_now_naive
 
 
 class DocumentNumberService(BaseService):
@@ -36,7 +37,7 @@ class DocumentNumberService(BaseService):
         if not template:
             raise ValueError("Template not found")
 
-        now = datetime.now(timezone.utc)
+        now = get_utc_now_naive()
         year = now.year
         
         # 프리픽스 결정

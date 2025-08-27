@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
+import json
 
 from beanie import init_beanie
 from fastapi import FastAPI, APIRouter, Depends
@@ -17,8 +19,12 @@ from interface.controller.sync import router as sync_router
 from interface.controller.document_template_controller import router as template_router
 from interface.controller.approval_controller import router as approval_router
 from interface.controller.approval_line_controller import router as approval_line_router
-from interface.controller.file_attachment_controller import router as file_attachment_router
-from interface.controller.approval_websocket_controller import router as approval_websocket_router
+from interface.controller.file_attachment_controller import (
+    router as file_attachment_router,
+)
+from interface.controller.approval_websocket_controller import (
+    router as approval_websocket_router,
+)
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
@@ -39,10 +45,19 @@ from common.exceptions import AuthenticationError
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_beanie(
-        database=client.dup, document_models=[
-            File, User, Voucher, Group, 
-            DocumentTemplate, ApprovalRequest, ApprovalLine, ApprovalFavoriteGroup, ApprovalHistory, AttachedFile
-        ]
+        database=client.dup,
+        document_models=[
+            File,
+            User,
+            Voucher,
+            Group,
+            DocumentTemplate,
+            ApprovalRequest,
+            ApprovalLine,
+            ApprovalFavoriteGroup,
+            ApprovalHistory,
+            AttachedFile,
+        ],
     )
     start_scheduler()
     yield
@@ -50,12 +65,20 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
 
 
+# 커스텀 JSON 인코더
+def custom_json_encoder(obj):
+    if isinstance(obj, datetime):
+        # 타임존 정보 없이 KST 시간을 그대로 직렬화
+        return obj.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    raise TypeError(f"Object {obj} is not JSON serializable")
+
+
 app = FastAPI(
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
-    openapi_url=None, # 기본 스펙 경로 끄기
-)  
+    openapi_url=None,  # 기본 스펙 경로 끄기
+)
 
 app.container = Container()
 add_cors(app)

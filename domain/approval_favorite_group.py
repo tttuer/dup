@@ -1,9 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import ConfigDict
 from typing import List
 from datetime import datetime
+from domain.responses.base_response import BaseResponse
 
 
-class ApprovalFavoriteGroup(BaseModel):
+class ApprovalFavoriteGroup(BaseResponse):
     id: str
     user_id: str              # 그룹 소유자 ID
     name: str                 # 그룹 이름

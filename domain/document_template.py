@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
+from domain.responses.base_response import BaseResponse
 
 
 class DefaultApprovalStep(BaseModel):
@@ -10,7 +11,7 @@ class DefaultApprovalStep(BaseModel):
     is_parallel: bool = False # 병렬 결재 여부
 
 
-class DocumentTemplate(BaseModel):
+class DocumentTemplate(BaseResponse):
     id: str
     name: str                    # 양식명 (업무기안, 지출결의서 등)
     description: Optional[str] = None   # 양식 설명
