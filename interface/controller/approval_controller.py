@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from application.approval_service import ApprovalService
 from application.approval_line_service import ApprovalLineService
-from common.auth import CurrentUser, get_current_user
+from common.auth import CurrentUser, get_current_user, DocumentStatus
 from containers import Container
 from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
@@ -77,10 +77,14 @@ async def create_approval_request(
 @inject
 async def get_my_approval_requests(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    sort: Optional[str] = None,  # 정렬 기준: created_at_desc, created_at_asc, updated_at_desc, updated_at_asc
+    status: Optional[DocumentStatus] = None,  # 상태 필터
+    start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
+    end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> List[ApprovalRequest]:
     """내가 기안한 결재 목록"""
-    return await approval_service.get_my_requests(current_user.id)
+    return await approval_service.get_my_requests(current_user.id, sort, status, start_date, end_date)
 
 
 @router.get("/search")
@@ -121,20 +125,26 @@ async def search_approval_requests(
 @inject
 async def get_pending_approvals(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    sort: Optional[str] = None,  # 정렬 기준: created_at_desc, created_at_asc, updated_at_desc, updated_at_asc
+    start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
+    end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> List[ApprovalRequest]:
     """내가 결재할 요청 목록"""
-    return await approval_service.get_pending_approvals(current_user.id)
+    return await approval_service.get_pending_approvals(current_user.id, sort, start_date, end_date)
 
 
 @router.get("/completed")
 @inject
 async def get_completed_approvals(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    sort: Optional[str] = None,  # 정렬 기준: created_at_desc, created_at_asc, completed_at_desc, completed_at_asc
+    start_date: Optional[str] = None,  # 시작 날짜 (결재완료일 기준, YYYY-MM-DD)
+    end_date: Optional[str] = None,  # 종료 날짜 (결재완료일 기준, YYYY-MM-DD)
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> List[ApprovalRequest]:
     """내가 결재 완료한 목록"""
-    return await approval_service.get_completed_approvals(current_user.id)
+    return await approval_service.get_completed_approvals(current_user.id, sort, start_date, end_date)
 
 
 @router.get("/{request_id}")

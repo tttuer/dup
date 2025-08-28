@@ -45,7 +45,6 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
             created_at=get_utc_now_naive(),
             updated_at=get_utc_now_naive(),
         )
-        print("Debug - group to save:", group)
 
         return await self.favorite_group_repo.save(group)
 
@@ -59,12 +58,7 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
         name: str = None,
         approver_ids: List[str] = None,
     ) -> ApprovalFavoriteGroup:
-        group = await self.favorite_group_repo.find_by_id(group_id)
-        if not group:
-            raise HTTPException(status_code=404, detail="Favorite group not found")
-        
-        if group.user_id != user_id:
-            raise HTTPException(status_code=403, detail="No permission to modify this group")
+        group = await self._get_group_and_validate_permission(group_id, user_id)
 
         # 이름 변경 시 중복 확인
         if name and name != group.name:
@@ -82,20 +76,19 @@ class ApprovalFavoriteGroupService(BaseService[ApprovalFavoriteGroup]):
             group.approver_names = approver_names
 
         group.updated_at = get_utc_now_naive()
-        print("Debug - group to save:", group)
         return await self.favorite_group_repo.save(group)
 
     async def delete_favorite_group(self, group_id: str, user_id: str) -> None:
-        group = await self.favorite_group_repo.find_by_id(group_id)
-        if not group:
-            raise HTTPException(status_code=404, detail="Favorite group not found")
-        
-        if group.user_id != user_id:
-            raise HTTPException(status_code=403, detail="No permission to delete this group")
+        await self._get_group_and_validate_permission(group_id, user_id)
 
         await self.favorite_group_repo.delete_by_id(group_id)
 
     async def get_favorite_group_by_id(self, group_id: str, user_id: str) -> ApprovalFavoriteGroup:
+        group = await self._get_group_and_validate_permission(group_id, user_id)
+
+        return group
+    
+    async def _get_group_and_validate_permission(self, group_id: str, user_id: str) -> ApprovalFavoriteGroup:
         group = await self.favorite_group_repo.find_by_id(group_id)
         if not group:
             raise HTTPException(status_code=404, detail="Favorite group not found")
