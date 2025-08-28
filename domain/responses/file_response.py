@@ -1,11 +1,12 @@
 import base64
 import zlib
 from datetime import datetime
-from pydantic import BaseModel, field_serializer, model_validator
+from pydantic import field_serializer, model_validator
 from domain.file import Company, Type
+from .base_response import BaseResponse
 
 
-class FileResponse(BaseModel):
+class FileResponse(BaseResponse):
     id: str
     group_id: str
     withdrawn_at: str

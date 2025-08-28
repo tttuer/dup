@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import json
@@ -13,6 +13,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.user import User
 from domain.responses.user_response import UserResponse
 from utils.crypto import Crypto
+from utils.time import get_utc_now_naive
 
 
 class UserService(BaseService[User]):
@@ -35,7 +36,7 @@ class UserService(BaseService[User]):
         if _user:
             raise ConflictError("User already exists")
 
-        now = datetime.now()
+        now = get_utc_now_naive()
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -57,7 +58,7 @@ class UserService(BaseService[User]):
         if _user:
             raise ConflictError("User already exists")
 
-        now = datetime.now()
+        now = get_utc_now_naive()
         user: User = User(
             id=self.ulid.generate(),
             name=name,
@@ -128,7 +129,7 @@ class UserService(BaseService[User]):
         if roles is not None:
             user_doc.roles = roles
 
-        user_doc.updated_at = datetime.now()
+        user_doc.updated_at = get_utc_now_naive()
         updated_user_doc = await user_doc.save()
 
         return UserResponse.from_document(updated_user_doc)
@@ -149,7 +150,7 @@ class UserService(BaseService[User]):
 
         user_doc.approval_status = approval_status
         user_doc.roles = roles
-        user_doc.updated_at = datetime.now()
+        user_doc.updated_at = get_utc_now_naive()
         
         updated_user_doc = await user_doc.save()
 
@@ -165,6 +166,10 @@ class UserService(BaseService[User]):
     async def get_pending_users_count(self) -> int:
         pending_users = await self.user_repo.find_by_approval_status(ApprovalStatus.PENDING)
         return len(pending_users)
+
+    async def search_users_by_name(self, name: str) -> list[UserResponse]:
+        users = await self.user_repo.search_by_name(name)
+        return [UserResponse.from_document(user) for user in users]
 
     async def _broadcast_pending_count(self):
         try:

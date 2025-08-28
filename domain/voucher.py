@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator, field_serializer, Config
 import uuid
 import zlib
 import base64
+from utils.time import utc_to_kst_naive
 
 class VoucherFile(BaseModel):
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -22,6 +23,15 @@ class VoucherFile(BaseModel):
     @field_serializer("file_data", when_used="json")
     def serialize_file_data(self, value: bytes, _info):
         return base64.b64encode(value).decode("utf-8") if value else None
+    
+    @field_serializer('uploaded_at')
+    def serialize_uploaded_at(self, dt: datetime) -> str:
+        """UTC datetime을 KST로 변환 후 직렬화"""
+        if dt is None:
+            return None
+        # UTC → KST 변환 후 직렬화
+        kst_dt = utc_to_kst_naive(dt)
+        return kst_dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
 
 class Company(str, Enum):
     BAEKSUNG = "BAEKSUNG"
