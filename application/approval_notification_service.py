@@ -3,6 +3,7 @@ from utils.time import get_kst_now
 from application.websocket_manager import WebSocketManager
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
+from infra.db_models.approval_request import ApprovalRequest
 
 
 class ApprovalNotificationService:
@@ -34,16 +35,15 @@ class ApprovalNotificationService:
         }
         await self.websocket_manager.send_to_user(user_id, message)
 
-    async def notify_new_approval_request(self, request_id: str, approvers: List[str]):
+    async def notify_new_approval_request(self, request: ApprovalRequest, approvers: List[str]):
         """새로운 결재 요청을 결재자들에게 알림"""
-        request = await self.approval_request_repo.find_by_id(request_id)
         if not request:
             return
 
         message = {
             "type": "new_approval_request",
             "data": {
-                "request_id": request_id,
+                "request_id": request.id,
                 "title": request.title,
                 "requester_id": request.requester_id,
                 "document_number": request.document_number,
@@ -82,25 +82,24 @@ class ApprovalNotificationService:
 
         # 다음 결재자가 있다면 알림
         if status == "APPROVED":
-            next_approvers = await self.get_next_approvers(request_id)
+            next_approvers = await self.get_next_approvers(request)
             if next_approvers:
-                await self.notify_new_approval_request(request_id, next_approvers)
+                await self.notify_new_approval_request(request, next_approvers)
 
-    async def notify_approval_completed(self, request_id: str, final_status: str):
+    async def notify_approval_completed(self, request: ApprovalRequest, final_status: str):
         """결재 완료(최종 승인/반려) 알림"""
-        request = await self.approval_request_repo.find_by_id(request_id)
         if not request:
             return
 
         # 모든 관련자 수집 (기안자 + 모든 결재자)
-        approval_lines = await self.approval_line_repo.find_by_request_id(request_id)
+        approval_lines = await self.approval_line_repo.find_by_request_id(request.id)
         all_users = {request.requester_id}
         all_users.update(line.approver_id for line in approval_lines)
 
         message = {
             "type": "approval_completed",
             "data": {
-                "request_id": request_id,
+                "request_id": request.id,
                 "title": request.title,
                 "final_status": final_status,
                 "document_number": request.document_number,
@@ -113,33 +112,31 @@ class ApprovalNotificationService:
             await self.websocket_manager.send_to_user(user_id, message)
             await self.notify_pending_count(user_id)  # 대기 건수 업데이트
 
-    async def get_next_approvers(self, request_id: str) -> List[str]:
+    async def get_next_approvers(self, request: ApprovalRequest) -> List[str]:
         """다음 결재자 목록 조회"""
-        request = await self.approval_request_repo.find_by_id(request_id)
         if not request:
             return []
 
         # 현재 단계의 다음 결재자들 찾기
         next_step = request.current_step + 1
-        approval_lines = await self.approval_line_repo.find_by_request_and_step(request_id, next_step)
+        approval_lines = await self.approval_line_repo.find_by_request_and_step(request.id, next_step)
         
         return [line.approver_id for line in approval_lines if line.status == "PENDING"]
 
-    async def notify_approval_cancelled(self, request_id: str):
+    async def notify_approval_cancelled(self, request: ApprovalRequest):
         """결재 취소 알림"""
-        request = await self.approval_request_repo.find_by_id(request_id)
         if not request:
             return
 
         # 모든 관련자에게 알림
-        approval_lines = await self.approval_line_repo.find_by_request_id(request_id)
+        approval_lines = await self.approval_line_repo.find_by_request_id(request.id)
         all_users = {request.requester_id}
         all_users.update(line.approver_id for line in approval_lines)
 
         message = {
             "type": "approval_cancelled",
             "data": {
-                "request_id": request_id,
+                "request_id": request.id,
                 "title": request.title,
                 "document_number": request.document_number,
                 "timestamp": get_kst_now().isoformat()

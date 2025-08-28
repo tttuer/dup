@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 from typing import List, Optional, Dict, Any
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile
 from ulid import ULID
 from motor.motor_asyncio import AsyncIOMotorClientSession
+from beanie.operators import And, GTE, LTE, In
 
 from application.base_service import BaseService
 from application.approval_notification_service import ApprovalNotificationService
@@ -138,7 +139,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
         # 첫 번째 결재자들에게 알림 전송
         first_step_approvers = [line.approver_id for line in approval_lines if line.step_order == 1]
-        await self.notification_service.notify_new_approval_request(request_id, first_step_approvers)
+        await self.notification_service.notify_new_approval_request(request, first_step_approvers)
 
         return result
 
@@ -189,7 +190,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
         return result
     
-    async def get_completed_approvals(self, approver_id: str) -> List[ApprovalRequest]:
+    async def get_completed_approvals(
+        self, 
+        approver_id: str, 
+        sort: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[ApprovalRequest]:
         """내가 결재 완료한 목록"""
         # 해당 결재자의 모든 완료된 결재선 조회 (APPROVED 또는 REJECTED)
         completed_lines = await self.line_repo.find_completed_by_approver(approver_id)
@@ -200,11 +207,86 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 중복 제거를 위해 set 사용
         request_ids = list(set(line.request_id for line in completed_lines))
         
-        # 해당 요청들을 한 번에 조회 (bulk query)
-        return await self.approval_repo.find_by_ids(request_ids)
+        # Beanie 쿼리로 결재 완료 요청서들 조회 (필터링 및 정렬 적용)
+        from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
+        
+        # 필터 조건 구성
+        filters = [In(ApprovalRequestDoc.id, request_ids)]
+        
+        # 결재 완료일 기준으로 날짜 필터링 (completed_at이 null이 아닌 것만)
+        if start_date or end_date:
+            # completed_at이 존재하는 문서만 대상
+            filters.append(ApprovalRequestDoc.completed_at != None)
+            
+            if start_date:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                filters.append(GTE(ApprovalRequestDoc.completed_at, datetime.combine(start_dt.date(), time.min)))
+            
+            if end_date:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                filters.append(LTE(ApprovalRequestDoc.completed_at, datetime.combine(end_dt.date(), time.max)))
+        
+        # 쿼리 실행
+        query = ApprovalRequestDoc.find(And(*filters))
+        
+        # 정렬 적용
+        if sort == "created_at_desc":
+            query = query.sort(-ApprovalRequestDoc.created_at)
+        elif sort == "created_at_asc":
+            query = query.sort(ApprovalRequestDoc.created_at)
+        elif sort == "completed_at_desc":
+            query = query.sort(-ApprovalRequestDoc.completed_at)
+        elif sort == "completed_at_asc":
+            query = query.sort(ApprovalRequestDoc.completed_at)
+        else:
+            # 기본 정렬 (결재 완료일 최신순)
+            query = query.sort(-ApprovalRequestDoc.completed_at)
+        
+        return await query.to_list() or []
 
-    async def get_my_requests(self, requester_id: str) -> List[ApprovalRequest]:
-        return await self.approval_repo.find_by_requester_id(requester_id)
+    async def get_my_requests(
+        self, 
+        requester_id: str, 
+        sort: Optional[str] = None,
+        status: Optional[DocumentStatus] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[ApprovalRequest]:
+        from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
+        
+        # 필터 조건 구성
+        filters = [ApprovalRequestDoc.requester_id == requester_id]
+        
+        # 상태 필터링 추가
+        if status:
+            filters.append(ApprovalRequestDoc.status == status)
+        
+        # 날짜 필터링 추가
+        if start_date:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            filters.append(GTE(ApprovalRequestDoc.created_at, datetime.combine(start_dt.date(), time.min)))
+        
+        if end_date:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            filters.append(LTE(ApprovalRequestDoc.created_at, datetime.combine(end_dt.date(), time.max)))
+        
+        # 쿼리 실행
+        query = ApprovalRequestDoc.find(And(*filters))
+        
+        # 정렬 적용
+        if sort == "created_at_desc":
+            query = query.sort(-ApprovalRequestDoc.created_at)
+        elif sort == "created_at_asc":
+            query = query.sort(ApprovalRequestDoc.created_at)
+        elif sort == "updated_at_desc":
+            query = query.sort(-ApprovalRequestDoc.updated_at)
+        elif sort == "updated_at_asc":
+            query = query.sort(ApprovalRequestDoc.updated_at)
+        else:
+            # 기본 정렬 (최신순)
+            query = query.sort(-ApprovalRequestDoc.created_at)
+        
+        return await query.to_list() or []
     
     async def get_all_approval_requests(
         self, 
@@ -256,7 +338,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
         
         return await self.approval_repo.search_by_query(query, skip, limit)
 
-    async def get_pending_approvals(self, approver_id: str) -> List[ApprovalRequest]:
+    async def get_pending_approvals(
+        self, 
+        approver_id: str, 
+        sort: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[ApprovalRequest]:
         # 해당 결재자의 모든 PENDING 결재선 조회
         pending_lines = await self.line_repo.find_pending_by_approver(approver_id)
         
@@ -273,14 +361,47 @@ class ApprovalService(BaseService[ApprovalRequest]):
         # 결재 가능한 request_id만 필터링 (메모리에서 처리)
         available_request_ids = []
         for line in pending_lines:
-            if self._is_step_available_optimized(line, all_lines_by_request.get(line.request_id, [])):
+            request_lines = all_lines_by_request.get(line.request_id, [])
+            
+            # 이미 반려된 결재선이 있는지 확인
+            has_rejected = any(l.status == ApprovalStatus.REJECTED for l in request_lines)
+            if has_rejected:
+                continue  # 반려된 요청은 제외
+            
+            if self._is_step_available_optimized(line, request_lines):
                 available_request_ids.append(line.request_id)
         
         if not available_request_ids:
             return []
         
-        # 결재 요청서들을 한 번에 조회
-        return await self.approval_repo.find_by_ids(available_request_ids)
+        # Beanie 쿼리로 결재 대기 요청서들 조회 (필터링 및 정렬 적용)
+        from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
+        
+        # 필터 조건 구성
+        filters = [In(ApprovalRequestDoc.id, available_request_ids)]
+        
+        # 생성일 기준으로 날짜 필터링
+        if start_date:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            filters.append(GTE(ApprovalRequestDoc.created_at, datetime.combine(start_dt.date(), time.min)))
+        
+        if end_date:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            filters.append(LTE(ApprovalRequestDoc.created_at, datetime.combine(end_dt.date(), time.max)))
+        
+        # 쿼리 실행
+        query = ApprovalRequestDoc.find(And(*filters))
+        
+        # 정렬 적용
+        if sort == "created_at_desc":
+            query = query.sort(-ApprovalRequestDoc.created_at)
+        elif sort == "created_at_asc":
+            query = query.sort(ApprovalRequestDoc.created_at)
+        else:
+            # 기본 정렬 (생성일 최신순)
+            query = query.sort(-ApprovalRequestDoc.created_at)
+        
+        return await query.to_list() or []
     
     async def _is_step_available(self, current_line) -> bool:
         """현재 결재선이 결재 가능한 상태인지 확인"""
@@ -432,6 +553,10 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     
                     await self.line_repo.update(approver_line)
                     
+                    # 반려된 경우 이후 모든 결재선을 스킵 처리
+                    if action == ApprovalAction.REJECT:
+                        await self._skip_remaining_approvals(approval_lines, approver_line.step_order)
+                    
                     # 이력 추가
                     await self._add_approval_history(request_id, approver_id, action, comment)
                     
@@ -451,7 +576,6 @@ class ApprovalService(BaseService[ApprovalRequest]):
     ) -> None:
         # approver 이름 조회
         approver = await self.user_repo.find_by_user_id(approver_id)
-        print(approver)
         approver_name = approver.name
         
         history = ApprovalHistory(
@@ -491,7 +615,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         
         # 최종 상태 변경 시 완료 알림 전송
         if old_status != request.status and request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED]:
-            await self.notification_service.notify_approval_completed(request_id, request.status)
+            await self.notification_service.notify_approval_completed(request, request.status)
     
     def _group_lines_by_request(self, all_lines: List) -> Dict[str, List]:
         """결재선들을 request_id별로 그룹화"""
@@ -514,3 +638,15 @@ class ApprovalService(BaseService[ApprovalRequest]):
                 return False
         
         return True
+    
+    async def _skip_remaining_approvals(self, approval_lines: List, rejected_step_order: int) -> None:
+        """반려된 이후의 모든 결재선을 스킵 상태로 변경"""
+        # 반려된 단계 이후의 PENDING 결재선들을 찾아서 스킵 처리
+        lines_to_skip = [
+            line for line in approval_lines 
+            if line.step_order > rejected_step_order and line.status == ApprovalStatus.PENDING
+        ]
+        
+        # 각 결재선을 스킵 상태로 변경 (실제로는 상태를 유지하되 더 이상 처리되지 않도록)
+        # 또는 별도의 SKIPPED 상태가 있다면 그것으로 변경
+        # 현재는 PENDING 상태를 유지하되 get_pending_approvals에서 제외되도록 구현됨
