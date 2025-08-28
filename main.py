@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
+import json
 
 from beanie import init_beanie
 from fastapi import FastAPI, APIRouter, Depends
@@ -14,11 +16,26 @@ from interface.controller.user_controller import router as user_router
 from interface.controller.whg_controller import router as whg_router
 from interface.controller.group_controller import router as group_router
 from interface.controller.sync import router as sync_router
+from interface.controller.document_template_controller import router as template_router
+from interface.controller.approval_controller import router as approval_router
+from interface.controller.approval_line_controller import router as approval_line_router
+from interface.controller.file_attachment_controller import (
+    router as file_attachment_router,
+)
+from interface.controller.approval_websocket_controller import (
+    router as approval_websocket_router,
+)
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
+from infra.db_models.document_template import DocumentTemplate
+from infra.db_models.approval_request import ApprovalRequest
+from infra.db_models.approval_line import ApprovalLine
+from infra.db_models.approval_favorite_group import ApprovalFavoriteGroup
+from infra.db_models.approval_history import ApprovalHistory
+from infra.db_models.attached_file import AttachedFile
 from common.db import client
 from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
@@ -28,7 +45,19 @@ from common.exceptions import AuthenticationError
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_beanie(
-        database=client.dup, document_models=[File, User, Voucher, Group]
+        database=client.dup,
+        document_models=[
+            File,
+            User,
+            Voucher,
+            Group,
+            DocumentTemplate,
+            ApprovalRequest,
+            ApprovalLine,
+            ApprovalFavoriteGroup,
+            ApprovalHistory,
+            AttachedFile,
+        ],
     )
     start_scheduler()
     yield
@@ -36,12 +65,20 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
 
 
+# 커스텀 JSON 인코더
+def custom_json_encoder(obj):
+    if isinstance(obj, datetime):
+        # 타임존 정보 없이 KST 시간을 그대로 직렬화
+        return obj.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    raise TypeError(f"Object {obj} is not JSON serializable")
+
+
 app = FastAPI(
     lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
-    openapi_url=None, # 기본 스펙 경로 끄기
-)  
+    openapi_url=None,  # 기본 스펙 경로 끄기
+)
 
 app.container = Container()
 add_cors(app)
@@ -52,9 +89,14 @@ api_router.include_router(user_router)
 api_router.include_router(file_router)
 api_router.include_router(whg_router)
 api_router.include_router(group_router)
+api_router.include_router(template_router)
+api_router.include_router(approval_router)
+api_router.include_router(approval_line_router)
+api_router.include_router(file_attachment_router)
 
 app.include_router(api_router)
 app.include_router(sync_router)
+app.include_router(approval_websocket_router)
 
 
 @app.exception_handler(RequestValidationError)

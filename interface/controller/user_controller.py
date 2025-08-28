@@ -106,6 +106,17 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/me")
+@inject
+async def get_current_user_info(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> UserResponse:
+    """현재 접속한 사용자 정보 조회"""
+    user = await user_service.find_by_user_id(current_user.id)
+    return user
+
+
 @router.get("")
 @inject
 async def find(
@@ -191,3 +202,15 @@ async def get_pending_users(
     
     pending_users = await user_service.find_pending_users()
     return pending_users
+
+
+@router.get("/search")
+@inject
+async def search_users_by_name(
+    name: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> list[UserResponse]:
+    """이름으로 사용자 검색 (결재자 선택용)"""
+    users = await user_service.search_users_by_name(name)
+    return users

@@ -13,6 +13,7 @@ from domain.responses.voucher_response import VoucherResponse
 from utils.pdf import Pdf
 from utils.whg import Whg
 from common.exceptions import ValidationError
+from utils.time import get_utc_now_naive
 
 
 class VoucherService:
@@ -131,12 +132,13 @@ class VoucherService:
                 voucher_file = VoucherFile(
                     file_name=upload_file.filename,
                     file_data=await Pdf.compress(upload_file),
-                    uploaded_at=datetime.now(timezone.utc),
+                    uploaded_at=get_utc_now_naive(),
                 )
                 voucher_doc.files.append(voucher_file)
 
         # Document를 직접 저장
         updated_voucher_doc = await voucher_doc.save()
+        
         return VoucherResponse.from_document(updated_voucher_doc)
 
     async def migrate_voucher_ids(self) -> int:

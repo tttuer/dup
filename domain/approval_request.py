@@ -1,0 +1,27 @@
+from pydantic import Field, ConfigDict
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+from common.auth import DocumentStatus
+from domain.approval_history import ApprovalHistory
+from domain.responses.base_response import BaseResponse
+
+
+class ApprovalRequest(BaseResponse):
+    id: str
+    template_id: str           # 사용한 양식 ID
+    document_number: str       # 자동 생성 문서번호
+    title: str                # 결재 제목
+    content: str              # 결재 내용 (HTML)
+    form_data: Dict[str, Any] = Field(default_factory=dict) # 양식별 추가 데이터
+    requester_id: str         # 기안자 ID
+    requester_name: str       # 기안자 이름
+    department_id: Optional[str] = None        # 기안 부서
+    status: DocumentStatus    # 결재 상태
+    current_step: int = 0         # 현재 결재 단계
+    created_at: datetime
+    updated_at: datetime
+    submitted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    histories: Optional[List[ApprovalHistory]] = Field(default_factory=list)
+    
+    model_config = ConfigDict(extra="ignore")

@@ -1,8 +1,9 @@
 # app/services/sync_status_service.py
 
-from datetime import datetime
+from datetime import datetime, timezone
 from infra.db_models.sync_status import SyncStatus
 from redis.asyncio import Redis
+from utils.time import get_utc_now_naive
 
 
 class SyncService:
@@ -11,7 +12,7 @@ class SyncService:
         self.key = "sync_status"
 
     async def set_sync_status(self, syncing: bool):
-        now = datetime.now()
+        now = get_utc_now_naive()
         status = SyncStatus(syncing=syncing, updated_at=now)
         
         if syncing:

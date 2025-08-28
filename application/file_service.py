@@ -1,5 +1,5 @@
 import zlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from beanie.operators import And, RegEx, Or, In
@@ -16,6 +16,7 @@ from domain.responses.file_response import FileResponse
 from infra.db_models.file import File as FileDocument
 from utils.pdf import Pdf
 from common.exceptions import ValidationError
+from utils.time import get_utc_now_naive
 
 
 class FileService(BaseService[File]):
@@ -35,7 +36,7 @@ class FileService(BaseService[File]):
         type: Type,
         lock: bool,
     ):
-        now = datetime.now()
+        now = get_utc_now_naive()
         files: list[File] = [
             File(
                 id=self.ulid.generate(),
@@ -162,7 +163,7 @@ class FileService(BaseService[File]):
         file_data: UploadFile,
         lock: bool,
     ) -> FileResponse:
-        now = datetime.now()
+        now = get_utc_now_naive()
 
         file: File = File(
             id=id,
