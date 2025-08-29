@@ -34,26 +34,57 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
     async def find_by_id(self, request_id: str) -> Optional[ApprovalRequest]:
         return await ApprovalRequest.get(request_id)
     
-    async def find_by_requester_id(self, requester_id: str) -> List[ApprovalRequest]:
-        requests = await ApprovalRequest.find(ApprovalRequest.requester_id == requester_id).to_list()
+    async def find_by_requester_id(self, requester_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
+        requests = await ApprovalRequest.find(
+            ApprovalRequest.requester_id == requester_id
+        ).sort(-ApprovalRequest.created_at).skip(skip).limit(limit).to_list()
         return requests or []
     
-    async def find_by_status(self, status: DocumentStatus) -> List[ApprovalRequest]:
-        requests = await ApprovalRequest.find(ApprovalRequest.status == status).to_list()
+    async def find_by_status(self, status: DocumentStatus, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
+        requests = await ApprovalRequest.find(
+            ApprovalRequest.status == status
+        ).sort(-ApprovalRequest.created_at).skip(skip).limit(limit).to_list()
         return requests or []
     
-    async def find_by_approver_id(self, approver_id: str) -> List[ApprovalRequest]:
-        # 결재선에서 해당 사용자가 결재자인 요청들을 찾기 위해 별도 쿼리 필요
+    async def find_by_approver_id(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
+        # Aggregation Pipeline으로 한 번에 조회 (성능 최적화)
         from infra.db_models.approval_line import ApprovalLine
         
-        approval_lines = await ApprovalLine.find(ApprovalLine.approver_id == approver_id).to_list()
-        request_ids = [line.request_id for line in approval_lines]
+        pipeline = [
+            # 1. ApprovalLine과 조인
+            {
+                "$lookup": {
+                    "from": "approval_lines",
+                    "localField": "_id", 
+                    "foreignField": "request_id",
+                    "as": "approval_lines"
+                }
+            },
+            # 2. 해당 결재자가 포함된 요청만 필터링
+            {
+                "$match": {
+                    "approval_lines.approver_id": approver_id
+                }
+            },
+            # 3. 생성일 기준 정렬
+            {
+                "$sort": {"created_at": -1}
+            },
+            # 4. 페이지네이션
+            {
+                "$skip": skip
+            },
+            {
+                "$limit": limit
+            },
+            # 5. approval_lines 필드 제거 (불필요한 데이터)
+            {
+                "$unset": "approval_lines"
+            }
+        ]
         
-        if not request_ids:
-            return []
-            
-        requests = await ApprovalRequest.find({"_id": {"$in": request_ids}}).to_list()
-        return requests or []
+        results = await ApprovalRequest.aggregate(pipeline).to_list()
+        return [ApprovalRequest(**doc) for doc in results] if results else []
     
     async def update(self, request: ApprovalRequestVo) -> ApprovalRequest:
         db_request = await self.find_by_id_or_raise(request.id, "ApprovalRequest")
@@ -92,3 +123,16 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
             {"_id": {"$in": request_ids}}
         ).sort(-ApprovalRequest.updated_at).to_list()
         return requests or []
+    
+    async def count_by_requester_id(self, requester_id: str, status: Optional[DocumentStatus] = None) -> int:
+        """기안자별 결재 요청 수 카운트"""
+        query = {"requester_id": requester_id}
+        if status:
+            query["status"] = status
+        return await ApprovalRequest.find(query).count()
+    
+    async def count_by_approver_id(self, request_ids: List[str]) -> int:
+        """결재자별 결재 요청 수 카운트"""
+        if not request_ids:
+            return 0
+        return await ApprovalRequest.find({"_id": {"$in": request_ids}}).count()

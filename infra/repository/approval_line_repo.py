@@ -33,8 +33,10 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         lines = await ApprovalLine.find(ApprovalLine.request_id == request_id).sort(+ApprovalLine.step_order).to_list()
         return lines or []
     
-    async def find_by_approver_id(self, approver_id: str) -> List[ApprovalLine]:
-        lines = await ApprovalLine.find(ApprovalLine.approver_id == approver_id).to_list()
+    async def find_by_approver_id(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
+        lines = await ApprovalLine.find(
+            ApprovalLine.approver_id == approver_id
+        ).sort(-ApprovalLine.approved_at).skip(skip).limit(limit).to_list()
         return lines or []
     
     async def find_by_request_and_step(self, request_id: str, step_order: int) -> List[ApprovalLine]:
@@ -44,18 +46,19 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         ).to_list()
         return lines or []
     
-    async def find_pending_by_approver(self, approver_id: str) -> List[ApprovalLine]:
+    async def find_pending_by_approver(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
+        """결재 대기 목록 - 가장 중요한 쿼리이므로 최적화됨"""
         lines = await ApprovalLine.find(
             ApprovalLine.approver_id == approver_id,
             ApprovalLine.status == ApprovalStatus.PENDING
-        ).to_list()
+        ).sort(+ApprovalLine.step_order).skip(skip).limit(limit).to_list()
         return lines or []
     
-    async def find_completed_by_approver(self, approver_id: str) -> List[ApprovalLine]:
+    async def find_completed_by_approver(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
         lines = await ApprovalLine.find(
             ApprovalLine.approver_id == approver_id,
             {"status": {"$in": [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]}}
-        ).sort(-ApprovalLine.approved_at).to_list()
+        ).sort(-ApprovalLine.approved_at).skip(skip).limit(limit).to_list()
         return lines or []
     
     async def update(self, line: ApprovalLineVo) -> ApprovalLine:

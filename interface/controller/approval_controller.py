@@ -9,6 +9,7 @@ from common.auth import CurrentUser, get_current_user, DocumentStatus
 from containers import Container
 from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
+from domain.responses.paginated_response import PaginatedResponse
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
@@ -81,10 +82,13 @@ async def get_my_approval_requests(
     status: Optional[DocumentStatus] = None,  # 상태 필터
     start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
+    page: int = 1,  # 페이지 번호 (1부터 시작)
+    page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
-) -> List[ApprovalRequest]:
+) -> PaginatedResponse[ApprovalRequest]:
     """내가 기안한 결재 목록"""
-    return await approval_service.get_my_requests(current_user.id, sort, status, start_date, end_date)
+    items, total = await approval_service.get_my_requests(current_user.id, sort, status, start_date, end_date, page, page_size)
+    return PaginatedResponse.create(items, total, page, page_size)
 
 
 @router.get("/search")
@@ -128,10 +132,13 @@ async def get_pending_approvals(
     sort: Optional[str] = None,  # 정렬 기준: created_at_desc, created_at_asc, updated_at_desc, updated_at_asc
     start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
+    page: int = 1,  # 페이지 번호 (1부터 시작)
+    page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
-) -> List[ApprovalRequest]:
+) -> PaginatedResponse[ApprovalRequest]:
     """내가 결재할 요청 목록"""
-    return await approval_service.get_pending_approvals(current_user.id, sort, start_date, end_date)
+    items, total = await approval_service.get_pending_approvals(current_user.id, sort, start_date, end_date, page, page_size)
+    return PaginatedResponse.create(items, total, page, page_size)
 
 
 @router.get("/completed")
@@ -141,10 +148,13 @@ async def get_completed_approvals(
     sort: Optional[str] = None,  # 정렬 기준: created_at_desc, created_at_asc, completed_at_desc, completed_at_asc
     start_date: Optional[str] = None,  # 시작 날짜 (결재완료일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (결재완료일 기준, YYYY-MM-DD)
+    page: int = 1,  # 페이지 번호 (1부터 시작)
+    page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
-) -> List[ApprovalRequest]:
+) -> PaginatedResponse[ApprovalRequest]:
     """내가 결재 완료한 목록"""
-    return await approval_service.get_completed_approvals(current_user.id, sort, start_date, end_date)
+    items, total = await approval_service.get_completed_approvals(current_user.id, sort, start_date, end_date, page, page_size)
+    return PaginatedResponse.create(items, total, page, page_size)
 
 
 @router.get("/{request_id}")
