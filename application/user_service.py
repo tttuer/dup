@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List, Dict
 
 import json
 from dependency_injector.wiring import inject
@@ -170,6 +170,25 @@ class UserService(BaseService[User]):
     async def search_users_by_name(self, name: str) -> list[UserResponse]:
         users = await self.user_repo.search_by_name(name)
         return [UserResponse.from_document(user) for user in users]
+    
+    async def find_by_user_ids_optimized(self, user_ids: List[str]) -> Dict[str, UserResponse]:
+        """
+        여러 사용자를 효율적으로 조회 (N+1 쿼리 문제 해결)
+        DB에서 일괄 조회
+        """
+        if not user_ids:
+            return {}
+        
+        # DB에서 일괄 조회
+        users = await self.user_repo.find_by_user_ids(user_ids)
+        
+        # 결과 매핑
+        result = {}
+        for user_doc in users:
+            user_response = UserResponse.from_document(user_doc)
+            result[user_doc.user_id] = user_response
+        
+        return result
 
     async def _broadcast_pending_count(self):
         try:

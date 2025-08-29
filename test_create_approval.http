@@ -1,0 +1,38 @@
+### 결재 요청 생성 (페이지네이션 테스트용)
+POST http://127.0.0.1:8080/api/approvals
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="title"
+
+ㅁㅇㄹㄴ
+------WebKitFormBoundary
+Content-Disposition: form-data; name="content"
+
+ㅁ
+------WebKitFormBoundary
+Content-Disposition: form-data; name="approval_lines"
+
+[{"approver_id":null,"approver_user_id":"user","approver_name":"user","approver_department":"","approver_position":"","step_order":1,"is_required":true,"is_parallel":false},{"approver_id":null,"approver_user_id":"user1","approver_name":"user1","approver_department":"","approver_position":"","step_order":2,"is_required":true,"is_parallel":false}]
+------WebKitFormBoundary--
+
+### 인증이 필요하다면 Authorization 헤더 추가 버전
+POST http://127.0.0.1:8080/api/approvals
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="title"
+
+ㅁㅇㄹㄴ
+------WebKitFormBoundary
+Content-Disposition: form-data; name="content"
+
+ㅁ
+------WebKitFormBoundary
+Content-Disposition: form-data; name="approval_lines"
+
+[{"approver_id":null,"approver_user_id":"user","approver_name":"user","approver_department":"","approver_position":"","step_order":1,"is_required":true,"is_parallel":false},{"approver_id":null,"approver_user_id":"user1","approver_name":"user1","approver_department":"","approver_position":"","step_order":2,"is_required":true,"is_parallel":false}]
+------WebKitFormBoundary--
+
+###

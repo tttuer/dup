@@ -1,10 +1,10 @@
 from datetime import datetime, timezone, time
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile
 from ulid import ULID
 from motor.motor_asyncio import AsyncIOMotorClientSession
-from beanie.operators import And, GTE, LTE, In
+from beanie.operators import And, GTE, LTE, In, NE
 
 from application.base_service import BaseService
 from application.approval_notification_service import ApprovalNotificationService
@@ -195,28 +195,30 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str, 
         sort: Optional[str] = None,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> List[ApprovalRequest]:
+        end_date: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[ApprovalRequest], int]:
         """내가 결재 완료한 목록"""
         # 해당 결재자의 모든 완료된 결재선 조회 (APPROVED 또는 REJECTED)
         completed_lines = await self.line_repo.find_completed_by_approver(approver_id)
         
         if not completed_lines:
-            return []
+            return [], 0
         
         # 중복 제거를 위해 set 사용
         request_ids = list(set(line.request_id for line in completed_lines))
         
-        # Beanie 쿼리로 결재 완료 요청서들 조회 (필터링 및 정렬 적용)
+        # Beanie 쿼리로 결재 완료 요청서들 조회
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
-        # 필터 조건 구성
+        # Beanie In operator 사용
         filters = [In(ApprovalRequestDoc.id, request_ids)]
         
-        # 결재 완료일 기준으로 날짜 필터링 (completed_at이 null이 아닌 것만)
+        # Beanie NE operator로 completed_at 필터링
         if start_date or end_date:
-            # completed_at이 존재하는 문서만 대상
-            filters.append(ApprovalRequestDoc.completed_at != None)
+            # Beanie NE (Not Equal) operator 사용
+            filters.append(NE(ApprovalRequestDoc.completed_at, None))
             
             if start_date:
                 start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -242,7 +244,14 @@ class ApprovalService(BaseService[ApprovalRequest]):
             # 기본 정렬 (결재 완료일 최신순)
             query = query.sort(-ApprovalRequestDoc.completed_at)
         
-        return await query.to_list() or []
+        # Beanie count 사용
+        total = await query.count()
+        
+        # Beanie skip/limit
+        skip = (page - 1) * page_size
+        items = await query.skip(skip).limit(page_size).to_list() or []
+        
+        return items, total
 
     async def get_my_requests(
         self, 
@@ -250,18 +259,20 @@ class ApprovalService(BaseService[ApprovalRequest]):
         sort: Optional[str] = None,
         status: Optional[DocumentStatus] = None,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> List[ApprovalRequest]:
+        end_date: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[ApprovalRequest], int]:
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
-        # 필터 조건 구성
+        # Beanie 필터 조건 구성
         filters = [ApprovalRequestDoc.requester_id == requester_id]
         
         # 상태 필터링 추가
         if status:
             filters.append(ApprovalRequestDoc.status == status)
         
-        # 날짜 필터링 추가
+        # 날짜 필터링 추가 (Beanie operators 사용)
         if start_date:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             filters.append(GTE(ApprovalRequestDoc.created_at, datetime.combine(start_dt.date(), time.min)))
@@ -270,7 +281,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
             filters.append(LTE(ApprovalRequestDoc.created_at, datetime.combine(end_dt.date(), time.max)))
         
-        # 쿼리 실행
+        # Beanie 쿼리 실행
         query = ApprovalRequestDoc.find(And(*filters))
         
         # 정렬 적용
@@ -286,7 +297,14 @@ class ApprovalService(BaseService[ApprovalRequest]):
             # 기본 정렬 (최신순)
             query = query.sort(-ApprovalRequestDoc.created_at)
         
-        return await query.to_list() or []
+        # Beanie count() 사용
+        total = await query.count()
+        
+        # Beanie skip/limit 사용
+        skip = (page - 1) * page_size
+        items = await query.skip(skip).limit(page_size).to_list() or []
+        
+        return items, total
     
     async def get_all_approval_requests(
         self, 
@@ -343,13 +361,15 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str, 
         sort: Optional[str] = None,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> List[ApprovalRequest]:
+        end_date: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[ApprovalRequest], int]:
         # 해당 결재자의 모든 PENDING 결재선 조회
         pending_lines = await self.line_repo.find_pending_by_approver(approver_id)
         
         if not pending_lines:
-            return []
+            return [], 0
         
         # request_id 목록 추출 (중복 제거)
         request_ids = list(set(line.request_id for line in pending_lines))
@@ -372,15 +392,15 @@ class ApprovalService(BaseService[ApprovalRequest]):
                 available_request_ids.append(line.request_id)
         
         if not available_request_ids:
-            return []
+            return [], 0
         
-        # Beanie 쿼리로 결재 대기 요청서들 조회 (필터링 및 정렬 적용)
+        # Beanie 쿼리로 결재 대기 요청서들 조회
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
-        # 필터 조건 구성
+        # Beanie In operator 사용
         filters = [In(ApprovalRequestDoc.id, available_request_ids)]
         
-        # 생성일 기준으로 날짜 필터링
+        # Beanie GTE, LTE operators로 날짜 필터링
         if start_date:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             filters.append(GTE(ApprovalRequestDoc.created_at, datetime.combine(start_dt.date(), time.min)))
@@ -389,7 +409,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
             filters.append(LTE(ApprovalRequestDoc.created_at, datetime.combine(end_dt.date(), time.max)))
         
-        # 쿼리 실행
+        # Beanie And operator로 쿼리 실행
         query = ApprovalRequestDoc.find(And(*filters))
         
         # 정렬 적용
@@ -401,7 +421,14 @@ class ApprovalService(BaseService[ApprovalRequest]):
             # 기본 정렬 (생성일 최신순)
             query = query.sort(-ApprovalRequestDoc.created_at)
         
-        return await query.to_list() or []
+        # Beanie count 사용
+        total = await query.count()
+        
+        # Beanie skip/limit
+        skip = (page - 1) * page_size
+        items = await query.skip(skip).limit(page_size).to_list() or []
+        
+        return items, total
     
     async def _is_step_available(self, current_line) -> bool:
         """현재 결재선이 결재 가능한 상태인지 확인"""
