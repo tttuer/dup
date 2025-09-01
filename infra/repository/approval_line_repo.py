@@ -6,6 +6,7 @@ from infra.db_models.approval_line import ApprovalLine
 from infra.repository.base_repo import BaseRepository
 from common.auth import ApprovalStatus
 from utils.logger import logger
+from beanie.operators import In
 
 
 class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineRepository):
@@ -58,7 +59,7 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
     async def find_completed_by_approver(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
         lines = await ApprovalLine.find(
             ApprovalLine.approver_id == approver_id,
-            {"status": {"$in": [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]}}
+            In(ApprovalLine.status, [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED])
         ).sort(-ApprovalLine.approved_at).skip(skip).limit(limit).to_list()
         return lines or []
     
@@ -86,7 +87,7 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
             return []
         
         lines = await ApprovalLine.find(
-            {"request_id": {"$in": request_ids}}
+            In(ApprovalLine.request_id, request_ids)
         ).sort(+ApprovalLine.step_order).to_list()
         return lines or []
     
