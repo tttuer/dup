@@ -265,7 +265,6 @@ class Whg:
         if "extra" in config:
             url += config["extra"]
         logger.info(f"전표 페이지 URL: {url}")
-        print(f"전표 페이지 URL: {url}")
         return url
     
 

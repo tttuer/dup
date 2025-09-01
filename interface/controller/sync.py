@@ -8,6 +8,7 @@ from containers import Container
 from application.sync_service import SyncService
 from application.user_service import UserService
 from common.auth import decode_token, Role
+from utils.logger import logger
 
 router = APIRouter()
 
@@ -37,10 +38,10 @@ async def sync_status_websocket(
                 message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 if message and message["type"] == "message":
                     data = json.loads(message["data"])
-                    print(f"📣 Redis PubSub received: {data}")
+                    logger.debug(f"Redis PubSub received: {data}")
                     await ws_manager.broadcast(data)
         except Exception as e:
-            print(f"🚨 Redis listener error: {e}")
+            logger.error(f"Redis listener error: {e}")
         finally:
             await pubsub.unsubscribe("sync_status_channel")
             await pubsub.close()
@@ -52,7 +53,7 @@ async def sync_status_websocket(
         while True:
             await websocket.receive_text()  # ← 여기서 끊기면 WebSocketDisconnect 발생
     except WebSocketDisconnect:
-        print("🛑 WebSocket disconnected")
+        logger.info("WebSocket disconnected")
     finally:
         await ws_manager.disconnect(websocket)
         redis_task.cancel()
@@ -87,7 +88,7 @@ async def pending_users_websocket(
             await websocket.close(code=4003, reason="Admin access required")
             return
             
-        print(f"✅ Admin user {user_id} authenticated successfully")
+        logger.info(f"Admin user {user_id} authenticated successfully")
     except Exception as e:
         await websocket.close(code=4001, reason="Invalid token")
         return
@@ -109,10 +110,10 @@ async def pending_users_websocket(
                 message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 if message and message["type"] == "message":
                     data = json.loads(message["data"])
-                    print(f"📣 Pending users Redis PubSub received: {data}")
+                    logger.debug(f"Pending users Redis PubSub received: {data}")
                     await ws_manager.broadcast(data)
         except Exception as e:
-            print(f"🚨 Pending users Redis listener error: {e}")
+            logger.error(f"Pending users Redis listener error: {e}")
         finally:
             await pubsub.unsubscribe("pending_users_channel")
             await pubsub.close()
@@ -123,7 +124,7 @@ async def pending_users_websocket(
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        print("🛑 Pending users WebSocket disconnected")
+        logger.info("Pending users WebSocket disconnected")
     finally:
         await ws_manager.disconnect(websocket)
         redis_task.cancel()

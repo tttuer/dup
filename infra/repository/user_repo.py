@@ -7,6 +7,7 @@ from domain.repository.user_repo import IUserRepository
 from domain.user import User as UserVo
 from infra.db_models.user import User
 from infra.repository.base_repo import BaseRepository
+from beanie.operators import In
 
 
 class UserRepository(BaseRepository[User], IUserRepository):
@@ -63,5 +64,5 @@ class UserRepository(BaseRepository[User], IUserRepository):
         if not user_ids:
             return []
         
-        users = await User.find({"user_id": {"$in": user_ids}}).to_list()
+        users = await User.find(In(User.user_id, user_ids)).to_list()
         return users or []
