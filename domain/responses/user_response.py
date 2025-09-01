@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional
 from common.auth import Role
-from .base_response import BaseResponse
+from pydantic import BaseModel
 
 
-class UserResponse(BaseResponse):
+class UserResponse(BaseModel):
     id: str
     name: Optional[str] = None
     user_id: str
