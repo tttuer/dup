@@ -18,6 +18,7 @@ import base64
 from typing import Optional, List
 from fastapi import Form
 from datetime import datetime
+from common.exceptions import InternalServerError
 from itertools import zip_longest
 from fastapi import File
 
@@ -55,8 +56,7 @@ async def sync_whg(
         )
         return {"message": "Sync completed successfully"}
     except Exception as e:
-        print(f"[Sync Error] {e}")
-        raise
+        raise InternalServerError(f"동기화 오류: {e}")
     finally:
         await sync_service.set_sync_status(False)
         await redis.publish("sync_status_channel", json.dumps({"syncing": False}))

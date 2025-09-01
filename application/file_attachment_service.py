@@ -13,6 +13,7 @@ from urllib.parse import quote
 from application.base_service import BaseService
 from domain.repository.attached_file_repo import IAttachedFileRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
+from common.exceptions import InternalServerError
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.user_repo import IUserRepository
 from domain.attached_file import AttachedFile
@@ -114,7 +115,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
         try:
             await self.fs.delete(ObjectId(file.gridfs_file_id))
         except Exception as e:
-            print(f"Failed to delete file from GridFS: {e}")
+            raise InternalServerError(f"GridFS 파일 삭제 실패: {e}")
 
         # DB에서 삭제
         await self.file_repo.delete(file_id)
@@ -195,7 +196,6 @@ class FileAttachmentService(BaseService[AttachedFile]):
                         # ZIP에 파일 추가
                         zip_file.writestr(file.file_name, content)
                     except Exception as e:
-                        print(f"Failed to add file {file.file_name} to ZIP: {e}")
                         continue
             
             zip_buffer.seek(0)
@@ -249,7 +249,6 @@ class FileAttachmentService(BaseService[AttachedFile]):
         
         # 결재자인지 확인
         approval_lines = await self.line_repo.find_by_request_id(request_id)
-        print(f"Approval lines for request {user_id}: {approval_lines}")
         is_approver = any(line.approver_id == user_id for line in approval_lines)
         
         if is_approver:

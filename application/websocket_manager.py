@@ -1,5 +1,6 @@
 from fastapi import WebSocket
 from typing import List, Dict
+from utils.logger import logger
 
 class WebSocketManager:
     def __init__(self):
@@ -14,9 +15,9 @@ class WebSocketManager:
             if user_id not in self.user_connections:
                 self.user_connections[user_id] = []
             self.user_connections[user_id].append(websocket)
-            print(f"✅ WebSocket connected for user {user_id}. Total: {len(self.active_connections)}")
+            logger.info(f"WebSocket connected for user {user_id}. Total: {len(self.active_connections)}")
         else:
-            print(f"✅ WebSocket connected. Total: {len(self.active_connections)}")
+            logger.info(f"WebSocket connected. Total: {len(self.active_connections)}")
 
     async def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
@@ -30,17 +31,17 @@ class WebSocketManager:
                         del self.user_connections[user_id]
                     break
                     
-            print(f"❌ WebSocket disconnected. Remaining: {len(self.active_connections)}")
+            logger.info(f"WebSocket disconnected. Remaining: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
-        print(f"📤 Broadcasting to {len(self.active_connections)} clients: {message}")
+        logger.debug(f"Broadcasting to {len(self.active_connections)} clients: {message}")
         disconnected = []
 
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
             except Exception as e:
-                print(f"⚠️ Failed to send to a client: {e}")
+                logger.warning(f"Failed to send to a client: {e}")
                 disconnected.append(connection)
 
         # 끊긴 연결은 정리
@@ -50,7 +51,7 @@ class WebSocketManager:
     async def send_to_user(self, user_id: str, message: dict):
         """특정 사용자에게 메시지 전송"""
         if user_id not in self.user_connections:
-            print(f"⚠️ User {user_id} not connected")
+            logger.warning(f"User {user_id} not connected")
             return
 
         connections = self.user_connections[user_id][:]  # 복사본 사용
@@ -59,9 +60,9 @@ class WebSocketManager:
         for connection in connections:
             try:
                 await connection.send_json(message)
-                print(f"📤 Sent to user {user_id}: {message}")
+                logger.debug(f"Sent to user {user_id}: {message}")
             except Exception as e:
-                print(f"⚠️ Failed to send to user {user_id}: {e}")
+                logger.warning(f"Failed to send to user {user_id}: {e}")
                 disconnected.append(connection)
 
         # 끊긴 연결은 정리

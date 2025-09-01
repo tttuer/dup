@@ -5,6 +5,7 @@ from domain.approval_line import ApprovalLine as ApprovalLineVo
 from infra.db_models.approval_line import ApprovalLine
 from infra.repository.base_repo import BaseRepository
 from common.auth import ApprovalStatus
+from utils.logger import logger
 
 
 class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineRepository):
@@ -118,5 +119,5 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
             ApprovalLine.approver_id == approver_id,
             ApprovalLine.status == ApprovalStatus.PENDING
         ).count()
-        print(f"Pending count for approver {approver_id}: {count}")
+        logger.debug(f"Pending count for approver {approver_id}: {count}")
         return count

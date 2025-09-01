@@ -8,6 +8,7 @@ from application.websocket_manager import WebSocketManager
 from application.approval_notification_service import ApprovalNotificationService
 from containers import Container
 from common.auth import decode_token
+from utils.logger import logger
 
 
 router = APIRouter()
@@ -32,9 +33,9 @@ async def approval_notifications_websocket(
         try:
             payload = decode_token(token)
             user_id = payload.get("user_id")
-            print(f"✅ User {user_id} authenticated for approval notifications")
+            logger.info(f"User {user_id} authenticated for approval notifications")
         except Exception as e:
-            print(f"❌ Token validation failed: {e}")
+            logger.warning(f"Token validation failed: {e}")
             await websocket.close(code=4001, reason="Invalid token")
             return
     else:
@@ -59,7 +60,7 @@ async def approval_notifications_websocket(
                 await notification_service.notify_pending_count(user_id)
                 
     except WebSocketDisconnect:
-        print(f"🛑 Approval notification WebSocket disconnected for user {user_id}")
+        logger.info(f"Approval notification WebSocket disconnected for user {user_id}")
     finally:
         await ws_manager.disconnect(websocket)
 
