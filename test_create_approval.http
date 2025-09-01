@@ -18,7 +18,7 @@ Content-Disposition: form-data; name="approval_lines"
 
 ### 인증이 필요하다면 Authorization 헤더 추가 버전
 POST http://127.0.0.1:8080/api/approvals
-Authorization: Bearer YOUR_TOKEN_HERE
+Authorization: Bearer ..
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
 ------WebKitFormBoundary
