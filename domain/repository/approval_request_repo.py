@@ -16,15 +16,15 @@ class IApprovalRequestRepository(metaclass=ABCMeta):
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_requester_id(self, requester_id: str) -> List[ApprovalRequest]:
+    async def find_by_requester_id(self, requester_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_status(self, status: DocumentStatus) -> List[ApprovalRequest]:
+    async def find_by_status(self, status: DocumentStatus, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
         raise NotImplementedError
     
     @abstractmethod
-    async def find_by_approver_id(self, approver_id: str) -> List[ApprovalRequest]:
+    async def find_by_approver_id(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalRequest]:
         raise NotImplementedError
     
     @abstractmethod

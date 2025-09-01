@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from beanie.operators import And, RegEx
+from beanie.operators import And, RegEx, In
 from dependency_injector.wiring import inject
 from fastapi import UploadFile
 from ulid import ULID
@@ -184,6 +184,6 @@ class VoucherService:
         
         # 기존 voucher들 일괄 삭제
         if vouchers_to_delete:
-            await VoucherDocument.find({"_id": {"$in": vouchers_to_delete}}).delete()
+            await VoucherDocument.find(In(VoucherDocument.id, vouchers_to_delete)).delete()
         
         return migrated_count

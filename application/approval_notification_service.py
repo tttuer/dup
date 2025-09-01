@@ -19,8 +19,7 @@ class ApprovalNotificationService:
 
     async def get_pending_count(self, user_id: str) -> int:
         """사용자의 대기 중인 결재 건수 조회"""
-        pending_lines = await self.approval_line_repo.find_pending_by_approver(user_id)
-        return len(pending_lines)
+        return await self.approval_line_repo.find_pending_count_by_approver(user_id)
 
     async def notify_pending_count(self, user_id: str):
         """특정 사용자에게 대기 결재 건수 알림"""
