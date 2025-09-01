@@ -10,7 +10,7 @@ from infra.repository.base_repo import BaseRepository
 from beanie import BulkWriter
 from domain.voucher import Company
 from pymongo import UpdateOne
-from beanie.operators import And
+from beanie.operators import And, In
 
 
 class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
@@ -128,7 +128,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
     async def delete_by_ids(self, ids: list[str]):
         logger.info(f"delete: {len(ids)}")
 
-        await Voucher.find({"_id": {"$in": list(ids)}}).delete()
+        await Voucher.find(In(Voucher.id, list(ids))).delete()
 
     async def find_by_company(self, company: Company) -> list[Voucher]:
         db_vouchers = await Voucher.find(Voucher.company == company).to_list()

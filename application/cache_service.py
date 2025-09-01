@@ -140,16 +140,29 @@ class CacheService:
         except Exception as e:
             logger.error(f"카운트 캐시 저장 실패 ({cache_type}, {user_id}): {e}")
     
-    async def invalidate_count_cache(self, user_id: str) -> None:
+    async def invalidate_count_cache(self, user_id: str, chunk_size: int = 1000) -> None:
         """특정 사용자의 모든 카운트 캐시 무효화"""
         try:
             pattern = f"count:*:{user_id}"
             keys = []
+            deleted_count = 0
+            
             async for key in self.redis.scan_iter(match=pattern):
                 keys.append(key)
+                
+                # 청크 크기에 도달하면 삭제 실행
+                if len(keys) >= chunk_size:
+                    await self.redis.delete(*keys)
+                    deleted_count += len(keys)
+                    keys.clear()
             
+            # 남은 키들 삭제
             if keys:
                 await self.redis.delete(*keys)
+                deleted_count += len(keys)
+                
+            if deleted_count > 0:
+                logger.info(f"카운트 캐시 무효화 완료 (user_id={user_id}): {deleted_count}개")
         except Exception as e:
             logger.error(f"카운트 캐시 무효화 실패 (user_id={user_id}): {e}")
     
@@ -182,15 +195,27 @@ class CacheService:
         except Exception as e:
             logger.error(f"캐시 삭제 실패 (key={key}): {e}")
     
-    async def clear_pattern_cache(self, pattern: str) -> None:
+    async def clear_pattern_cache(self, pattern: str, chunk_size: int = 1000) -> None:
         """패턴에 맞는 모든 캐시 삭제"""
         try:
             keys = []
+            deleted_count = 0
+            
             async for key in self.redis.scan_iter(match=pattern):
                 keys.append(key)
+                
+                # 청크 크기에 도달하면 삭제 실행
+                if len(keys) >= chunk_size:
+                    await self.redis.delete(*keys)
+                    deleted_count += len(keys)
+                    keys.clear()
             
+            # 남은 키들 삭제
             if keys:
                 await self.redis.delete(*keys)
-                logger.info(f"패턴 캐시 삭제 완료: {pattern} ({len(keys)}개)")
+                deleted_count += len(keys)
+                
+            if deleted_count > 0:
+                logger.info(f"패턴 캐시 삭제 완료: {pattern} ({deleted_count}개)")
         except Exception as e:
             logger.error(f"패턴 캐시 삭제 실패 (pattern={pattern}): {e}")

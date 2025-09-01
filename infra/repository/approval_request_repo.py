@@ -5,6 +5,7 @@ from domain.approval_request import ApprovalRequest as ApprovalRequestVo
 from infra.db_models.approval_request import ApprovalRequest
 from infra.repository.base_repo import BaseRepository
 from common.auth import DocumentStatus
+from beanie.operators import In
 
 
 class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalRequestRepository):
@@ -120,7 +121,7 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
             return []
             
         requests = await ApprovalRequest.find(
-            {"_id": {"$in": request_ids}}
+            In(ApprovalRequest.id, request_ids)
         ).sort(-ApprovalRequest.updated_at).to_list()
         return requests or []
     
@@ -135,4 +136,4 @@ class ApprovalRequestRepository(BaseRepository[ApprovalRequest], IApprovalReques
         """결재자별 결재 요청 수 카운트"""
         if not request_ids:
             return 0
-        return await ApprovalRequest.find({"_id": {"$in": request_ids}}).count()
+        return await ApprovalRequest.find(In(ApprovalRequest.id, request_ids)).count()
