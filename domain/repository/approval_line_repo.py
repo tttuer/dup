@@ -38,3 +38,7 @@ class IApprovalLineRepository(metaclass=ABCMeta):
     @abstractmethod
     async def delete_by_request_id(self, request_id: str) -> None:
         raise NotImplementedError
+    
+    @abstractmethod
+    async def find_pending_count_by_approver(self, approver_id: str) -> int:
+        raise NotImplementedError
