@@ -112,3 +112,11 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         
         # MongoDB bulk insert
         await ApprovalLine.insert_many(db_lines)
+
+    async def find_pending_count_by_approver(self, approver_id: str) -> int:
+        count = await ApprovalLine.find(
+            ApprovalLine.approver_id == approver_id,
+            ApprovalLine.status == ApprovalStatus.PENDING
+        ).count()
+        print(f"Pending count for approver {approver_id}: {count}")
+        return count
