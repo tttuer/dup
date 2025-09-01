@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import field_serializer
+from pydantic import field_serializer, BaseModel
 from domain.voucher import Company, VoucherFile
-from .base_response import BaseResponse
 
 
-class VoucherResponse(BaseResponse):
+class VoucherResponse(BaseModel):
     id: str
     mn_bungae1: Optional[float] = None
     mn_bungae2: Optional[float] = None
