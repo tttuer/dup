@@ -3,7 +3,7 @@ from typing import Optional, List, Dict
 
 import json
 from dependency_injector.wiring import inject
-from common.exceptions import ConflictError, AuthenticationError, PermissionError
+from common.exceptions import ConflictError, AuthenticationError, PermissionError, InternalServerError
 from ulid import ULID
 from redis.asyncio import Redis
 
@@ -196,4 +196,4 @@ class UserService(BaseService[User]):
             message = {"pending_users_count": pending_count}
             await self.redis.publish("pending_users_channel", json.dumps(message))
         except Exception as e:
-            print(f"🚨 Failed to broadcast pending count: {e}")
+            raise InternalServerError(f"대기 사용자 수 브로드캐스트 실패: {e}")

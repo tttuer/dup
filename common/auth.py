@@ -93,21 +93,17 @@ def create_refresh_token(
 
 def get_user_id_from_refresh_token(request: Request) -> str:
     refresh_token = request.cookies.get("refresh_token")
-    print(f"Refresh token from cookies: {refresh_token}")
 
     if not refresh_token:
-        print("Refresh token not found in cookies")
         raise AuthenticationError("리프레시 토큰이 없습니다")
 
     try:
         payload = decode_token(refresh_token)
     except JWTError:
-        print("Invalid or expired refresh token")
         raise AuthenticationError("유효하지 않거나 만료된 리프레시 토큰입니다")
 
     user_id = payload.get("user_id")
     if not user_id:
-        print("Invalid token payload: user_id not found")
         raise AuthenticationError("토큰 페이로드가 유효하지 않습니다")
 
     return user_id

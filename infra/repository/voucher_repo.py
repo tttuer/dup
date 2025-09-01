@@ -3,6 +3,7 @@ from typing import Any, override
 
 from domain.voucher import Voucher as VoucherVo
 from common.exceptions import NotFoundError
+from utils.logger import logger
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
 from infra.repository.base_repo import BaseRepository
@@ -17,7 +18,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         super().__init__(Voucher)
     async def save(self, vouchers: list[VoucherVo]):
         if not vouchers:
-            print("✅ No vouchers to save")
+            logger.info("No vouchers to save")
             return
             
         new_vouchers = [
@@ -60,8 +61,8 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         collection = Voucher.get_motor_collection()
         result = await collection.bulk_write(ops)
 
-        print(
-            f"✅ upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}"
+        logger.info(
+            f"upserted: {result.upserted_count}, modified: {result.modified_count}, matched: {result.matched_count}"
         )
 
     async def find_by_id(self, id: str) -> Voucher:
@@ -125,7 +126,7 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         return db_voucher
 
     async def delete_by_ids(self, ids: list[str]):
-        print(f"✅ delete: {len(ids)}")
+        logger.info(f"delete: {len(ids)}")
 
         await Voucher.find({"_id": {"$in": list(ids)}}).delete()
 
