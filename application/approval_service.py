@@ -9,6 +9,8 @@ from beanie.operators import And, GTE, LTE, In, NE
 from application.base_service import BaseService
 from application.approval_notification_service import ApprovalNotificationService
 from application.file_attachment_service import FileAttachmentService
+from application.integrity_service import IntegrityService
+from application.legal_archive_service import LegalArchiveService
 from common.db import client
 from domain.repository.approval_request_repo import IApprovalRequestRepository
 from domain.repository.approval_line_repo import IApprovalLineRepository
@@ -33,6 +35,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         user_repo: IUserRepository,
         notification_service: ApprovalNotificationService,
         file_service: FileAttachmentService,
+        integrity_service: IntegrityService,
+        legal_archive_service: LegalArchiveService,
     ):
         super().__init__(user_repo)
         self.approval_repo = approval_repo
@@ -41,6 +45,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         self.template_repo = template_repo
         self.notification_service = notification_service
         self.file_service = file_service
+        self.integrity_service = integrity_service
+        self.legal_archive_service = legal_archive_service
         self.ulid = ULID()
 
     async def create_approval_request(
@@ -148,8 +154,9 @@ class ApprovalService(BaseService[ApprovalRequest]):
         request_id: str,
         approver_id: str,
         comment: Optional[str] = None,
+        ip_address: Optional[str] = None,
     ) -> ApprovalRequest:
-        await self._process_approval(request_id, approver_id, ApprovalAction.APPROVE, comment)
+        await self._process_approval(request_id, approver_id, ApprovalAction.APPROVE, comment, ip_address)
         
         # 웹소켓 알림 전송
         await self.notification_service.notify_approval_status_changed(request_id, "APPROVED", approver_id)
@@ -161,8 +168,9 @@ class ApprovalService(BaseService[ApprovalRequest]):
         request_id: str,
         approver_id: str,
         comment: Optional[str] = None,
+        ip_address: Optional[str] = None,
     ) -> ApprovalRequest:
-        await self._process_approval(request_id, approver_id, ApprovalAction.REJECT, comment)
+        await self._process_approval(request_id, approver_id, ApprovalAction.REJECT, comment, ip_address)
         
         # 웹소켓 알림 전송
         await self.notification_service.notify_approval_status_changed(request_id, "REJECTED", approver_id)
@@ -554,6 +562,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str,
         action: ApprovalAction,
         comment: Optional[str] = None,
+        ip_address: Optional[str] = None,
     ) -> None:
         # 결재자 확인
         await self.validate_user_exists(approver_id)
@@ -585,7 +594,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                         await self._skip_remaining_approvals(approval_lines, approver_line.step_order)
                     
                     # 이력 추가
-                    await self._add_approval_history(request_id, approver_id, action, comment)
+                    await self._add_approval_history(request_id, approver_id, action, comment, ip_address)
                     
                     # 요청서 상태 업데이트
                     await self._update_request_status(request_id)
@@ -600,6 +609,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str,
         action: ApprovalAction,
         comment: Optional[str] = None,
+        ip_address: Optional[str] = None,
     ) -> None:
         # approver 이름 조회
         approver = await self.user_repo.find_by_user_id(approver_id)
@@ -613,6 +623,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
             action=action,
             comment=comment,
             created_at=get_utc_now_naive(),
+            ip_address=ip_address,
         )
         await self.history_repo.save(history)
 
@@ -640,9 +651,29 @@ class ApprovalService(BaseService[ApprovalRequest]):
         request.updated_at = get_utc_now_naive()
         await self.approval_repo.update(request)
         
-        # 최종 상태 변경 시 완료 알림 전송
+        # 최종 상태 변경 시 완료 알림 전송 및 법적 효력 처리
         if old_status != request.status and request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED]:
             await self.notification_service.notify_approval_completed(request, request.status)
+            
+            # 승인 완료된 경우에만 법적 효력 처리
+            if request.status == DocumentStatus.APPROVED:
+                try:
+                    # 문서 무결성 기록 생성
+                    await self.integrity_service.create_document_integrity(
+                        request_id=request_id,
+                        created_by="system"  # 시스템 자동 생성
+                    )
+                    
+                    # 법적 문서 생성 및 보관
+                    await self.legal_archive_service.create_legal_document(
+                        request_id=request_id,
+                        created_by="system"
+                    )
+                    
+                except Exception as e:
+                    # 법적 효력 처리 실패 시 로그 기록 (결재 자체는 완료 상태 유지)
+                    print(f"Failed to create legal archive for request {request_id}: {str(e)}")
+                    # TODO: 적절한 로깅 시스템으로 교체
     
     def _group_lines_by_request(self, all_lines: List) -> Dict[str, List]:
         """결재선들을 request_id별로 그룹화"""

@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any, Annotated
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form, Request
 from pydantic import BaseModel
 
 from application.approval_service import ApprovalService
@@ -184,14 +184,23 @@ async def submit_approval_request(
 async def approve_request(
     request_id: str,
     body: ApproveBody,
+    request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> ApprovalRequest:
     """결재 승인"""
+    # 클라이언트 IP 주소 추출
+    client_ip = request.client.host if request.client else None
+    if not client_ip and "x-forwarded-for" in request.headers:
+        client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
+    if not client_ip and "x-real-ip" in request.headers:
+        client_ip = request.headers["x-real-ip"]
+    
     return await approval_service.approve_request(
         request_id=request_id,
         approver_id=current_user.id,
         comment=body.comment,
+        ip_address=client_ip,
     )
 
 
@@ -200,14 +209,23 @@ async def approve_request(
 async def reject_request(
     request_id: str,
     body: RejectBody,
+    request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> ApprovalRequest:
     """결재 반려"""
+    # 클라이언트 IP 주소 추출
+    client_ip = request.client.host if request.client else None
+    if not client_ip and "x-forwarded-for" in request.headers:
+        client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
+    if not client_ip and "x-real-ip" in request.headers:
+        client_ip = request.headers["x-real-ip"]
+    
     return await approval_service.reject_request(
         request_id=request_id,
         approver_id=current_user.id,
         comment=body.comment,
+        ip_address=client_ip,
     )
 
 

@@ -25,6 +25,7 @@ from interface.controller.file_attachment_controller import (
 from interface.controller.approval_websocket_controller import (
     router as approval_websocket_router,
 )
+from interface.controller.legal_controller import router as legal_router
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
@@ -36,6 +37,7 @@ from infra.db_models.approval_line import ApprovalLine
 from infra.db_models.approval_favorite_group import ApprovalFavoriteGroup
 from infra.db_models.approval_history import ApprovalHistory
 from infra.db_models.attached_file import AttachedFile
+from infra.db_models.document_integrity import DocumentIntegrity
 from common.db import client
 from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
@@ -57,6 +59,7 @@ async def lifespan(app: FastAPI):
             ApprovalFavoriteGroup,
             ApprovalHistory,
             AttachedFile,
+            DocumentIntegrity,
         ],
     )
     start_scheduler()
@@ -93,6 +96,7 @@ api_router.include_router(template_router)
 api_router.include_router(approval_router)
 api_router.include_router(approval_line_router)
 api_router.include_router(file_attachment_router)
+api_router.include_router(legal_router)
 
 app.include_router(api_router)
 app.include_router(sync_router)

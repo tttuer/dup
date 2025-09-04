@@ -10,6 +10,8 @@ from application.approval_line_service import ApprovalLineService
 from application.approval_favorite_group_service import ApprovalFavoriteGroupService
 from application.document_number_service import DocumentNumberService
 from application.file_attachment_service import FileAttachmentService
+from application.integrity_service import IntegrityService
+from application.legal_archive_service import LegalArchiveService
 from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
@@ -20,6 +22,7 @@ from infra.repository.approval_line_repo import ApprovalLineRepository
 from infra.repository.approval_favorite_group_repo import ApprovalFavoriteGroupRepository
 from infra.repository.approval_history_repo import ApprovalHistoryRepository
 from infra.repository.attached_file_repo import AttachedFileRepository
+from infra.repository.document_integrity_repo import DocumentIntegrityRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
 from application.approval_notification_service import ApprovalNotificationService
@@ -64,6 +67,7 @@ class Container(containers.DeclarativeContainer):
     approval_favorite_group_repo = providers.Factory(ApprovalFavoriteGroupRepository)
     approval_history_repo = providers.Factory(ApprovalHistoryRepository)
     attached_file_repo = providers.Factory(AttachedFileRepository)
+    document_integrity_repo = providers.Factory(DocumentIntegrityRepository)
     
     # 전자결재 시스템 서비스
     document_template_service = providers.Factory(
@@ -109,6 +113,25 @@ class Container(containers.DeclarativeContainer):
         approval_request_repo=approval_request_repo
     )
 
+    # 무결성 및 법적 아카이브 서비스
+    integrity_service = providers.Factory(
+        IntegrityService,
+        integrity_repo=document_integrity_repo,
+        approval_repo=approval_request_repo,
+        line_repo=approval_line_repo,
+        history_repo=approval_history_repo,
+        user_repo=user_repo
+    )
+    
+    legal_archive_service = providers.Factory(
+        LegalArchiveService,
+        approval_repo=approval_request_repo,
+        line_repo=approval_line_repo,
+        history_repo=approval_history_repo,
+        user_repo=user_repo,
+        file_repo=attached_file_repo
+    )
+
     approval_service = providers.Factory(
         ApprovalService,
         approval_repo=approval_request_repo,
@@ -117,7 +140,9 @@ class Container(containers.DeclarativeContainer):
         template_repo=document_template_repo,
         user_repo=user_repo,
         notification_service=approval_notification_service,
-        file_service=file_attachment_service
+        file_service=file_attachment_service,
+        integrity_service=integrity_service,
+        legal_archive_service=legal_archive_service
     )
 
     sync_service = providers.Factory(SyncService, redis=redis)
