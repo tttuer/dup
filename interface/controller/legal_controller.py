@@ -75,11 +75,15 @@ async def download_legal_document(
     try:
         content, filename = await legal_archive_service.get_legal_document(request_id, current_user.id)
         
+        # 한글 파일명 인코딩 처리
+        from urllib.parse import quote
+        encoded_filename = quote(filename, safe='')
+        
         return StreamingResponse(
             io.BytesIO(content),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=\"{filename}\"",
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
                 "Content-Length": str(len(content))
             }
         )

@@ -373,42 +373,12 @@ class ApprovalService(BaseService[ApprovalRequest]):
         page: int = 1,
         page_size: int = 20
     ) -> Tuple[List[ApprovalRequest], int]:
-        # 해당 결재자의 모든 PENDING 결재선 조회
-        pending_lines = await self.line_repo.find_pending_by_approver(approver_id)
-        
-        if not pending_lines:
-            return [], 0
-        
-        # request_id 목록 추출 (중복 제거)
-        request_ids = list(set(line.request_id for line in pending_lines))
-        
-        # 모든 관련 결재선을 한 번에 조회
-        all_lines = await self.line_repo.find_by_request_ids(request_ids)
-        all_lines_by_request = self._group_lines_by_request(all_lines)
-        
-        # 결재 가능한 request_id만 필터링 (메모리에서 처리)
-        available_request_ids = []
-        for line in pending_lines:
-            request_lines = all_lines_by_request.get(line.request_id, [])
-            
-            # 이미 반려된 결재선이 있는지 확인
-            has_rejected = any(l.status == ApprovalStatus.REJECTED for l in request_lines)
-            if has_rejected:
-                continue  # 반려된 요청은 제외
-            
-            if self._is_step_available_optimized(line, request_lines):
-                available_request_ids.append(line.request_id)
-        
-        if not available_request_ids:
-            return [], 0
-        
-        # Beanie 쿼리로 결재 대기 요청서들 조회
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
-        # Beanie In operator 사용
-        filters = [In(ApprovalRequestDoc.id, available_request_ids)]
+        # 1. 먼저 결재 대기 가능한 모든 ApprovalRequest를 조회 (정렬과 날짜 필터 적용)
+        filters = [In(ApprovalRequestDoc.status, [DocumentStatus.SUBMITTED, DocumentStatus.IN_PROGRESS])]
         
-        # Beanie GTE, LTE operators로 날짜 필터링
+        # 날짜 필터링
         if start_date:
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
             filters.append(GTE(ApprovalRequestDoc.created_at, datetime.combine(start_dt.date(), time.min)))
@@ -417,10 +387,9 @@ class ApprovalService(BaseService[ApprovalRequest]):
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
             filters.append(LTE(ApprovalRequestDoc.created_at, datetime.combine(end_dt.date(), time.max)))
         
-        # Beanie And operator로 쿼리 실행
+        # 쿼리 실행 및 정렬 적용
         query = ApprovalRequestDoc.find(And(*filters))
         
-        # 정렬 적용
         if sort == "created_at_desc":
             query = query.sort(-ApprovalRequestDoc.created_at)
         elif sort == "created_at_asc":
@@ -429,12 +398,47 @@ class ApprovalService(BaseService[ApprovalRequest]):
             # 기본 정렬 (생성일 최신순)
             query = query.sort(-ApprovalRequestDoc.created_at)
         
-        # Beanie count 사용
-        total = await query.count()
+        all_pending_requests = await query.to_list() or []
         
-        # Beanie skip/limit
+        if not all_pending_requests:
+            return [], 0
+        
+        # 2. 해당 결재자의 PENDING 결재선들 조회
+        request_ids = [req.id for req in all_pending_requests]
+        pending_lines = await self.line_repo.find_by_request_ids(request_ids)
+        
+        # 해당 결재자의 PENDING 결재선만 필터링
+        my_pending_lines = [line for line in pending_lines 
+                           if line.approver_id == approver_id and line.status == ApprovalStatus.PENDING]
+        
+        if not my_pending_lines:
+            return [], 0
+        
+        # 3. 결재 가능한 요청들만 필터링
+        all_lines_by_request = self._group_lines_by_request(pending_lines)
+        
+        available_requests = []
+        for request in all_pending_requests:
+            # 내가 결재해야 할 라인이 있는지 확인
+            my_line = next((line for line in my_pending_lines if line.request_id == request.id), None)
+            if not my_line:
+                continue
+                
+            request_lines = all_lines_by_request.get(request.id, [])
+            
+            # 이미 반려된 결재선이 있는지 확인
+            has_rejected = any(l.status == ApprovalStatus.REJECTED for l in request_lines)
+            if has_rejected:
+                continue
+            
+            # 결재 가능한지 확인
+            if self._is_step_available_optimized(my_line, request_lines):
+                available_requests.append(request)
+        
+        # 4. 페이징 적용
+        total = len(available_requests)
         skip = (page - 1) * page_size
-        items = await query.skip(skip).limit(page_size).to_list() or []
+        items = available_requests[skip:skip + page_size]
         
         return items, total
     

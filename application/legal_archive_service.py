@@ -6,7 +6,17 @@ from dependency_injector.wiring import inject
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 from ulid import ULID
-import fitz  # PyMuPDF
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch, mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
+from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
+from reportlab.graphics.shapes import Drawing, Rect, String
+from reportlab.graphics import renderPDF
 
 from application.base_service import BaseService
 from domain.repository.approval_request_repo import IApprovalRequestRepository
@@ -15,7 +25,7 @@ from domain.repository.approval_history_repo import IApprovalHistoryRepository
 from domain.repository.user_repo import IUserRepository
 from domain.repository.attached_file_repo import IAttachedFileRepository
 from common.db import client
-from utils.time import get_utc_now_naive
+from utils.time import get_utc_now_naive, utc_to_kst_naive
 
 
 class LegalArchiveService(BaseService):
@@ -105,7 +115,7 @@ class LegalArchiveService(BaseService):
             if not file_doc:
                 raise HTTPException(status_code=404, detail="Legal document not found")
             
-            file_id = file_doc[0]._id
+            file_id = file_doc[0]["_id"]
             
             # 파일 내용 다운로드
             file_stream = await self.legal_fs.open_download_stream(file_id)
@@ -136,7 +146,7 @@ class LegalArchiveService(BaseService):
             return False
 
     async def _generate_pdf_document(self, request_id: str) -> bytes:
-        """결재 문서를 PDF로 변환"""
+        """결재 문서를 PDF로 변환 (reportlab 사용)"""
         
         # 결재 정보 수집
         request = await self.approval_repo.find_by_id(request_id)
@@ -144,129 +154,293 @@ class LegalArchiveService(BaseService):
         histories = await self.history_repo.find_by_request_id(request_id)
         attached_files = await self.file_repo.find_by_request_id(request_id)
         
-        # PDF 문서 생성
-        doc = fitz.open()  # 새 PDF 문서
+        # PDF 문서 생성 (전문적인 여백과 설정)
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4,
+            rightMargin=20*mm,
+            leftMargin=20*mm,
+            topMargin=25*mm,
+            bottomMargin=25*mm
+        )
         
-        try:
-            # 첫 번째 페이지 생성
-            page = doc.new_page()
+        # 한글 폰트 등록
+        import os
+        font_path = os.path.join(os.path.dirname(__file__), "..", "fonts", "malgun.ttf")
+        pdfmetrics.registerFont(TTFont("맑은고딕", font_path))
+        korean_font_name = "맑은고딕"
+        
+        # 스타일 설정
+        styles = getSampleStyleSheet()
+        
+        # 전문적인 한글 스타일 정의
+        document_title_style = ParagraphStyle(
+            'DocumentTitle',
+            parent=styles['Title'],
+            fontName=korean_font_name,
+            fontSize=20,
+            alignment=TA_CENTER,
+            spaceAfter=30,
+            textColor=colors.black,
+            borderWidth=2,
+            borderColor=colors.black,
+            borderPadding=10,
+            backColor=colors.lightgrey
+        )
+        
+        section_title_style = ParagraphStyle(
+            'SectionTitle',
+            parent=styles['Heading1'],
+            fontName=korean_font_name,
+            fontSize=14,
+            alignment=TA_LEFT,
+            spaceAfter=12,
+            spaceBefore=20,
+            textColor=colors.darkblue,
+            borderWidth=1,
+            borderColor=colors.darkblue,
+            borderPadding=8,
+            leftIndent=0
+        )
+        
+        subsection_style = ParagraphStyle(
+            'SubSection',
+            parent=styles['Heading2'],
+            fontName=korean_font_name,
+            fontSize=12,
+            alignment=TA_LEFT,
+            spaceAfter=6,
+            spaceBefore=12,
+            textColor=colors.darkred,
+            leftIndent=10
+        )
+        
+        content_style = ParagraphStyle(
+            'Content',
+            parent=styles['Normal'],
+            fontName=korean_font_name,
+            fontSize=10,
+            alignment=TA_JUSTIFY,
+            spaceAfter=6,
+            spaceBefore=3,
+            leftIndent=15,
+            rightIndent=15
+        )
+        
+        table_header_style = ParagraphStyle(
+            'TableHeader',
+            parent=styles['Normal'],
+            fontName=korean_font_name,
+            fontSize=9,
+            alignment=TA_CENTER,
+            textColor=colors.black
+        )
+        
+        table_content_style = ParagraphStyle(
+            'TableContent',
+            parent=styles['Normal'],
+            fontName=korean_font_name,
+            fontSize=9,
+            alignment=TA_LEFT
+        )
+        
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontName=korean_font_name,
+            fontSize=8,
+            alignment=TA_CENTER,
+            textColor=colors.grey
+        )
+        
+        # PDF 내용 구성
+        story = []
+        
+        # 문서 헤더 (공식 문서 스타일)
+        story.append(Paragraph("전자결재 법적문서", document_title_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # 문서 기본 정보 테이블
+        story.append(Paragraph("I. 문서 기본 정보", section_title_style))
+        
+        basic_info_data = [
+            [Paragraph("문서번호", table_header_style), Paragraph(str(request.document_number), table_content_style)],
+            [Paragraph("제목", table_header_style), Paragraph(str(request.title), table_content_style)],
+            [Paragraph("기안자", table_header_style), Paragraph(str(request.requester_name), table_content_style)],
+            [Paragraph("기안일시", table_header_style), Paragraph(utc_to_kst_naive(request.created_at).strftime('%Y년 %m월 %d일 %H시 %M분'), table_content_style)],
+            [Paragraph("완료일시", table_header_style), Paragraph(utc_to_kst_naive(request.completed_at).strftime('%Y년 %m월 %d일 %H시 %M분') if request.completed_at else '처리중', table_content_style)],
+            [Paragraph("문서상태", table_header_style), Paragraph(request.status.value if hasattr(request.status, 'value') else str(request.status), table_content_style)]
+        ]
+        
+        basic_info_table = Table(basic_info_data, colWidths=[40*mm, 120*mm])
+        basic_info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), korean_font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+        story.append(basic_info_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # 문서 내용
+        story.append(Paragraph("II. 결재 요청 내용", section_title_style))
+        content_text = self._html_to_plain_text(request.content)
+        story.append(Paragraph(content_text, content_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # 결재선 정보 테이블
+        story.append(Paragraph("III. 결재선 및 승인 현황", section_title_style))
+        
+        approval_data = [
+            [Paragraph("단계", table_header_style), 
+             Paragraph("결재자", table_header_style), 
+             Paragraph("상태", table_header_style), 
+             Paragraph("승인일시", table_header_style), 
+             Paragraph("의견", table_header_style)]
+        ]
+        
+        sorted_lines = sorted(approval_lines, key=lambda x: x.step_order)
+        for line in sorted_lines:
+            status_text = line.status.value if hasattr(line.status, 'value') else str(line.status)
+            approved_text = utc_to_kst_naive(line.approved_at).strftime('%Y-%m-%d %H:%M') if line.approved_at else '-'
+            comment = line.comment or '-'
             
-            # 텍스트 삽입 위치
-            y_pos = 72  # 1인치 여백
-            line_height = 20
+            # 상태에 따른 색상 적용
+            status_color = colors.green if status_text == 'APPROVED' else colors.red if status_text == 'REJECTED' else colors.orange
             
-            def add_text(text: str, font_size: int = 12, bold: bool = False):
-                nonlocal y_pos
-                font_flags = fitz.TEXT_FONT_BOLD if bold else 0
-                page.insert_text(
-                    (72, y_pos), 
-                    text, 
-                    fontsize=font_size, 
-                    flags=font_flags
-                )
-                y_pos += line_height
+            approval_data.append([
+                Paragraph(str(line.step_order), table_content_style),
+                Paragraph(str(line.approver_name), table_content_style),
+                Paragraph(status_text, ParagraphStyle('StatusStyle', parent=table_content_style, textColor=status_color)),
+                Paragraph(approved_text, table_content_style),
+                Paragraph(comment[:50] + ('...' if len(comment) > 50 else ''), table_content_style)
+            ])
+        
+        approval_table = Table(approval_data, colWidths=[20*mm, 35*mm, 25*mm, 35*mm, 55*mm])
+        approval_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), korean_font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+        story.append(approval_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # 결재 이력
+        story.append(Paragraph("IV. 상세 결재 이력", section_title_style))
+        
+        history_data = [
+            [Paragraph("일시", table_header_style),
+             Paragraph("결재자", table_header_style),
+             Paragraph("처리내용", table_header_style),
+             Paragraph("접속IP", table_header_style),
+             Paragraph("의견", table_header_style)]
+        ]
+        
+        sorted_histories = sorted(histories, key=lambda x: x.created_at)
+        for history in sorted_histories:
+            action_text = history.action.value if hasattr(history.action, 'value') else str(history.action)
+            action_color = colors.green if action_text == 'APPROVE' else colors.red if action_text == 'REJECT' else colors.orange
             
-            # 문서 헤더
-            add_text("전자결재 법적문서", 16, True)
-            add_text("=" * 50, 12)
-            y_pos += 10
+            history_data.append([
+                Paragraph(utc_to_kst_naive(history.created_at).strftime('%Y-%m-%d<br/>%H:%M:%S'), table_content_style),
+                Paragraph(str(history.approver_name), table_content_style),
+                Paragraph(action_text, ParagraphStyle('ActionStyle', parent=table_content_style, textColor=action_color)),
+                Paragraph(history.ip_address or '-', table_content_style),
+                Paragraph((history.comment or '-')[:40] + ('...' if history.comment and len(history.comment) > 40 else ''), table_content_style)
+            ])
+        
+        history_table = Table(history_data, colWidths=[35*mm, 35*mm, 25*mm, 30*mm, 45*mm])
+        history_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), korean_font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]))
+        story.append(history_table)
+        
+        # 첨부파일 정보
+        if attached_files:
+            story.append(Spacer(1, 0.3*inch))
+            story.append(Paragraph("V. 첨부파일 목록", section_title_style))
             
-            # 기본 정보
-            add_text(f"문서번호: {request.document_number}", 12, True)
-            add_text(f"제목: {request.title}")
-            add_text(f"기안자: {request.requester_name}")
-            add_text(f"기안일: {request.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
-            add_text(f"완료일: {request.completed_at.strftime('%Y-%m-%d %H:%M:%S') if request.completed_at else 'N/A'}")
-            add_text(f"상태: {request.status.value if hasattr(request.status, 'value') else str(request.status)}")
-            y_pos += 20
+            file_data = [
+                [Paragraph("파일명", table_header_style),
+                 Paragraph("크기", table_header_style),
+                 Paragraph("업로드일시", table_header_style),
+                 Paragraph("업로드자", table_header_style)]
+            ]
             
-            # 문서 내용
-            add_text("문서 내용:", 14, True)
-            add_text("-" * 40)
+            for file in attached_files:
+                file_size = f"{file.file_size:,} bytes" if file.file_size < 1024*1024 else f"{file.file_size/(1024*1024):.1f} MB"
+                file_data.append([
+                    Paragraph(str(file.file_name), table_content_style),
+                    Paragraph(file_size, table_content_style),
+                    Paragraph(utc_to_kst_naive(file.uploaded_at).strftime('%Y-%m-%d %H:%M'), table_content_style),
+                    Paragraph(str(file.uploaded_by), table_content_style)
+                ])
             
-            # HTML 내용을 단순 텍스트로 변환 (간단한 처리)
-            content_text = self._html_to_plain_text(request.content)
-            for line in content_text.split('\n'):
-                if y_pos > 700:  # 페이지 끝에 가까우면 새 페이지
-                    page = doc.new_page()
-                    y_pos = 72
-                add_text(line[:80])  # 긴 줄 자르기
-            
-            y_pos += 20
-            
-            # 결재선 정보
-            add_text("결재선 정보:", 14, True)
-            add_text("-" * 40)
-            
-            sorted_lines = sorted(approval_lines, key=lambda x: x.step_order)
-            for line in sorted_lines:
-                status_text = line.status.value if hasattr(line.status, 'value') else str(line.status)
-                approved_text = line.approved_at.strftime('%Y-%m-%d %H:%M:%S') if line.approved_at else 'N/A'
-                
-                if y_pos > 700:
-                    page = doc.new_page()
-                    y_pos = 72
-                
-                add_text(f"{line.step_order}단계: {line.approver_name} ({status_text})")
-                add_text(f"  승인일시: {approved_text}")
-                if line.comment:
-                    add_text(f"  의견: {line.comment}")
-                y_pos += 5
-            
-            y_pos += 20
-            
-            # 결재 히스토리
-            add_text("결재 이력:", 14, True)
-            add_text("-" * 40)
-            
-            sorted_histories = sorted(histories, key=lambda x: x.created_at)
-            for history in sorted_histories:
-                if y_pos > 700:
-                    page = doc.new_page()
-                    y_pos = 72
-                
-                action_text = history.action.value if hasattr(history.action, 'value') else str(history.action)
-                add_text(f"{history.created_at.strftime('%Y-%m-%d %H:%M:%S')} - {history.approver_name}")
-                add_text(f"  행위: {action_text}")
-                add_text(f"  IP: {history.ip_address or 'N/A'}")
-                if history.comment:
-                    add_text(f"  의견: {history.comment}")
-                y_pos += 5
-            
-            # 첨부파일 정보
-            if attached_files:
-                y_pos += 20
-                add_text("첨부파일 목록:", 14, True)
-                add_text("-" * 40)
-                
-                for file in attached_files:
-                    if y_pos > 700:
-                        page = doc.new_page()
-                        y_pos = 72
-                    
-                    add_text(f"파일명: {file.file_name}")
-                    add_text(f"크기: {file.file_size} bytes")
-                    add_text(f"업로드일: {file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S')}")
-                    y_pos += 5
-            
-            # 문서 끝에 법적 효력 안내
-            if y_pos > 650:
-                page = doc.new_page()
-                y_pos = 72
-            
-            y_pos += 30
-            add_text("법적 효력 안내:", 14, True)
-            add_text("=" * 50)
-            add_text("본 문서는 전자문서법에 따라 법적 효력을 갖는 전자결재 문서입니다.")
-            add_text("문서의 위변조 여부는 시스템의 무결성 검증 기능을 통해 확인할 수 있습니다.")
-            add_text(f"문서 생성일시: {get_utc_now_naive().strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            # PDF 바이트 반환
-            pdf_bytes = doc.tobytes()
-            return pdf_bytes
-            
-        finally:
-            doc.close()
+            file_table = Table(file_data, colWidths=[60*mm, 30*mm, 40*mm, 40*mm])
+            file_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), korean_font_name),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ]))
+            story.append(file_table)
+        
+        # 법적 효력 안내 (새 페이지)
+        story.append(PageBreak())
+        story.append(Paragraph("법적 효력 및 보안 안내", document_title_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        legal_notice = [
+            "■ 법적 효력 제한 사항",
+            "1. 본 문서는 전자결재 시스템을 통해 생성된 전자문서입니다.",
+            "2. 완전한 법적 효력을 위해서는 다음 요건이 추가로 필요합니다:",
+            "   - 전자서명법에 따른 공인인증서 기반 전자서명",
+            "   - 공인된 타임스탬프 기관(TSA)의 시각 인증",
+            "   - 문서 무결성 보장을 위한 해시체인 구현",
+            "3. 현재 문서는 내부 업무용 전자결재 기록으로 활용 가능합니다.",
+            "4. 대외적 법적 효력이 필요한 경우 별도 법적 검토가 필요합니다.",
+            "5. 본 시스템은 전자문서 보관 및 이력 관리 기능을 제공합니다."
+        ]
+        
+        for notice in legal_notice:
+            story.append(Paragraph(notice, content_style))
+            story.append(Spacer(1, 0.1*inch))
+        
+        # 문서 생성 정보
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("■ 문서 생성 정보", subsection_style))
+        story.append(Paragraph(f"생성일시: {utc_to_kst_naive(get_utc_now_naive()).strftime('%Y년 %m월 %d일 %H시 %M분 %S초')}", footer_style))
+        story.append(Paragraph(f"생성시스템: 전자결재시스템 v2.0", footer_style))
+        story.append(Paragraph(f"문서ID: {request_id}", footer_style))
+        
+        # PDF 빌드
+        doc.build(story)
+        
+        # PDF 바이트 반환
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        return pdf_bytes
 
     def _html_to_plain_text(self, html_content: str) -> str:
         """HTML을 일반 텍스트로 변환 (간단한 처리)"""
