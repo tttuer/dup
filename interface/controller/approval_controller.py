@@ -47,6 +47,7 @@ async def create_approval_request(
     approval_lines: Optional[str] = Form(None),  # JSON string
     files: List[UploadFile] = File(default=[]),
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
+    notification_service = Depends(Provide[Container.approval_notification_service]),
 ) -> ApprovalRequest:
     """결재 요청 생성 (파일 업로드 포함)"""
     import json
@@ -70,6 +71,11 @@ async def create_approval_request(
         department_id=department_id,
         files=files,
     )
+
+    # 결재 요청 생성 후 첫 번째 결재자들에게 알림 전송
+    if request.status == DocumentStatus.SUBMITTED:
+        first_step_approvers = [line_data["approver_user_id"] for line_data in parsed_approval_lines if line_data.get("step_order") == 1]
+        await notification_service.notify_new_approval_request(request, first_step_approvers)
 
     return request
 

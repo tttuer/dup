@@ -52,4 +52,5 @@ dependencies = [
     "pytz>=2025.2",
     "webdriver-manager>=4.0.2",
     "playwright>=1.53.0",
+    "reportlab>=4.4.3",
 ]

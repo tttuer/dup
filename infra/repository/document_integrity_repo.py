@@ -21,7 +21,7 @@ class DocumentIntegrityRepository(IDocumentIntegrityRepository):
         """결재 요청 ID로 모든 무결성 기록 조회"""
         return await DocumentIntegrity.find(
             Eq(DocumentIntegrity.request_id, request_id)
-        ).sort(DocumentIntegrity.document_version.asc()).to_list()
+        ).sort(DocumentIntegrity.document_version).to_list()
     
     async def find_latest_by_request_id(self, request_id: str) -> Optional[DocumentIntegrity]:
         """결재 요청 ID로 최신 무결성 기록 조회"""
@@ -41,7 +41,7 @@ class DocumentIntegrityRepository(IDocumentIntegrityRepository):
         """위변조된 문서 목록 조회 (페이징 포함)"""
         query = DocumentIntegrity.find(
             Eq(DocumentIntegrity.is_tampered, True)
-        ).sort(DocumentIntegrity.created_at.desc())
+        ).sort(-DocumentIntegrity.created_at)
         
         # 총 개수 조회
         total = await query.count()
@@ -65,4 +65,4 @@ class DocumentIntegrityRepository(IDocumentIntegrityRepository):
         """결재 요청의 무결성 체인 조회 (버전 순서대로)"""
         return await DocumentIntegrity.find(
             Eq(DocumentIntegrity.request_id, request_id)
-        ).sort(DocumentIntegrity.document_version.asc()).to_list()
+        ).sort(DocumentIntegrity.document_version).to_list()

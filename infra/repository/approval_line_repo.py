@@ -32,7 +32,7 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         return await ApprovalLine.get(line_id)
     
     async def find_by_request_id(self, request_id: str) -> List[ApprovalLine]:
-        lines = await ApprovalLine.find(ApprovalLine.request_id == request_id).sort(+ApprovalLine.step_order).to_list()
+        lines = await ApprovalLine.find(ApprovalLine.request_id == request_id).sort(ApprovalLine.step_order).to_list()
         return lines or []
     
     async def find_by_approver_id(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
@@ -49,11 +49,23 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         return lines or []
     
     async def find_pending_by_approver(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
-        """결재 대기 목록 - 가장 중요한 쿼리이므로 최적화됨"""
+        """결재 대기 목록 - 기존 인터페이스 유지"""
         lines = await ApprovalLine.find(
             ApprovalLine.approver_id == approver_id,
             ApprovalLine.status == ApprovalStatus.PENDING
-        ).sort(+ApprovalLine.step_order).skip(skip).limit(limit).to_list()
+        ).sort(ApprovalLine.step_order).skip(skip).limit(limit).to_list()
+        return lines or []
+        
+    async def find_pending_by_approver_with_filters(self, *filters, sort_field=None, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
+        """결재 대기 목록 - 필터를 받아서 처리"""
+        query = ApprovalLine.find(*filters)
+        
+        if sort_field:
+            query = query.sort(sort_field)
+        else:
+            query = query.sort(ApprovalLine.step_order)  # 기본 정렬
+            
+        lines = await query.skip(skip).limit(limit).to_list()
         return lines or []
     
     async def find_completed_by_approver(self, approver_id: str, skip: int = 0, limit: int = 20) -> List[ApprovalLine]:
@@ -88,7 +100,7 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         
         lines = await ApprovalLine.find(
             In(ApprovalLine.request_id, request_ids)
-        ).sort(+ApprovalLine.step_order).to_list()
+        ).sort(ApprovalLine.step_order).to_list()
         return lines or []
     
     async def bulk_save(self, lines: List[ApprovalLineVo]) -> None:
