@@ -14,6 +14,7 @@ from domain.user import User
 from domain.responses.user_response import UserResponse
 from utils.crypto import Crypto
 from utils.time import get_utc_now_naive
+from utils.slack import send_signup_notification
 
 
 class UserService(BaseService[User]):
@@ -71,6 +72,13 @@ class UserService(BaseService[User]):
         )
 
         await self.user_repo.save(user)
+
+        # 슬랙 알림 전송
+        try:
+            await send_signup_notification(user_id, name)
+        except Exception as e:
+            # 슬랙 알림 실패해도 회원가입은 성공 처리
+            pass
 
         # 회원가입 시 pending 수 업데이트 브로드캐스트
         await self._broadcast_pending_count()

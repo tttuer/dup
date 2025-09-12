@@ -18,7 +18,7 @@ voucher_service = container.voucher_service()  # DI로 받은 서비스 인스�
 
 async def crawl_and_save_job():
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    send_slack_message(f"🌀 [{now}] 전표 스케줄 작업 시작")
+    await send_slack_message(f"🌀 [{now}] 전표 스케줄 작업 시작")
 
     year = datetime.datetime.now().year
     wehago_id = settings.wehago_id
@@ -30,11 +30,11 @@ async def crawl_and_save_job():
             wehago_id=wehago_id,
             wehago_password=wehago_password,
         )
-        send_slack_message(
+        await send_slack_message(
             f"✅ 전표 수집 및 저장 성공 ({len(vouchers)}건)"
         )
     except Exception as e:
-        send_slack_message(f"❌ 전표 수집 실패: {e}")
+        await send_slack_message(f"❌ 전표 수집 실패: {e}")
 
 
 def start_scheduler():
