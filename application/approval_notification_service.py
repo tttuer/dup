@@ -32,7 +32,10 @@ class ApprovalNotificationService:
                 "timestamp": get_kst_now().isoformat()
             }
         }
-        await self.websocket_manager.send_to_user(user_id, message)
+        success = await self.websocket_manager.send_to_user(user_id, message)
+        if not success:
+            # 로그는 websocket_manager에서 이미 기록됨
+            pass
 
     async def notify_new_approval_request(self, request: ApprovalRequest, approvers: List[str]):
         """새로운 결재 요청을 결재자들에게 알림"""

@@ -128,9 +128,53 @@ class ApprovalLineRepository(BaseRepository[ApprovalLine], IApprovalLineReposito
         await ApprovalLine.insert_many(db_lines)
 
     async def find_pending_count_by_approver(self, approver_id: str) -> int:
-        count = await ApprovalLine.find(
+        """실제 결재 가능한 대기 건수를 효율적으로 계산"""
+        # 1. 결재자의 모든 PENDING 결재선 조회 (1번의 DB 호출)
+        pending_lines = await ApprovalLine.find(
             ApprovalLine.approver_id == approver_id,
             ApprovalLine.status == ApprovalStatus.PENDING
-        ).count()
-        logger.debug(f"Pending count for approver {approver_id}: {count}")
-        return count
+        ).to_list()
+        
+        if not pending_lines:
+            return 0
+        
+        # 2. 관련된 모든 request_id의 결재선을 한번에 조회 (1번의 DB 호출)
+        request_ids = list(set(line.request_id for line in pending_lines))
+        all_lines = await ApprovalLine.find(
+            In(ApprovalLine.request_id, request_ids)
+        ).sort(ApprovalLine.step_order).to_list()
+        
+        # 3. 메모리에서 그룹화 및 계산 (DB 호출 없음)
+        from collections import defaultdict
+        lines_by_request = defaultdict(list)
+        for line in all_lines:
+            lines_by_request[line.request_id].append(line)
+        
+        # 4. 각 요청서별로 실제 결재 가능한지 확인
+        actual_count = 0
+        for request_id in request_ids:
+            request_lines = lines_by_request[request_id]
+            
+            # 내 결재선 찾기
+            my_line = next((line for line in request_lines if line.approver_id == approver_id), None)
+            if not my_line:
+                continue
+            
+            # 반려된 결재선이 있는지 확인
+            has_rejected = any(line.status == ApprovalStatus.REJECTED for line in request_lines)
+            if has_rejected:
+                continue
+            
+            # 이전 단계가 모두 완료되었는지 확인
+            can_approve = True
+            for line in request_lines:
+                if (line.step_order < my_line.step_order and 
+                    line.status == ApprovalStatus.PENDING):
+                    can_approve = False
+                    break
+            
+            if can_approve:
+                actual_count += 1
+        
+        logger.debug(f"Actual pending count for approver {approver_id}: {actual_count}")
+        return actual_count
