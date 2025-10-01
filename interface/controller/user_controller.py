@@ -93,14 +93,14 @@ async def login(
         form_data.username, form_data.password
     )
 
-    # Refresh Token을 쿠키에 설정
+    # Refresh Token을 쿠키에 설정 (1년)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         secure=True,  # 로컬 테스트 중이면 False
         samesite="lax",
-        max_age=60 * 60 * 24 * 7,
+        max_age=60 * 60 * 24 * 365,  # 1년
         path="/",
     )
     return {"access_token": access_token, "token_type": "bearer"}
@@ -133,6 +133,7 @@ async def find(
 @inject
 async def refresh_token(
     request: Request,
+    response: Response,
     user_service: UserService = Depends(Provide[Container.user_service]),
 ):
     user_id = get_user_id_from_refresh_token(request)
@@ -142,6 +143,20 @@ async def refresh_token(
     new_access_token = create_access_token(
         payload={"user_id": user_id},
         roles=roles,
+    )
+
+    # 새로운 리프레시 토큰 생성
+    new_refresh_token = await user_service.get_refresh_token(user_id)
+
+    # 새로운 리프레시 토큰을 쿠키에 설정 (1년)
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 365,  # 1년
+        path="/",
     )
 
     return {"access_token": new_access_token, "token_type": "bearer"}

@@ -73,7 +73,7 @@ def decode_token(token: str):
 def create_access_token(
     payload: dict,
     roles: list[Role],
-    expires_delta: timedelta = timedelta(hours=3),
+    expires_delta: timedelta = timedelta(hours=1),
 ):
     expire = get_kst_now() + expires_delta
     payload.update({"exp": expire, "roles": roles})
@@ -84,7 +84,7 @@ def create_access_token(
 
 
 def create_refresh_token(
-    payload: dict, expires_delta: timedelta = timedelta(hours=12)
+    payload: dict, expires_delta: timedelta = timedelta(days=365)
 ) -> str:
     data = payload.copy()
     data["exp"] = get_kst_now() + expires_delta
