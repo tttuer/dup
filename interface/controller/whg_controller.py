@@ -29,7 +29,7 @@ router = APIRouter(prefix="/vouchers", tags=["voucher"])
 class SyncRequest(BaseModel):
     wehago_id: str
     wehago_password: str
-    month: int
+    month: int = None
     year: int = datetime.now().year
     company: Company = Company.BAEKSUNG
 
