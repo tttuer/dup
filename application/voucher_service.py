@@ -1,19 +1,18 @@
-from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 
 from beanie.operators import And, RegEx, In
 from dependency_injector.wiring import inject
 from fastapi import UploadFile
 from ulid import ULID
 
-from domain.voucher import Company, SearchOption, VoucherFile
-from domain.repository.voucher_repo import IVoucherRepository
-from infra.db_models.voucher import Voucher as VoucherDocument
-from domain.responses.voucher_response import VoucherResponse
-from utils.pdf import Pdf
-from utils.whg import Whg
 from common.exceptions import ValidationError
+from domain.repository.voucher_repo import IVoucherRepository
+from domain.responses.voucher_response import VoucherResponse
+from domain.voucher import Company, SearchOption, VoucherFile
+from infra.db_models.voucher import Voucher as VoucherDocument
+from utils.pdf import Pdf
 from utils.time import get_utc_now_naive
+from utils.whg import Whg
 
 
 class VoucherService:
@@ -25,20 +24,28 @@ class VoucherService:
     async def sync(
         self,
         year: int,
+        month: int = None,
         company: Company = Company.BAEKSUNG,
         wehago_id: str = None,
         wehago_password: str = None,
     ):
         # 🚀 async 크롤링 직접 실행 (병렬 처리)
-        vouchers = await Whg().crawl_whg(company, year, wehago_id, wehago_password)
+        vouchers = await Whg().crawl_whg(company, year, month, wehago_id, wehago_password)
 
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
 
         # 4. 기존 DB에 저장된 ID 목록 조회
-        existing_vouchers = await self.voucher_repo.find_by_company_and_year(
-            company, year
-        )
+        if month is None:
+            # month가 None이면 연도 전체 조회
+            existing_vouchers = await self.voucher_repo.find_by_company_and_year(
+                company, year
+            )
+        else:
+            # month가 있으면 해당 월만 조회
+            existing_vouchers = await self.voucher_repo.find_by_company_year_and_month(
+                company, year, month
+            )
         existing_ids = {v.id for v in existing_vouchers}
 
         # 5. 삭제 대상 ID 찾기 (기존에는 있었는데, 새로는 없음)
