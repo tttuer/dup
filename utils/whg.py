@@ -1,13 +1,15 @@
-from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
-import json
+import asyncio
 import gzip
 import io
-import asyncio
-from utils.logger import logger
-from domain.voucher import Voucher
+import json
 from datetime import datetime
-from domain.voucher import Company
+
+from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
+
 from common.exceptions import CrawlingError, LoginError
+from domain.voucher import Company
+from domain.voucher import Voucher
+from utils.logger import logger
 
 company_cnos = {
     Company.BAEKSUNG: {
@@ -37,7 +39,7 @@ class Whg:
         config = company_configs[company]
         return config["gisu"] - (config["year"] - year)
 
-    async def crawl_whg(self, company: Company, year: int, wehago_id: str, wehago_password: str):
+    async def crawl_whg(self, company: Company, year: int, month: int, wehago_id: str, wehago_password: str):
         """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -77,7 +79,7 @@ class Whg:
                 # 2. 각 회사별로 병렬 처리
                 tasks = []
                 for company_enum_member in Company:
-                    task = self._extract_company_data_parallel(context, company_enum_member, year)
+                    task = self._extract_company_data_parallel(context, company_enum_member, year, month)
                     tasks.append(task)
                 
                 # 3. 모든 회사 데이터를 동시에 가져오기
@@ -116,7 +118,7 @@ class Whg:
                 await browser.close()
 
     
-    async def _extract_company_data_parallel(self, context, company: Company, year: int):
+    async def _extract_company_data_parallel(self, context, company: Company, year: int, month: int):
         """각 회사별 데이터를 별도 탭에서 처리"""
         try:
             # 새 탭 생성 (컨텍스트 공유로 세션 보장)
@@ -124,7 +126,7 @@ class Whg:
             await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
             
             # 바로 전표 데이터 추출 (로그인은 이미 메인 탭에서 완료됨)
-            vouchers = await self._extract_voucher_data(page, company, year)
+            vouchers = await self._extract_voucher_data(page, company, year, month)
             
             await page.close()
             return vouchers, company
@@ -215,10 +217,10 @@ class Whg:
             return False
     
     
-    async def _extract_voucher_data(self, page: Page, company: Company, year: int) -> list:
+    async def _extract_voucher_data(self, page: Page, company: Company, year: int, month: int) -> list:
         """전표 데이터 추출 로직"""
         await self._navigate_to_voucher_page(page, company, year)
-        return await self._extract_monthly_vouchers(page, year, company)
+        return await self._extract_monthly_vouchers(page, year, month, company)
     
     async def _navigate_to_voucher_page(self, page: Page, company: Company, year: int):
         """전표 페이지로 직접 URL 이동"""
@@ -268,10 +270,10 @@ class Whg:
         return url
     
 
-    async def _extract_monthly_vouchers(self, page: Page, year: int, company: Company) -> list:
+    async def _extract_monthly_vouchers(self, page: Page, year: int, month: int, company: Company) -> list:
         """월별 데이터 추출"""
         all_vouchers = []
-        months = [f"{i:02d}" for i in range(1, 13)]
+        months = [f"{i:02d}" for i in range(1, 13)] if month is None else [f"{month:02d}"]
         current_month_str = datetime.now().strftime("%m")
         current_year_str = datetime.now().strftime("%Y")
 

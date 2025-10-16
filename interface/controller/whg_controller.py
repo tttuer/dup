@@ -1,26 +1,25 @@
 import json
-from fastapi import APIRouter, Depends
-from dependency_injector.wiring import inject, Provide
-from redis.asyncio import Redis
-from application.sync_service import SyncService
-from application.websocket_manager import WebSocketManager
-from common.auth import CurrentUser
-from containers import Container
+from datetime import datetime
+from itertools import zip_longest
 from typing import Annotated
-from common.auth import get_current_user
-from application.voucher_service import VoucherService
-from domain.voucher import Company, VoucherFile
-from domain.responses.voucher_response import VoucherResponse
+from typing import Optional, List
+
+from dependency_injector.wiring import inject, Provide
+from fastapi import APIRouter, Depends
+from fastapi import File
+from fastapi import Form
 from fastapi import UploadFile
 from pydantic import BaseModel
-import zlib
-import base64
-from typing import Optional, List
-from fastapi import Form
-from datetime import datetime
+from redis.asyncio import Redis
+
+from application.sync_service import SyncService
+from application.voucher_service import VoucherService
+from common.auth import CurrentUser
+from common.auth import get_current_user
 from common.exceptions import InternalServerError
-from itertools import zip_longest
-from fastapi import File
+from containers import Container
+from domain.responses.voucher_response import VoucherResponse
+from domain.voucher import Company
 
 router = APIRouter(prefix="/vouchers", tags=["voucher"])
 
@@ -30,6 +29,7 @@ router = APIRouter(prefix="/vouchers", tags=["voucher"])
 class SyncRequest(BaseModel):
     wehago_id: str
     wehago_password: str
+    month: int
     year: int = datetime.now().year
     company: Company = Company.BAEKSUNG
 
@@ -51,6 +51,7 @@ async def sync_whg(
         await voucher_service.sync(
             company=sync_request.company,
             year=sync_request.year,
+            month=sync_request.month,
             wehago_id=sync_request.wehago_id,
             wehago_password=sync_request.wehago_password,
         )
