@@ -43,7 +43,6 @@ class Whg:
         """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
-                channel="chrome",
                 headless=True,
                 args=[
                     "--no-sandbox",                    # K3s에서 필수
