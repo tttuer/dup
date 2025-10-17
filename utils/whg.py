@@ -230,7 +230,7 @@ class Whg:
         
         logger.info(f"전표 페이지로 이동: {sao_url}")
         await page.goto(sao_url, wait_until="domcontentloaded")
-        await page.reload()
+        # await page.reload()
 
         try:
             await page.locator(".WSC_LUXMonthPicker").wait_for(state="visible", timeout=15000)
