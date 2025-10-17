@@ -31,8 +31,6 @@ COPY . .
 RUN rm -rf /ms-playwright/firefox-* && \
     rm -rf /ms-playwright/webkit-* \
 
-RUN playwright install chrome
-
 # 가상 환경의 경로를 PATH에 추가
 ENV PATH="/app/.venv/bin:$PATH"
 
