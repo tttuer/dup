@@ -35,4 +35,4 @@ RUN rm -rf /ms-playwright/firefox-* && \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # FastAPI 실행
-CMD ["/bin/bash", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
