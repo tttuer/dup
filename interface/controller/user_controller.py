@@ -103,7 +103,7 @@ async def login(
         max_age=60 * 60 * 24 * 365,  # 1년
         path="/",
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "refresh_token": refresh_token}
 
 
 @router.get("/me")
@@ -155,11 +155,11 @@ async def refresh_token(
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=60 * 60 * 24 * 365,  # 1년
+        max_age=60 * 60 * 24 * 365,  # 1년  
         path="/",
     )
 
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    return {"access_token": new_access_token, "token_type": "bearer", "refresh_token": new_refresh_token}
 
 
 @router.post("/logout")
