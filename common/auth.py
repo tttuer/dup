@@ -92,7 +92,7 @@ def create_refresh_token(
 
 
 def get_user_id_from_refresh_token(request: Request) -> str:
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get("refresh_token") or request.headers.get('refresh_token')
 
     if not refresh_token:
         raise AuthenticationError("리프레시 토큰이 없습니다")
