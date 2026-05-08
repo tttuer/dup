@@ -23,6 +23,7 @@ from infra.repository.approval_favorite_group_repo import ApprovalFavoriteGroupR
 from infra.repository.approval_history_repo import ApprovalHistoryRepository
 from infra.repository.attached_file_repo import AttachedFileRepository
 from infra.repository.document_integrity_repo import DocumentIntegrityRepository
+from infra.repository.wiki_repo import WikiRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
 from application.approval_notification_service import ApprovalNotificationService
@@ -146,3 +147,6 @@ class Container(containers.DeclarativeContainer):
     )
 
     sync_service = providers.Factory(SyncService, redis=redis)
+
+    wiki_repo = providers.Factory(WikiRepository)
+    wiki_service = providers.Factory(WikiService, wiki_repo=wiki_repo)
