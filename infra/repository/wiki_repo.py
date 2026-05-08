@@ -1,3 +1,4 @@
+from common.exceptions import ValidationError
 from typing import List
 from beanie.operators import And
 from domain.wiki import WikiPage as WikiPageVo, WikiImage as WikiImageVo
