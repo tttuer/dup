@@ -32,14 +32,23 @@ class WikiService:
         )
         return await self.wiki_repo.save_page(page)
 
-    async def update_page(self, page_id: str, title: str, content: str, parent_id: str = None) -> WikiPage:
+    async def update_page(self, page_id: str, title: str, content: str, parent_id: str = None, is_personal: bool = False) -> WikiPage:
         page = await self.wiki_repo.get_page(page_id)
+        
+        space_changed = page.is_personal != is_personal
+        
         page.title = title
         page.content = content
         page.parent_id = parent_id
+        page.is_personal = is_personal
         page.updated_at = get_utc_now_naive()
         
-        return await self.wiki_repo.update_page(page)
+        updated_page = await self.wiki_repo.update_page(page)
+        
+        if space_changed:
+            await self.wiki_repo.update_descendants_space(page_id, is_personal)
+            
+        return updated_page
 
     async def get_page(self, page_id: str) -> WikiPage:
         return await self.wiki_repo.get_page(page_id)

@@ -28,6 +28,7 @@ class WikiRepository(IWikiRepository):
         db_page.title = page.title
         db_page.content = page.content
         db_page.parent_id = page.parent_id
+        db_page.is_personal = page.is_personal
         db_page.updated_at = page.updated_at
         
         await db_page.save()
@@ -43,9 +44,21 @@ class WikiRepository(IWikiRepository):
         return WikiPageVo(**dump)
 
     async def delete_page(self, page_id: str):
+        children_count = await WikiPage.find(WikiPage.parent_id == page_id).count()
+        if children_count > 0:
+            raise ValidationError("Cannot delete a page that has child pages.")
+            
         db_page = await WikiPage.get(page_id)
         if db_page:
             await db_page.delete()
+
+    async def update_descendants_space(self, parent_id: str, is_personal: bool):
+        children = await WikiPage.find(WikiPage.parent_id == parent_id).to_list()
+        for child in children:
+            if child.is_personal != is_personal:
+                child.is_personal = is_personal
+                await child.save()
+                await self.update_descendants_space(child.id, is_personal)
 
     async def get_public_pages(self) -> List[WikiPageVo]:
         db_pages = await WikiPage.find(WikiPage.is_personal == False).to_list()
