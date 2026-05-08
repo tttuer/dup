@@ -62,7 +62,7 @@ async def get_page(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
-    return await wiki_service.get_page(page_id)
+    return await wiki_service.get_page(page_id, current_user.id)
 
 @router.put("/{page_id}")
 @inject
@@ -76,6 +76,7 @@ async def update_page(
         page_id=page_id,
         title=req.title,
         content=req.content,
+        user_id=current_user.id,
         parent_id=req.parent_id,
         is_personal=req.is_personal
     )
@@ -87,7 +88,7 @@ async def delete_page(
     page_id: str,
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
-    await wiki_service.delete_page(page_id)
+    await wiki_service.delete_page(page_id, current_user.id)
     return {"message": "deleted"}
 
 @router.post("/upload")

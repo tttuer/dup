@@ -3,7 +3,7 @@ from ulid import ULID
 from domain.repository.wiki_repo import IWikiRepository
 from domain.wiki import WikiPage, WikiImage
 from utils.time import get_utc_now_naive
-from common.exceptions import ValidationError
+from common.exceptions import ValidationError, PermissionError
 
 class WikiService:
     def __init__(self, wiki_repo: IWikiRepository):
@@ -32,8 +32,13 @@ class WikiService:
         )
         return await self.wiki_repo.save_page(page)
 
-    async def update_page(self, page_id: str, title: str, content: str, parent_id: str = None, is_personal: bool = False) -> WikiPage:
+    def _check_permission(self, page: WikiPage, user_id: str):
+        if page.is_personal and page.author_id != user_id:
+            raise PermissionError("해당 개인 문서에 접근할 권한이 없습니다.")
+
+    async def update_page(self, page_id: str, title: str, content: str, user_id: str, parent_id: str = None, is_personal: bool = False) -> WikiPage:
         page = await self.wiki_repo.get_page(page_id)
+        self._check_permission(page, user_id)
         
         space_changed = page.is_personal != is_personal
         
@@ -50,10 +55,14 @@ class WikiService:
             
         return updated_page
 
-    async def get_page(self, page_id: str) -> WikiPage:
-        return await self.wiki_repo.get_page(page_id)
+    async def get_page(self, page_id: str, user_id: str) -> WikiPage:
+        page = await self.wiki_repo.get_page(page_id)
+        self._check_permission(page, user_id)
+        return page
 
-    async def delete_page(self, page_id: str):
+    async def delete_page(self, page_id: str, user_id: str):
+        page = await self.wiki_repo.get_page(page_id)
+        self._check_permission(page, user_id)
         await self.wiki_repo.delete_page(page_id)
 
     async def upload_image(self, file: UploadFile) -> WikiImage:
