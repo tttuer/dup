@@ -1,3 +1,4 @@
+from application.wiki_service import WikiService
 from dependency_injector import containers, providers
 from redis.asyncio import Redis
 

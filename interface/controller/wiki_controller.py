@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from dependency_injector.wiring import inject, Provide
 from containers import Container
 from application.wiki_service import WikiService
-from middleware import get_current_user
-from domain.user import User
+from common.auth import get_current_user, CurrentUser
+from typing import Annotated
 
 router = APIRouter(prefix="/wiki", tags=["wiki"])
 
@@ -24,8 +24,8 @@ class PageUpdateRequest(BaseModel):
 @router.get("/tree")
 @inject
 async def get_wiki_tree(
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     pages = await wiki_service.get_tree()
     return pages
@@ -33,8 +33,8 @@ async def get_wiki_tree(
 @router.get("/personal")
 @inject
 async def get_personal_tree(
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     pages = await wiki_service.get_personal_tree(current_user.id)
     return pages
@@ -43,8 +43,8 @@ async def get_personal_tree(
 @inject
 async def create_page(
     req: PageCreateRequest,
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     return await wiki_service.create_page(
         title=req.title,
@@ -58,8 +58,8 @@ async def create_page(
 @inject
 async def get_page(
     page_id: str,
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     return await wiki_service.get_page(page_id)
 
@@ -68,8 +68,8 @@ async def get_page(
 async def update_page(
     page_id: str,
     req: PageUpdateRequest,
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     return await wiki_service.update_page(
         page_id=page_id,
@@ -82,8 +82,8 @@ async def update_page(
 @inject
 async def delete_page(
     page_id: str,
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     await wiki_service.delete_page(page_id)
     return {"message": "deleted"}
@@ -91,9 +91,9 @@ async def delete_page(
 @router.post("/upload")
 @inject
 async def upload_image(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
     file: UploadFile = FastAPIFile(...),
-    wiki_service: WikiService = Depends(Provide[Container.wiki_service]),
-    current_user: User = Depends(get_current_user)
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     image = await wiki_service.upload_image(file)
     return {"id": image.id, "url": f"/api/wiki/images/{image.id}"}
