@@ -20,6 +20,7 @@ class PageUpdateRequest(BaseModel):
     title: str
     content: str
     parent_id: Optional[str] = None
+    is_personal: bool
 
 @router.get("/tree")
 @inject
@@ -75,14 +76,15 @@ async def update_page(
         page_id=page_id,
         title=req.title,
         content=req.content,
-        parent_id=req.parent_id
+        parent_id=req.parent_id,
+        is_personal=req.is_personal
     )
 
 @router.delete("/{page_id}")
 @inject
 async def delete_page(
-    page_id: str,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    page_id: str,
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     await wiki_service.delete_page(page_id)

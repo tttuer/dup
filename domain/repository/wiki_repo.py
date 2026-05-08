@@ -19,6 +19,10 @@ class IWikiRepository(ABC):
         pass
 
     @abstractmethod
+    async def update_descendants_space(self, parent_id: str, is_personal: bool):
+        pass
+
+    @abstractmethod
     async def get_public_pages(self) -> list[WikiPage]:
         pass
 
