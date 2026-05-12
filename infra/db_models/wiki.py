@@ -10,6 +10,8 @@ class WikiPage(Document):
     parent_id: Optional[str] = None
     author_id: str
     is_personal: bool = False
+    attachments: list[dict] = Field(default_factory=list)
+    order: int = 0
     created_at: datetime
     updated_at: datetime
 

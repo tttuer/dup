@@ -31,6 +31,10 @@ class IWikiRepository(ABC):
         pass
 
     @abstractmethod
+    async def reorder_pages(self, items: list) -> None:
+        pass
+
+    @abstractmethod
     async def save_image(self, image: WikiImage) -> WikiImage:
         pass
 
