@@ -7,6 +7,7 @@ from containers import Container
 from application.wiki_service import WikiService
 from common.auth import get_current_user, CurrentUser
 from typing import Annotated
+from domain.wiki import PageReorderItem
 
 router = APIRouter(prefix="/wiki", tags=["wiki"])
 
@@ -15,12 +16,17 @@ class PageCreateRequest(BaseModel):
     content: str
     parent_id: Optional[str] = None
     is_personal: bool = False
+    attachments: list[dict] = []
 
 class PageUpdateRequest(BaseModel):
     title: str
     content: str
     parent_id: Optional[str] = None
     is_personal: bool
+    attachments: list[dict] = []
+
+class PageReorderRequest(BaseModel):
+    items: list[PageReorderItem]
 
 @router.get("/tree")
 @inject
@@ -40,6 +46,16 @@ async def get_personal_tree(
     pages = await wiki_service.get_personal_tree(current_user.id)
     return pages
 
+@router.put("/reorder")
+@inject
+async def reorder_pages(
+    req: PageReorderRequest,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
+):
+    await wiki_service.reorder_pages(req.items, current_user.id)
+    return {"message": "Reordered successfully"}
+
 @router.post("")
 @inject
 async def create_page(
@@ -52,7 +68,8 @@ async def create_page(
         content=req.content,
         author_id=current_user.id,
         is_personal=req.is_personal,
-        parent_id=req.parent_id
+        parent_id=req.parent_id,
+        attachments=req.attachments
     )
 
 @router.get("/{page_id}")
@@ -78,7 +95,8 @@ async def update_page(
         content=req.content,
         user_id=current_user.id,
         parent_id=req.parent_id,
-        is_personal=req.is_personal
+        is_personal=req.is_personal,
+        attachments=req.attachments
     )
 
 @router.delete("/{page_id}")
@@ -109,3 +127,30 @@ async def get_image(
 ):
     image = await wiki_service.get_image(image_id)
     return Response(content=image.file_data, media_type=image.content_type)
+
+@router.post("/attachments/upload")
+@inject
+async def upload_attachment(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    file: UploadFile = FastAPIFile(...),
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
+):
+    image = await wiki_service.upload_image(file)
+    return {
+        "id": image.id, 
+        "url": f"/api/wiki/attachments/{image.id}", 
+        "file_name": file.filename, 
+        "size": file.size if hasattr(file, "size") else 0
+    }
+
+@router.get("/attachments/{file_id}")
+@inject
+async def get_attachment(
+    file_id: str,
+    wiki_service: WikiService = Depends(Provide[Container.wiki_service])
+):
+    image = await wiki_service.get_image(file_id)
+    import urllib.parse
+    encoded_name = urllib.parse.quote(image.file_name)
+    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"}
+    return Response(content=image.file_data, media_type=image.content_type, headers=headers)

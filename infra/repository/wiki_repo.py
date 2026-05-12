@@ -1,7 +1,7 @@
 from common.exceptions import ValidationError
 from typing import List
 from beanie.operators import And
-from domain.wiki import WikiPage as WikiPageVo, WikiImage as WikiImageVo
+from domain.wiki import WikiPage as WikiPageVo, WikiImage as WikiImageVo, PageReorderItem
 from infra.db_models.wiki import WikiPage, WikiImage
 from domain.repository.wiki_repo import IWikiRepository
 from common.exceptions import NotFoundError
@@ -15,6 +15,8 @@ class WikiRepository(IWikiRepository):
             parent_id=page.parent_id,
             author_id=page.author_id,
             is_personal=page.is_personal,
+            attachments=page.attachments,
+            order=page.order,
             created_at=page.created_at,
             updated_at=page.updated_at
         )
@@ -30,6 +32,8 @@ class WikiRepository(IWikiRepository):
         db_page.content = page.content
         db_page.parent_id = page.parent_id
         db_page.is_personal = page.is_personal
+        db_page.attachments = page.attachments
+        db_page.order = page.order
         db_page.updated_at = page.updated_at
         
         await db_page.save()
@@ -62,7 +66,7 @@ class WikiRepository(IWikiRepository):
                 await self.update_descendants_space(child.id, is_personal)
 
     async def get_public_pages(self) -> List[WikiPageVo]:
-        db_pages = await WikiPage.find(WikiPage.is_personal == False).to_list()
+        db_pages = await WikiPage.find(WikiPage.is_personal == False).sort(+WikiPage.order).to_list()
         result = []
         for p in db_pages:
             dump = p.model_dump(by_alias=True)
@@ -73,13 +77,21 @@ class WikiRepository(IWikiRepository):
     async def get_personal_pages(self, author_id: str) -> List[WikiPageVo]:
         db_pages = await WikiPage.find(
             And(WikiPage.is_personal == True, WikiPage.author_id == author_id)
-        ).to_list()
+        ).sort(+WikiPage.order).to_list()
         result = []
         for p in db_pages:
             dump = p.model_dump(by_alias=True)
             dump["id"] = dump.pop("_id")
             result.append(WikiPageVo(**dump))
         return result
+
+    async def reorder_pages(self, items: List[PageReorderItem]):
+        for item in items:
+            page = await WikiPage.get(item.id)
+            if page:
+                page.order = item.order
+                page.parent_id = item.parent_id
+                await page.save()
 
     async def save_image(self, image: WikiImageVo) -> WikiImageVo:
         db_image = WikiImage(

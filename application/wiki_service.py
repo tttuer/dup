@@ -18,7 +18,7 @@ class WikiService:
         # Return personal pages for the user
         return await self.wiki_repo.get_personal_pages(user_id)
 
-    async def create_page(self, title: str, content: str, author_id: str, is_personal: bool = False, parent_id: str = None) -> WikiPage:
+    async def create_page(self, title: str, content: str, author_id: str, is_personal: bool = False, parent_id: str = None, attachments: list[dict] = None) -> WikiPage:
         now = get_utc_now_naive()
         page = WikiPage(
             id=self.ulid.generate(),
@@ -27,6 +27,7 @@ class WikiService:
             parent_id=parent_id,
             author_id=author_id,
             is_personal=is_personal,
+            attachments=attachments or [],
             created_at=now,
             updated_at=now
         )
@@ -36,7 +37,7 @@ class WikiService:
         if page.is_personal and page.author_id != user_id:
             raise PermissionError("해당 개인 문서에 접근할 권한이 없습니다.")
 
-    async def update_page(self, page_id: str, title: str, content: str, user_id: str, parent_id: str = None, is_personal: bool = False) -> WikiPage:
+    async def update_page(self, page_id: str, title: str, content: str, user_id: str, parent_id: str = None, is_personal: bool = False, attachments: list[dict] = None) -> WikiPage:
         page = await self.wiki_repo.get_page(page_id)
         self._check_permission(page, user_id)
         
@@ -46,6 +47,7 @@ class WikiService:
         page.content = content
         page.parent_id = parent_id
         page.is_personal = is_personal
+        page.attachments = attachments or []
         page.updated_at = get_utc_now_naive()
         
         updated_page = await self.wiki_repo.update_page(page)
@@ -64,6 +66,9 @@ class WikiService:
         page = await self.wiki_repo.get_page(page_id)
         self._check_permission(page, user_id)
         await self.wiki_repo.delete_page(page_id)
+
+    async def reorder_pages(self, items: list, user_id: str):
+        await self.wiki_repo.reorder_pages(items)
 
     async def upload_image(self, file: UploadFile) -> WikiImage:
         file_data = await file.read()
