@@ -80,6 +80,11 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     title = self.validate_required_field(title, "Title")
                     content = self.validate_required_field(content, "Content")
 
+                    # 파일 사전 검증
+                    for file in files:
+                        if file.filename:
+                            await self.file_service._validate_file(file)
+
                     # 문서번호 생성
                     document_number = await self._generate_document_number(template)
 
@@ -229,6 +234,11 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     title = self.validate_required_field(title, "Title")
                     content = self.validate_required_field(content, "Content")
 
+                    # 파일 사전 검증
+                    for file in files:
+                        if file.filename:
+                            await self.file_service._validate_file(file)
+
                     # 기본 필드 업데이트
                     request.title = title
                     request.content = content
@@ -246,7 +256,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
                     
                     # 파일 삭제
                     for file_id in deleted_file_ids:
-                        await self.file_service.delete_file(file_id)
+                        await self.file_service.delete_file(file_id, requester_id)
                     
                     # 파일 업로드
                     for file in files:
@@ -275,9 +285,9 @@ class ApprovalService(BaseService[ApprovalRequest]):
             async with session.start_transaction():
                 try:
                     # 파일 삭제
-                    attached_files = await self.file_service.get_files(request_id)
+                    attached_files = await self.file_service.get_files(request_id, requester_id)
                     for file in attached_files:
-                        await self.file_service.delete_file(file.id)
+                        await self.file_service.delete_file(file.id, requester_id)
 
                     # 결재선 삭제
                     from infra.db_models.approval_line import ApprovalLine as ApprovalLineDoc
@@ -289,7 +299,7 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
                     # 원본 요청서 삭제
                     from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
-                    await ApprovalRequestDoc.find_one({"id": request_id}).delete()
+                    await ApprovalRequestDoc.find(ApprovalRequestDoc.id == request_id).delete()
 
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=f"Failed to delete approval request: {str(e)}")
