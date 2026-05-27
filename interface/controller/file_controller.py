@@ -87,6 +87,7 @@ async def find_files(
     search_option: Optional[str] = None,
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,
+    order: str = Query("desc", description="Sort order by date (asc or desc)"),
     company: Optional[Company] = Company.BAEKSUNG,
     type: Optional[Type] = Type.VOUCHER,
     page: int = 1,
@@ -103,6 +104,7 @@ async def find_files(
         type=type,
         start_at=start_at,
         end_at=end_at,
+        order=order,
         page=page,
         items_per_page=items_per_page,
     )
