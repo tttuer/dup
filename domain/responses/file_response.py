@@ -1,6 +1,7 @@
 import base64
 import zlib
 from datetime import datetime
+from typing import Optional
 from pydantic import field_serializer, model_validator, BaseModel
 from domain.file import Company, Type
 
@@ -42,6 +43,33 @@ class FileResponse(BaseModel):
             created_at=doc.created_at,
             updated_at=doc.updated_at,
             file_data=doc.file_data,
+            file_name=doc.file_name,
+            lock=doc.lock
+        )
+
+class FileListResponse(BaseModel):
+    id: str
+    group_id: str
+    withdrawn_at: str
+    name: str
+    company: Company
+    type: Type
+    created_at: datetime
+    updated_at: datetime
+    file_name: Optional[str] = None
+    lock: bool
+
+    @classmethod
+    def from_document(cls, doc) -> "FileListResponse":
+        return cls(
+            id=doc.id,
+            group_id=doc.group_id,
+            withdrawn_at=doc.withdrawn_at,
+            name=doc.name,
+            company=doc.company,
+            type=doc.type,
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
             file_name=doc.file_name,
             lock=doc.lock
         )
