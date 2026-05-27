@@ -42,17 +42,20 @@ class FileRepository(BaseRepository[File], IFileRepository):
     async def find_many(
         self,
         *filters: Any,
+        order: str = "desc",
         page: int = 1,
         items_per_page: int = 10,
     ) -> tuple[int, list[File]]:
         offset = (page - 1) * items_per_page
 
+        sort_field = "-withdrawn_at" if order == "desc" else "withdrawn_at"
+
         if filters:
-            total_count = await File.find(*filters).sort("withdrawn_at").count()
+            total_count = await File.find(*filters).count()
 
             files = (
                 await File.find(*filters)
-                .sort("withdrawn_at")
+                .sort(sort_field)
                 .skip(offset)
                 .limit(items_per_page)
                 .to_list()
@@ -66,7 +69,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
 
         files = (
             await File.find()
-            .sort("withdrawn_at")
+            .sort(sort_field)
             .skip(offset)
             .limit(items_per_page)
             .to_list()
