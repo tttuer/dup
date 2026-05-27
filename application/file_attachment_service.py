@@ -41,7 +41,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
         self.db = client.dup
         self.fs = AsyncIOMotorGridFSBucket(self.db)
         self.allowed_extensions = {
-            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.xlsb', '.ppt', '.pptx',
             '.txt', '.jpg', '.jpeg', '.png', '.gif', '.zip', '.rar'
         }
 
@@ -115,10 +115,10 @@ class FileAttachmentService(BaseService[AttachedFile]):
         try:
             await self.fs.delete(ObjectId(file.gridfs_file_id))
         except Exception as e:
-            raise InternalServerError(f"GridFS 파일 삭제 실패: {e}")
+            print(f"GridFS 파일 삭제 경고 (무시됨): {e}")
 
         # DB에서 삭제
-        await self.file_repo.delete(file_id)
+        await self.file_repo.delete_by_id(file_id)
 
     async def get_file_info(self, file_id: str, user_id: str) -> AttachedFile:
         file = await self.file_repo.find_by_id(file_id)

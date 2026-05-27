@@ -35,9 +35,6 @@ class AttachedFileRepository(BaseRepository[AttachedFile], IAttachedFileReposito
         files = await AttachedFile.find(AttachedFile.uploaded_by == uploaded_by).sort(-AttachedFile.uploaded_at).to_list()
         return files or []
     
-    async def delete(self, file_id: str) -> None:
-        await self.delete_by_id(file_id)
-    
     async def delete_by_request_id(self, request_id: str) -> None:
         files = await self.find_by_request_id(request_id)
         for file in files:
