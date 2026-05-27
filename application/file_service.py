@@ -12,7 +12,7 @@ from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
 from domain.repository.user_repo import IUserRepository
-from domain.responses.file_response import FileResponse
+from domain.responses.file_response import FileResponse, FileListResponse
 from infra.db_models.file import File as FileDocument
 from utils.pdf import Pdf
 from common.exceptions import ValidationError
@@ -97,8 +97,8 @@ class FileService(BaseService[File]):
 
         total_page = (total_count - 1) // items_per_page + 1
         
-        # Document를 FileResponse로 변환
-        file_responses = [FileResponse.from_document(file) for file in files]
+        # Document를 FileListResponse로 변환
+        file_responses = [FileListResponse.from_document(file) for file in files]
         
         return total_count, total_page, file_responses
     
@@ -180,3 +180,40 @@ class FileService(BaseService[File]):
         updated_file_doc = await self.file_repo.update(file)
 
         return FileResponse.from_document(updated_file_doc)
+
+    async def download_bulk(self, ids: list[str]) -> bytes:
+        import io
+        import zipfile
+        import zlib
+        
+        # Retrieve files
+        files_db = await self.file_repo.find_many(In(FileDocument.id, ids), items_per_page=len(ids))
+        files = files_db[1] if isinstance(files_db, tuple) else files_db
+        
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            name_counts = {}
+            for file in files:
+                if not file.file_name or not file.file_data:
+                    continue
+                
+                name = file.file_name
+                # Handle duplicate names
+                if name in name_counts:
+                    name_counts[name] += 1
+                    ext_idx = name.rfind('.')
+                    if ext_idx > 0:
+                        name = f"{name[:ext_idx]}({name_counts[name]}){name[ext_idx:]}"
+                    else:
+                        name = f"{name}({name_counts[name]})"
+                else:
+                    name_counts[name] = 0
+                
+                try:
+                    file_data = zlib.decompress(file.file_data)
+                except Exception:
+                    file_data = file.file_data
+                    
+                zip_file.writestr(name, file_data)
+                
+        return zip_buffer.getvalue()

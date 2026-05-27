@@ -20,7 +20,8 @@ from common.auth import CurrentUser
 from common.auth import get_current_user
 from containers import Container
 from domain.file import Company, Type
-from domain.responses.file_response import FileResponse
+from fastapi.responses import Response
+from domain.responses.file_response import FileResponse, FileListResponse
 from common.exceptions import ValidationError
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -93,7 +94,7 @@ async def find_files(
     page: int = 1,
     items_per_page: int = 20,
     file_service: FileService = Depends(Provide[Container.file_service]),
-) -> tuple[int, int, list[FileResponse]]:
+) -> tuple[int, int, list[FileListResponse]]:
     return await file_service.find_many(
         is_locked=is_locked,
         roles=current_user.roles,
@@ -128,6 +129,23 @@ async def delete_files(
     file_service: FileService = Depends(Provide[Container.file_service]),
 ):
     await file_service.delete_many(ids)
+
+
+@router.post("/bulk-download")
+@inject
+async def download_bulk_files(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    ids: List[str],
+    file_service: FileService = Depends(Provide[Container.file_service]),
+):
+    zip_bytes = await file_service.download_bulk(ids)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=files.zip"
+        }
+    )
 
 
 @router.put("/{id}")
