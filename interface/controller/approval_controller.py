@@ -277,6 +277,47 @@ async def set_approval_lines(
     )
 
 
+@router.put("/{request_id}")
+@inject
+async def update_approval_request(
+    request_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    title: str = Form(...),
+    content: str = Form(...),
+    template_id: Optional[str] = Form(None),
+    form_data: Optional[str] = Form(None),  # JSON string
+    department_id: Optional[str] = Form(None),
+    approval_lines: Optional[str] = Form(None),  # JSON string
+    deleted_file_ids: Optional[str] = Form(None), # JSON string
+    files: List[UploadFile] = File(default=[]),
+    approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
+) -> ApprovalRequest:
+    """결재 요청 수정 (파일 업로드 포함)"""
+    import json
+
+    parsed_form_data = json.loads(form_data) if form_data else None
+    parsed_approval_lines = json.loads(approval_lines) if approval_lines else None
+    parsed_deleted_file_ids = json.loads(deleted_file_ids) if deleted_file_ids else []
+
+    if not parsed_approval_lines:
+        raise HTTPException(status_code=400, detail="Approval lines are required")
+
+    request = await approval_service.update_approval_request(
+        request_id=request_id,
+        requester_id=current_user.id,
+        title=title,
+        content=content,
+        approval_lines_data=parsed_approval_lines,
+        template_id=template_id,
+        form_data=parsed_form_data,
+        department_id=department_id,
+        files=files,
+        deleted_file_ids=parsed_deleted_file_ids,
+    )
+
+    return request
+
+
 @router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
 @inject
 async def delete_approval_request(
@@ -284,6 +325,5 @@ async def delete_approval_request(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ):
-    """결재 요청 삭제 (임시저장만 가능)"""
-    # 임시저장 상태의 요청만 삭제 가능하도록 서비스 레이어에서 검증
-    await approval_service.cancel_request(request_id, current_user.id)
+    """결재 요청 삭제 (아무도 결재하지 않은 상태만 가능)"""
+    await approval_service.delete_approval_request(request_id, current_user.id)

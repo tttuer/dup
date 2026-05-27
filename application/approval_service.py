@@ -197,6 +197,102 @@ class ApprovalService(BaseService[ApprovalRequest]):
         await self.notification_service.notify_approval_cancelled(request_id)
 
         return result
+
+    async def update_approval_request(
+        self,
+        request_id: str,
+        requester_id: str,
+        title: str,
+        content: str,
+        approval_lines_data: List[Dict[str, Any]],
+        template_id: Optional[str] = None,
+        form_data: Optional[Dict[str, Any]] = None,
+        department_id: Optional[str] = None,
+        files: List[UploadFile] = None,
+        deleted_file_ids: List[str] = None,
+    ) -> ApprovalRequest:
+        files = files or []
+        deleted_file_ids = deleted_file_ids or []
+
+        # 요청서 확인 및 권한 검증
+        request = await self._validate_request_permission(request_id, requester_id)
+        
+        # 수정 가능 여부 체크 (결재선 중 승인/거절이 하나라도 있으면 안 됨)
+        approval_lines = await self.line_repo.find_by_request_id(request_id)
+        if any(line.status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED] for line in approval_lines):
+            raise HTTPException(status_code=400, detail="Cannot update request after approval process has started")
+
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                try:
+                    # 필수 필드 검증
+                    title = self.validate_required_field(title, "Title")
+                    content = self.validate_required_field(content, "Content")
+
+                    # 기본 필드 업데이트
+                    request.title = title
+                    request.content = content
+                    request.template_id = template_id or ""
+                    request.form_data = form_data or {}
+                    request.department_id = department_id
+                    request.updated_at = get_utc_now_naive()
+
+                    await self.approval_repo.update(request)
+
+                    # 기존 결재선 삭제 및 재생성
+                    from infra.db_models.approval_line import ApprovalLine as ApprovalLineDoc
+                    await ApprovalLineDoc.find({"request_id": request_id}).delete()
+                    await self._create_approval_lines_from_data(request_id, approval_lines_data)
+                    
+                    # 파일 삭제
+                    for file_id in deleted_file_ids:
+                        await self.file_service.delete_file(file_id)
+                    
+                    # 파일 업로드
+                    for file in files:
+                        if file.filename:
+                            await self.file_service.upload_file(
+                                request_id=request_id,
+                                file=file,
+                                uploaded_by=requester_id,
+                            )
+                            
+                    return request
+
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to update approval request: {str(e)}")
+
+    async def delete_approval_request(self, request_id: str, requester_id: str) -> None:
+        # 요청서 확인 및 권한 검증
+        request = await self._validate_request_permission(request_id, requester_id)
+        
+        # 삭제 가능 여부 체크 (결재선 중 승인/거절이 하나라도 있으면 안 됨)
+        approval_lines = await self.line_repo.find_by_request_id(request_id)
+        if any(line.status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED] for line in approval_lines):
+            raise HTTPException(status_code=400, detail="Cannot delete request after approval process has started")
+
+        async with await client.start_session() as session:
+            async with session.start_transaction():
+                try:
+                    # 파일 삭제
+                    attached_files = await self.file_service.get_files(request_id)
+                    for file in attached_files:
+                        await self.file_service.delete_file(file.id)
+
+                    # 결재선 삭제
+                    from infra.db_models.approval_line import ApprovalLine as ApprovalLineDoc
+                    await ApprovalLineDoc.find({"request_id": request_id}).delete()
+
+                    # 결재 내역 삭제
+                    from infra.db_models.approval_history import ApprovalHistory as ApprovalHistoryDoc
+                    await ApprovalHistoryDoc.find({"request_id": request_id}).delete()
+
+                    # 원본 요청서 삭제
+                    from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
+                    await ApprovalRequestDoc.find_one({"id": request_id}).delete()
+
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to delete approval request: {str(e)}")
     
     async def get_completed_approvals(
         self, 
