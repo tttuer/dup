@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from application.document_template_service import DocumentTemplateService
 from common.auth import CurrentUser, get_current_user
 from containers import Container
-from domain.document_template import DocumentTemplate, DefaultApprovalStep
+from domain.document_template import DocumentTemplate, DefaultApprovalStep, FormField
 
 router = APIRouter(prefix="/templates", tags=["document-templates"])
 
@@ -16,6 +16,7 @@ class CreateTemplateBody(BaseModel):
     category: str
     description: Optional[str] = None
     document_prefix: Optional[str] = None
+    content_template: Optional[str] = None
     default_approval_steps: List[DefaultApprovalStep] = []
 
 
@@ -24,6 +25,7 @@ class UpdateTemplateBody(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = None
     document_prefix: Optional[str] = None
+    content_template: Optional[str] = None
     default_approval_steps: Optional[List[DefaultApprovalStep]] = None
     is_active: Optional[bool] = None
 
@@ -42,6 +44,7 @@ async def create_template(
         current_user_id=current_user.id,
         description=body.description,
         document_prefix=body.document_prefix,
+        content_template=body.content_template,
         default_approval_steps=body.default_approval_steps,
     )
 
@@ -83,6 +86,7 @@ async def update_template(
         description=body.description,
         category=body.category,
         document_prefix=body.document_prefix,
+        content_template=body.content_template,
         default_approval_steps=body.default_approval_steps,
         is_active=body.is_active,
     )
