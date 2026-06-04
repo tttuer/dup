@@ -17,6 +17,7 @@ class DocumentTemplateRepository(BaseRepository[DocumentTemplate], IDocumentTemp
             description=template.description,
             category=template.category,
             document_prefix=template.document_prefix,
+            content_template=template.content_template,
             default_approval_steps=template.default_approval_steps,
             is_active=template.is_active,
             created_at=template.created_at,
@@ -45,6 +46,7 @@ class DocumentTemplateRepository(BaseRepository[DocumentTemplate], IDocumentTemp
         db_template.description = template.description
         db_template.category = template.category
         db_template.document_prefix = template.document_prefix
+        db_template.content_template = template.content_template
         db_template.default_approval_steps = template.default_approval_steps
         db_template.is_active = template.is_active
         db_template.updated_at = template.updated_at
@@ -52,4 +54,5 @@ class DocumentTemplateRepository(BaseRepository[DocumentTemplate], IDocumentTemp
         return await db_template.save()
     
     async def delete(self, template_id: str) -> None:
-        await self.delete_by_id(template_id)
+        entity = await self.find_by_id_or_raise(template_id)
+        await super().delete(entity)

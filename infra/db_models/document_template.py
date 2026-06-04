@@ -4,7 +4,7 @@ from typing import Optional, List
 from beanie import Document
 from pydantic import Field
 
-from domain.document_template import DefaultApprovalStep
+from domain.document_template import DefaultApprovalStep, FormField
 
 
 class DocumentTemplate(Document):
@@ -13,6 +13,7 @@ class DocumentTemplate(Document):
     description: Optional[str] = Field(default=None)   # 양식 설명
     category: str               # 카테고리 (업무, 지출, 인사 등)
     document_prefix: Optional[str] = Field(default=None)        # 문서번호 프리픽스
+    content_template: Optional[str] = Field(default=None)       # 본문 템플릿 (HTML)
     default_approval_steps: List[DefaultApprovalStep] = Field(default_factory=list)  # 기본 결재선
     is_active: bool = Field(default=True)
     created_at: datetime

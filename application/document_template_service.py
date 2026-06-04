@@ -26,6 +26,8 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         current_user_id: str,
         description: Optional[str] = None,
         document_prefix: Optional[str] = None,
+        content_template: Optional[str] = None,
+        form_fields: Optional[list] = None,
         default_approval_steps: Optional[List[DefaultApprovalStep]] = None,
     ) -> DocumentTemplate:
         # 관리자 권한 확인
@@ -44,6 +46,7 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
             description=description,
             category=category,
             document_prefix=document_prefix,
+            content_template=content_template,
             default_approval_steps=default_approval_steps or [],
             is_active=True,
             created_at=now,
@@ -79,6 +82,8 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
         description: Optional[str] = None,
         category: Optional[str] = None,
         document_prefix: Optional[str] = None,
+        content_template: Optional[str] = None,
+        form_fields: Optional[list] = None,
         default_approval_steps: Optional[List[DefaultApprovalStep]] = None,
         is_active: Optional[bool] = None,
     ) -> DocumentTemplate:
@@ -97,6 +102,8 @@ class DocumentTemplateService(BaseService[DocumentTemplate]):
             template.category = self.validate_required_field(category, "Category")
         if document_prefix is not None:
             template.document_prefix = document_prefix
+        if content_template is not None:
+            template.content_template = content_template
         if default_approval_steps is not None:
             template.default_approval_steps = default_approval_steps
         if is_active is not None:
