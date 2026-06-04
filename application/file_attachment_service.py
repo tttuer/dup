@@ -42,7 +42,8 @@ class FileAttachmentService(BaseService[AttachedFile]):
         self.fs = AsyncIOMotorGridFSBucket(self.db)
         self.allowed_extensions = {
             '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.xlsb', '.ppt', '.pptx',
-            '.txt', '.jpg', '.jpeg', '.png', '.gif', '.zip', '.rar'
+            '.txt', '.jpg', '.jpeg', '.png', '.gif', '.zip', '.rar',
+            '.hwp', '.hwpx'
         }
 
     async def upload_file(
@@ -57,9 +58,12 @@ class FileAttachmentService(BaseService[AttachedFile]):
         if not request:
             raise HTTPException(status_code=404, detail="Approval request not found")
         
-        # 업로드 권한 확인 (기안자만 가능, 단 완료된 후에는 불가)
+        # 업로드 권한 확인 (기안자 또는 결재자)
         if request.requester_id != uploaded_by:
-            raise HTTPException(status_code=403, detail="Only requester can upload files")
+            approval_lines = await self.line_repo.find_by_request_id(request_id)
+            is_approver = any(line.approver_id == uploaded_by for line in approval_lines)
+            if not is_approver:
+                raise HTTPException(status_code=403, detail="Only requester or approver can upload files")
         
         if request.status in [DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.CANCELLED]:
             raise HTTPException(status_code=400, detail="Cannot upload files to completed requests")
