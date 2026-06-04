@@ -189,9 +189,10 @@ async def submit_approval_request(
 @inject
 async def approve_request(
     request_id: str,
-    body: ApproveBody,
     request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    comment: Optional[str] = Form(None),
+    files: List[UploadFile] = File(default=[]),
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> ApprovalRequest:
     """결재 승인"""
@@ -205,8 +206,9 @@ async def approve_request(
     return await approval_service.approve_request(
         request_id=request_id,
         approver_id=current_user.id,
-        comment=body.comment,
+        comment=comment,
         ip_address=client_ip,
+        files=files,
     )
 
 
@@ -214,9 +216,10 @@ async def approve_request(
 @inject
 async def reject_request(
     request_id: str,
-    body: RejectBody,
     request: Request,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    comment: Optional[str] = Form(None),
+    files: List[UploadFile] = File(default=[]),
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> ApprovalRequest:
     """결재 반려"""
@@ -230,8 +233,9 @@ async def reject_request(
     return await approval_service.reject_request(
         request_id=request_id,
         approver_id=current_user.id,
-        comment=body.comment,
+        comment=comment,
         ip_address=client_ip,
+        files=files,
     )
 
 

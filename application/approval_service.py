@@ -160,7 +160,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str,
         comment: Optional[str] = None,
         ip_address: Optional[str] = None,
+        files: List[UploadFile] = None,
     ) -> ApprovalRequest:
+        files = files or []
+        for file in files:
+            if file.filename:
+                await self.file_service.upload_file(request_id, file, approver_id)
+
         await self._process_approval(request_id, approver_id, ApprovalAction.APPROVE, comment, ip_address)
         
         # 웹소켓 알림 전송
@@ -174,7 +180,13 @@ class ApprovalService(BaseService[ApprovalRequest]):
         approver_id: str,
         comment: Optional[str] = None,
         ip_address: Optional[str] = None,
+        files: List[UploadFile] = None,
     ) -> ApprovalRequest:
+        files = files or []
+        for file in files:
+            if file.filename:
+                await self.file_service.upload_file(request_id, file, approver_id)
+
         await self._process_approval(request_id, approver_id, ApprovalAction.REJECT, comment, ip_address)
         
         # 웹소켓 알림 전송
