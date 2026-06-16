@@ -16,7 +16,12 @@ class IFileRepository(metaclass=ABCMeta):
 
     @abstractmethod
     async def find_many(
-        self, *filters: Any, order: str = "desc", page: int, items_per_page: int
+        self,
+        *filters: Any,
+        sort_by: str = "created_at",
+        order: str = "desc",
+        page: int,
+        items_per_page: int
     ) -> tuple[int, List[File]]:
         raise NotImplementedError
 

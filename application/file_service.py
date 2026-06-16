@@ -74,6 +74,7 @@ class FileService(BaseService[File]):
         type: Optional[Type] = Type.VOUCHER,
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
+        sort_by: str = "created_at",
         order: str = "desc",
         page: int = 1,
         items_per_page: int = 30,
@@ -87,11 +88,18 @@ class FileService(BaseService[File]):
 
         total_count, files = (
             await self.file_repo.find_many(
-                And(*filters), order=order, page=page, items_per_page=items_per_page
+                And(*filters),
+                sort_by=sort_by,
+                order=order,
+                page=page,
+                items_per_page=items_per_page,
             )
             if filters
             else await self.file_repo.find_many(
-                order=order, page=page, items_per_page=items_per_page
+                sort_by=sort_by,
+                order=order,
+                page=page,
+                items_per_page=items_per_page,
             )
         )
 
