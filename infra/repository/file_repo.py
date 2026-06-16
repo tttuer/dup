@@ -8,6 +8,14 @@ from infra.db_models.file import File
 from infra.repository.base_repo import BaseRepository
 
 
+SORT_FIELDS = {
+    "created_at": "created_at",
+    "withdrawn_at": "withdrawn_at",
+    "name": "name",
+    "file_name": "file_name",
+}
+
+
 class FileRepository(BaseRepository[File], IFileRepository):
     def __init__(self):
         super().__init__(File)
@@ -42,13 +50,15 @@ class FileRepository(BaseRepository[File], IFileRepository):
     async def find_many(
         self,
         *filters: Any,
+        sort_by: str = "created_at",
         order: str = "desc",
         page: int = 1,
         items_per_page: int = 10,
     ) -> tuple[int, list[File]]:
         offset = (page - 1) * items_per_page
 
-        sort_field = "-withdrawn_at" if order == "desc" else "withdrawn_at"
+        sort_field_name = SORT_FIELDS.get(sort_by, "created_at")
+        sort_field = f"-{sort_field_name}" if order == "desc" else sort_field_name
 
         if filters:
             total_count = await File.find(*filters).count()
