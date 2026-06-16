@@ -67,7 +67,7 @@ class FileService(BaseService[File]):
         self,
         is_locked: bool,
         roles: list[Role],
-        group_id: str,
+        group_id: Optional[str],
         search: Optional[str] = None,
         search_option: Optional[str] = None,
         company: Optional[Company] = Company.BAEKSUNG,
@@ -130,13 +130,14 @@ class FileService(BaseService[File]):
                 filters.append(FileDocument.price == int(search))
         return filters
     
-    def _build_base_filters(self, is_locked: bool, company: Company, type: Type, group_id: str) -> list:
+    def _build_base_filters(self, is_locked: bool, company: Company, type: Type, group_id: Optional[str]) -> list:
         """Build basic filters for company, type, group, and lock status."""
         filters = [
             FileDocument.company == company,
             FileDocument.type == type,
-            FileDocument.group_id == group_id,
         ]
+        if group_id:
+            filters.append(FileDocument.group_id == group_id)
         if is_locked:
             filters.append(FileDocument.lock == True)
         return filters

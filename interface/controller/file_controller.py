@@ -82,7 +82,7 @@ async def find_file(
 @inject
 async def find_files(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
-    group_id: str,
+    group_id: Optional[str] = None,
     is_locked: Optional[bool] = None,
     search: Optional[str] = None,
     search_option: Optional[str] = None,
