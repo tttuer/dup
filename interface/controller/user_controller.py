@@ -186,6 +186,22 @@ async def update_user(
     return updated_user
 
 
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def delete_user(
+    user_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    user_service: UserService = Depends(Provide[Container.user_service]),
+) -> None:
+    if Role.ADMIN not in current_user.roles:
+        raise PermissionError("Only admin can delete users")
+
+    if current_user.id == user_id:
+        raise PermissionError("Cannot delete your own account")
+
+    await user_service.delete_user(user_id, current_user.id)
+
+
 @router.patch("/{user_id}/approval")
 @inject
 async def approve_user(

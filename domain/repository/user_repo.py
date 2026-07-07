@@ -14,6 +14,14 @@ class IUserRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_user_id(self, user_id: str) -> Optional[User]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_id(self, id: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_all_by_user_id(self, user_id: str) -> List[User]:
+        raise NotImplementedError
     
     @abstractmethod
     async def find(self) -> List[User]:
@@ -33,4 +41,8 @@ class IUserRepository(metaclass=ABCMeta):
     
     @abstractmethod
     async def find_by_user_ids(self, user_ids: List[str]) -> List[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_by_user_id(self, user_id: str) -> None:
         raise NotImplementedError
