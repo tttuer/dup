@@ -32,6 +32,16 @@ class UserRepository(BaseRepository[User], IUserRepository):
         if not user:
             return None
         return user
+
+    async def find_by_id(self, id: str) -> User:
+        user = await User.get(id)
+        if not user:
+            return None
+        return user
+
+    async def find_all_by_user_id(self, user_id: str) -> list[User]:
+        users = await User.find(User.user_id == user_id).to_list()
+        return users or []
     
     async def find(self) -> list[User]:
         users = await User.find().to_list()
@@ -66,3 +76,10 @@ class UserRepository(BaseRepository[User], IUserRepository):
         
         users = await User.find(In(User.user_id, user_ids)).to_list()
         return users or []
+
+    async def delete_by_user_id(self, user_id: str) -> None:
+        user = await self.find_by_user_id(user_id)
+        if not user:
+            raise NotFoundError("User not found")
+
+        await user.delete()
