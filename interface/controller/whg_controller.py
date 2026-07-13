@@ -16,13 +16,18 @@ from application.sync_service import SyncService
 from application.voucher_service import VoucherService
 from common.auth import CurrentUser
 from common.auth import get_current_user
-from common.exceptions import InternalServerError
+from common.exceptions import InternalServerError, ValidationError
 from containers import Container
 from domain.responses.voucher_response import VoucherResponse
 from domain.voucher import Company
 
 router = APIRouter(prefix="/vouchers", tags=["voucher"])
 
+ALLOWED_VOUCHER_FILE_CONTENT_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+}
 
 
 
@@ -86,6 +91,10 @@ async def update_voucher(
     ),  # ✅ UploadFile만 허용ㅇ하면 Swagger에서 파일 UI가 뜸
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
 ) -> VoucherResponse:
+    for upload_file in files or []:
+        if upload_file.content_type not in ALLOWED_VOUCHER_FILE_CONTENT_TYPES:
+            raise ValidationError(f"지원하지 않는 첨부파일 형식입니다: {upload_file.filename}")
+
     update_items = list(
         zip_longest(file_ids or [], files or [])
     )  # ✅ 길이 다를 수 있음
