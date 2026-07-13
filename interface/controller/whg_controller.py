@@ -5,7 +5,7 @@ from typing import Annotated
 from typing import Optional, List
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi import File
 from fastapi import Form
 from fastapi import UploadFile
@@ -56,6 +56,8 @@ async def sync_whg(
             wehago_password=sync_request.wehago_password,
         )
         return {"message": "Sync completed successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise InternalServerError(f"동기화 오류: {e}")
     finally:
