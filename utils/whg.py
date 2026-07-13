@@ -99,6 +99,8 @@ class Whg:
 
                 return company_vouchers
 
+            except (LoginError, CrawlingError):
+                raise
             except Exception as e:
                 logger.error(f"크롤링 중 오류 발생: {e}")
                 try:
@@ -166,7 +168,7 @@ class Whg:
         try:
             data = await login_response.json()
             if data.get("resultCode") == 401:
-                raise LoginError("로그인 실패: 아이디 또는 비밀번호가 잘못되었습니다.", status_code=460)
+                raise LoginError("아이디 또는 비밀번호가 올바르지 않습니다.", status_code=460)
             logger.info("로그인에 성공했습니다.")
             return True
         except json.JSONDecodeError:
