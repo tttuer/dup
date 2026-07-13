@@ -1,7 +1,21 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import field_serializer, BaseModel
+from pydantic import BaseModel
 from domain.voucher import Company, VoucherFile
+
+
+class VoucherFileResponse(BaseModel):
+    file_id: str
+    file_name: str
+    uploaded_at: datetime
+
+    @classmethod
+    def from_domain(cls, file: VoucherFile) -> "VoucherFileResponse":
+        return cls(
+            file_id=file.file_id,
+            file_name=file.file_name,
+            uploaded_at=file.uploaded_at,
+        )
 
 
 class VoucherResponse(BaseModel):
@@ -24,13 +38,8 @@ class VoucherResponse(BaseModel):
     nm_trade: Optional[str] = None
     no_acct: Optional[int] = None
     voucher_date: Optional[str] = None
-    files: Optional[list[VoucherFile]] = None  # VoucherFile 사용
+    files: Optional[list[VoucherFileResponse]] = None
     company: Optional[Company] = None
-    
-    @field_serializer("files", when_used="json")
-    def serialize_files(self, files: Optional[list[VoucherFile]], _info):
-        # VoucherFile의 field_serializer가 자동으로 압축 해제 및 base64 인코딩을 처리
-        return files
     
     @classmethod
     def from_document(cls, doc) -> "VoucherResponse":
@@ -54,6 +63,6 @@ class VoucherResponse(BaseModel):
             nm_trade=doc.nm_trade,
             no_acct=doc.no_acct,
             voucher_date=doc.voucher_date,
-            files=doc.files,
+            files=[VoucherFileResponse.from_domain(file) for file in doc.files] if doc.files else None,
             company=doc.company
         )

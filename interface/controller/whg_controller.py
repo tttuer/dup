@@ -5,7 +5,7 @@ from typing import Annotated
 from typing import Optional, List
 
 from dependency_injector.wiring import inject, Provide
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from fastapi import File
 from fastapi import Form
 from fastapi import UploadFile
@@ -68,6 +68,21 @@ async def sync_whg(
     finally:
         await sync_service.set_sync_status(False)
         await redis.publish("sync_status_channel", json.dumps({"syncing": False}))
+
+
+@router.post("/files/download")
+@inject
+async def download_voucher_files(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    file_ids: List[str] = Body(...),
+    voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
+) -> Response:
+    zip_bytes = await voucher_service.download_files(file_ids)
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=voucher-files.zip"},
+    )
 
 
 @router.get("/{id}")

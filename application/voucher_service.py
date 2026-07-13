@@ -1,4 +1,6 @@
+from io import BytesIO
 from typing import Optional
+import zipfile
 
 from beanie.operators import And, RegEx, In
 from dependency_injector.wiring import inject
@@ -147,6 +149,33 @@ class VoucherService:
         updated_voucher_doc = await voucher_doc.save()
         
         return VoucherResponse.from_document(updated_voucher_doc)
+
+    async def download_files(self, file_ids: list[str]) -> bytes:
+        unique_file_ids = list(dict.fromkeys(file_ids))
+        if not unique_file_ids:
+            raise ValidationError("file_ids is required")
+
+        vouchers = await VoucherDocument.find(
+            {"files.file_id": {"$in": unique_file_ids}}
+        ).to_list()
+        files_by_id = {
+            file.file_id: file
+            for voucher in vouchers
+            for file in voucher.files or []
+            if file.file_id in unique_file_ids
+        }
+
+        if not files_by_id:
+            raise ValidationError("No voucher files found")
+
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for file_id in unique_file_ids:
+                file = files_by_id.get(file_id)
+                if file:
+                    zip_file.writestr(file.file_name, file.file_data)
+
+        return zip_buffer.getvalue()
 
     async def migrate_voucher_ids(self) -> int:
         """
