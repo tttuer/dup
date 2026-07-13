@@ -8,6 +8,7 @@ class Company(str, Enum):
     BAEKSUNG = "BAEKSUNG"
     PYEONGTAEK = "PYEONGTAEK"
     PARAN = "PARAN"
+    PYEONGTAEK_MAUL = "PYEONGTAEK_MAUL"
 
 
 class SearchOption(str, Enum):

@@ -1,4 +1,3 @@
-import asyncio
 import gzip
 import io
 import json
@@ -11,33 +10,49 @@ from domain.voucher import Company
 from domain.voucher import Voucher
 from utils.logger import logger
 
-company_cnos = {
+COMPANY_CONFIGS = {
     Company.BAEKSUNG: {
         "cno": "7897095",
+        "cd_com": "biz202411280045506",
+        "company_name": "%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)",
+        "base_gisu": 38,
+        "base_year": 2025,
     },
     Company.PYEONGTAEK: {
-        "cno": "7929394", 
+        "cno": "7929394",
+        "cd_com": "biz202412060015967",
+        "company_name": "%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)",
+        "base_gisu": 20,
+        "base_year": 2025,
+        "ledger_suffix": "&ledgerNum=7897095&ledger",
     },
     Company.PARAN: {
         "cno": "7929524",
-    }
+        "cd_com": "biz202412060017323",
+        "company_name": "(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C",
+        "base_gisu": 5,
+        "base_year": 2025,
+        "ledger_suffix": "&ledgerNum=7897095&ledger",
+    },
+    Company.PYEONGTAEK_MAUL: {
+        "cno": "13928007",
+        "cd_com": "biz202607020044803",
+        "company_name": "%ED%8F%89%ED%83%9D%EB%A7%88%EC%9D%84%EB%B2%84%EC%8A%A4(%EC%A3%BC)",
+        "base_gisu": 1,
+        "base_year": 2026,
+        "ledger_suffix": "&ledgerNum=7897095&ledger",
+    },
 }
 
 
 class Whg:
     def calculate_gisu(self, company: Company, year: int):
         """Calculate gisu (period) for the given company and year."""
-        company_configs = {
-            Company.BAEKSUNG: {"gisu": 38, "year": 2025},
-            Company.PYEONGTAEK: {"gisu": 20, "year": 2025},
-            Company.PARAN: {"gisu": 5, "year": 2025}
-        }
-        
-        if company not in company_configs:
+        config = COMPANY_CONFIGS.get(company)
+        if config is None:
             raise ValueError("Invalid company")
-        
-        config = company_configs[company]
-        return config["gisu"] - (config["year"] - year)
+
+        return config["base_gisu"] - (config["base_year"] - year)
 
     async def crawl_whg(self, company: Company, year: int, month: int, wehago_id: str, wehago_password: str):
         """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
@@ -76,36 +91,13 @@ class Whg:
                 await main_page.locator(".snbnext").wait_for(state="visible", timeout=10000)
                 logger.info("메인 페이지 로그인 완료 확인됨")
                 
-                # 2. 각 회사별로 병렬 처리
-                tasks = []
-                for company_enum_member in Company:
-                    task = self._extract_company_data_parallel(context, company_enum_member, year, month)
-                    tasks.append(task)
-                
-                # 3. 모든 회사 데이터를 동시에 가져오기
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # 4. 결과 통합 및 에러 체크
-                all_vouchers = []
-                failed_companies = []
-                
-                for i, result in enumerate(results):
-                    if isinstance(result, Exception):
-                        company_name = list(Company)[i].value
-                        logger.error(f"{company_name} 처리 중 오류: {result}")
-                        failed_companies.append(company_name)
-                        continue
-                    
-                    company_vouchers, company_enum = result
-                    for voucher in company_vouchers:
-                        voucher.company = company_enum.value
-                    all_vouchers.extend(company_vouchers)
-                
-                # 에러가 발생한 회사가 있으면 전체 크롤링 실패로 처리
-                if failed_companies:
-                    raise CrawlingError(f"다음 회사에서 크롤링 실패: {', '.join(failed_companies)}. 기존 데이터 보호를 위해 저장하지 않습니다.")
-                
-                return all_vouchers
+                company_vouchers, company_enum = await self._extract_company_data_parallel(
+                    context, company, year, month
+                )
+                for voucher in company_vouchers:
+                    voucher.company = company_enum.value
+
+                return company_vouchers
 
             except Exception as e:
                 logger.error(f"크롤링 중 오류 발생: {e}")
@@ -242,30 +234,11 @@ class Whg:
         """Build the SAO URL for the specified company."""
         base_params = f"gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyID=jayk0425"
         
-        company_configs = {
-            Company.BAEKSUNG: {
-                "cno": "7897095",
-                "cd_com": "biz202411280045506",
-                "companyName": "%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)"
-            },
-            Company.PYEONGTAEK: {
-                "cno": "7929394", 
-                "cd_com": "biz202412060015967",
-                "companyName": "%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)",
-                "extra": "&ledgerNum=7897095&ledger"
-            },
-            Company.PARAN: {
-                "cno": "7929524",
-                "cd_com": "biz202412060017323", 
-                "companyName": "(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C",
-                "extra": "&ledgerNum=7897095&ledger"
-            }
-        }
-        config = company_configs[company]
-        url = f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno={config['cno']}&cd_com={config['cd_com']}&{base_params}&companyName={config['companyName']}"
-        
-        if "extra" in config:
-            url += config["extra"]
+        config = COMPANY_CONFIGS[company]
+        url = f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno={config['cno']}&cd_com={config['cd_com']}&{base_params}&companyName={config['company_name']}"
+
+        if "ledger_suffix" in config:
+            url += config["ledger_suffix"]
         logger.info(f"전표 페이지 URL: {url}")
         return url
     
@@ -285,7 +258,7 @@ class Whg:
             
             try:
                 async with page.expect_response(
-                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url and company_cnos[company]["cno"] in r.url,
+                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url and COMPANY_CONFIGS[company]["cno"] in r.url,
                     timeout=15000
                 ) as response_info:
                     await self._set_month_input(page, month)
