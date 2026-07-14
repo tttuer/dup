@@ -15,7 +15,13 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_many(self, *filters: Any, page: int, items_per_page: int):
+    async def find_many(
+        self,
+        *filters: Any,
+        page: int,
+        items_per_page: int,
+        group_match_filters: tuple[Any, ...] = (),
+    ):
         raise NotImplementedError
 
     @abstractmethod

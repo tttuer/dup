@@ -75,42 +75,38 @@ class VoucherService:
         page: int = 1,
         items_per_page: int = 1000,
     ):
-        filters = []
+        base_filters = [VoucherDocument.company == company]
+        search_filters = []
 
         # ✅ 1. 검색어가 있고, 검색 조건이 명시된 경우
         if search and search_option:
             if search_option == SearchOption.NM_ACCTIT:
-                filters.append(
+                search_filters.append(
                     RegEx(VoucherDocument.nm_acctit, f".*{search}.*", options="i")
                 )
             elif search_option == SearchOption.NM_TRADE:
-                filters.append(
+                search_filters.append(
                     RegEx(VoucherDocument.nm_trade, f".*{search}.*", options="i")
                 )
             elif search_option == SearchOption.NM_REMARK:
-                filters.append(
+                search_filters.append(
                     RegEx(VoucherDocument.nm_remark, f".*{search}.*", options="i")
                 )
 
-        filters.append(VoucherDocument.company == company)
-
         if start_at and end_at:
-            filters.append(VoucherDocument.voucher_date >= start_at)
-            filters.append(VoucherDocument.voucher_date <= end_at)
-        if start_at:
-            filters.append(VoucherDocument.voucher_date >= start_at)
+            base_filters.append(VoucherDocument.voucher_date >= start_at)
+            base_filters.append(VoucherDocument.voucher_date <= end_at)
+        elif start_at:
+            base_filters.append(VoucherDocument.voucher_date >= start_at)
 
         if end_at and start_at and end_at < start_at:
             raise ValidationError("start_at must be less than end_at")
 
-        total_count, vouchers = (
-            await self.voucher_repo.find_many(
-                And(*filters), page=page, items_per_page=items_per_page
-            )
-            if filters
-            else await self.voucher_repo.find_many(
-                page=page, items_per_page=items_per_page
-            )
+        total_count, vouchers = await self.voucher_repo.find_many(
+            And(*base_filters),
+            page=page,
+            items_per_page=items_per_page,
+            group_match_filters=(And(*base_filters, *search_filters),) if search_filters else (),
         )
 
         total_page = (total_count - 1) // items_per_page + 1

@@ -9,8 +9,14 @@ from infra.db_models.voucher import Voucher
 from infra.repository.base_repo import BaseRepository
 from beanie import BulkWriter
 from domain.voucher import Company
+from pydantic import BaseModel
 from pymongo import UpdateOne
-from beanie.operators import And, In
+from beanie.operators import And, In, Or
+
+
+class VoucherGroupKey(BaseModel):
+    voucher_date: str | None = None
+    no_acct: int | None = None
 
 
 class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
@@ -78,7 +84,11 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         *filters: Any,
         page: int = 1,
         items_per_page: int = 1000,
+        group_match_filters: tuple[Any, ...] = (),
     ) -> tuple[int, list[VoucherVo]]:
+        if group_match_filters:
+            filters = await self._expand_voucher_group_filters(filters, group_match_filters)
+
         offset = (page - 1) * items_per_page
 
         if filters:
@@ -111,6 +121,29 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         return (
             total_count,
             vouchers,
+        )
+
+    async def _expand_voucher_group_filters(
+        self,
+        base_filters: tuple[Any, ...],
+        group_match_filters: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        matched_vouchers = await Voucher.find(*group_match_filters).project(VoucherGroupKey).to_list()
+        group_filters = {
+            (voucher.voucher_date, voucher.no_acct)
+            for voucher in matched_vouchers
+            if voucher.voucher_date is not None and voucher.no_acct is not None
+        }
+
+        if not group_filters:
+            return (*base_filters, In(Voucher.id, []))
+
+        return (
+            *base_filters,
+            Or(
+                *(And(Voucher.voucher_date == voucher_date, Voucher.no_acct == no_acct)
+                  for voucher_date, no_acct in group_filters)
+            ),
         )
 
     async def update(self, voucher: VoucherVo):
