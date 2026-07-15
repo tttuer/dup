@@ -126,7 +126,11 @@ async def get_image(
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     image = await wiki_service.get_image(image_id)
-    return Response(content=image.file_data, media_type=image.content_type)
+    return Response(
+        content=image.file_data,
+        media_type=image.content_type,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
 
 @router.post("/attachments/upload")
 @inject
@@ -135,22 +139,26 @@ async def upload_attachment(
     file: UploadFile = FastAPIFile(...),
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
-    image = await wiki_service.upload_image(file)
+    attachment = await wiki_service.upload_attachment(file)
     return {
-        "id": image.id, 
-        "url": f"/api/wiki/attachments/{image.id}", 
-        "file_name": file.filename, 
-        "size": file.size if hasattr(file, "size") else 0
+        "id": attachment.id,
+        "url": f"/api/wiki/attachments/{attachment.id}",
+        "file_name": attachment.file_name,
+        "size": len(attachment.file_data),
     }
 
 @router.get("/attachments/{file_id}")
 @inject
 async def get_attachment(
     file_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
     wiki_service: WikiService = Depends(Provide[Container.wiki_service])
 ):
     image = await wiki_service.get_image(file_id)
     import urllib.parse
     encoded_name = urllib.parse.quote(image.file_name)
-    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"}
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
+        "X-Content-Type-Options": "nosniff",
+    }
     return Response(content=image.file_data, media_type=image.content_type, headers=headers)

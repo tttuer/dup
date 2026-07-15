@@ -1,5 +1,6 @@
 from fastapi import UploadFile
 from ulid import ULID
+from application.wiki_security import read_valid_attachment, read_valid_image, sanitize_wiki_content
 from domain.repository.wiki_repo import IWikiRepository
 from domain.wiki import WikiPage, WikiImage
 from utils.time import get_utc_now_naive
@@ -23,11 +24,11 @@ class WikiService:
         page = WikiPage(
             id=self.ulid.generate(),
             title=title,
-            content=content,
+            content=sanitize_wiki_content(content),
             parent_id=parent_id,
             author_id=author_id,
             is_personal=is_personal,
-            attachments=attachments or [],
+            attachments=await self._normalize_attachments(attachments),
             created_at=now,
             updated_at=now
         )
@@ -44,10 +45,10 @@ class WikiService:
         space_changed = page.is_personal != is_personal
         
         page.title = title
-        page.content = content
+        page.content = sanitize_wiki_content(content)
         page.parent_id = parent_id
         page.is_personal = is_personal
-        page.attachments = attachments or []
+        page.attachments = await self._normalize_attachments(attachments)
         page.updated_at = get_utc_now_naive()
         
         updated_page = await self.wiki_repo.update_page(page)
@@ -71,9 +72,7 @@ class WikiService:
         await self.wiki_repo.reorder_pages(items)
 
     async def upload_image(self, file: UploadFile) -> WikiImage:
-        file_data = await file.read()
-        if not file_data:
-            raise ValidationError("Empty file")
+        file_data = await read_valid_image(file)
         
         image = WikiImage(
             id=self.ulid.generate(),
@@ -84,5 +83,32 @@ class WikiService:
         )
         return await self.wiki_repo.save_image(image)
 
+    async def upload_attachment(self, file: UploadFile) -> WikiImage:
+        file_data = await read_valid_attachment(file)
+        attachment = WikiImage(
+            id=self.ulid.generate(),
+            file_name=file.filename or "attachment",
+            content_type=file.content_type or "application/octet-stream",
+            file_data=file_data,
+            uploaded_at=get_utc_now_naive(),
+        )
+        return await self.wiki_repo.save_image(attachment)
+
     async def get_image(self, image_id: str) -> WikiImage:
         return await self.wiki_repo.get_image(image_id)
+
+    async def _normalize_attachments(self, attachments: list[dict] | None) -> list[dict]:
+        """Only persist attachment records previously issued by the upload endpoint."""
+        normalized = []
+        for attachment in attachments or []:
+            if not isinstance(attachment, dict) or not attachment.get("id"):
+                raise ValidationError("유효하지 않은 첨부파일 정보입니다.")
+
+            stored_file = await self.wiki_repo.get_image(str(attachment["id"]))
+            normalized.append({
+                "id": stored_file.id,
+                "url": f"/api/wiki/attachments/{stored_file.id}",
+                "file_name": stored_file.file_name,
+                "size": len(stored_file.file_data),
+            })
+        return normalized
