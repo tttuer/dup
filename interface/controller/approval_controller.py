@@ -147,6 +147,16 @@ async def get_pending_approvals(
     return PaginatedResponse.create(items, total, page, page_size)
 
 
+@router.get("/pending/count")
+@inject
+async def get_pending_approval_count(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    notification_service = Depends(Provide[Container.approval_notification_service]),
+):
+    """Header badge fallback when the approval WebSocket is unavailable."""
+    return {"count": await notification_service.get_pending_count(current_user.id)}
+
+
 @router.get("/completed")
 @inject
 async def get_completed_approvals(
