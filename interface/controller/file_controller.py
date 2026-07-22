@@ -33,6 +33,12 @@ ALLOWED_CONTENT_TYPES = {
     "application/pdf",
     "image/jpeg",
     "image/png",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/x-hwp",
+    "application/vnd.hancom.hwp",
+    "application/haansofthwp",
+    "application/vnd.hancom.hwpx",
 }
 
 
