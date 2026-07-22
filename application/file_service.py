@@ -11,6 +11,7 @@ from application.base_service import BaseService
 from common.auth import Role
 from domain.file import File, Company, SearchOption, Type
 from domain.repository.file_repo import IFileRepository
+from domain.repository.group_repo import IGroupRepository
 from domain.repository.user_repo import IUserRepository
 from domain.responses.file_response import FileResponse, FileListResponse
 from infra.db_models.file import File as FileDocument
@@ -21,9 +22,15 @@ from utils.time import get_utc_now_naive
 
 class FileService(BaseService[File]):
     @inject
-    def __init__(self, file_repo: IFileRepository, user_repo: IUserRepository):
+    def __init__(
+        self,
+        file_repo: IFileRepository,
+        group_repo: IGroupRepository,
+        user_repo: IUserRepository,
+    ):
         super().__init__(user_repo)
         self.file_repo = file_repo
+        self.group_repo = group_repo
         self.ulid = ULID()
 
     async def save_files(
@@ -55,6 +62,7 @@ class FileService(BaseService[File]):
         ]
 
         await self.file_repo.save_all(files)
+        await self._record_extra_file_change(type, now, group_id)
 
         return files
 
@@ -174,6 +182,7 @@ class FileService(BaseService[File]):
         lock: bool,
     ) -> FileResponse:
         now = get_utc_now_naive()
+        previous_file = await self.file_repo.find_by_id(id)
 
         file: File = File(
             id=id,
@@ -187,8 +196,26 @@ class FileService(BaseService[File]):
         )
 
         updated_file_doc = await self.file_repo.update(file)
+        await self._record_extra_file_change(
+            updated_file_doc.type,
+            now,
+            previous_file.group_id,
+            updated_file_doc.group_id,
+        )
 
         return FileResponse.from_document(updated_file_doc)
+
+    async def _record_extra_file_change(
+        self,
+        file_type: Type,
+        changed_at: datetime,
+        *group_ids: str,
+    ) -> None:
+        if file_type != Type.EXTRA:
+            return
+
+        for group_id in set(filter(None, group_ids)):
+            await self.group_repo.touch_file_activity(group_id, changed_at)
 
     async def download_bulk(self, ids: list[str]) -> bytes:
         import io

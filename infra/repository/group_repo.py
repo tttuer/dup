@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from datetime import datetime
 from typing import Any
 
 from domain.group import Group as GroupVo
@@ -64,3 +65,12 @@ class GroupRepository(BaseRepository[Group], IGroupRepository):
 
         updated_group = await db_group.save()
         return updated_group
+
+    async def touch_file_activity(self, group_id: str, changed_at: datetime) -> None:
+        group = await Group.get(group_id)
+        if not group:
+            return
+
+        if group.last_file_changed_at is None or group.last_file_changed_at < changed_at:
+            group.last_file_changed_at = changed_at
+            await group.save()
