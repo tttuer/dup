@@ -27,6 +27,7 @@ from interface.controller.approval_websocket_controller import (
 )
 from interface.controller.legal_controller import router as legal_router
 from interface.controller.wiki_controller import router as wiki_router
+from interface.controller.payment_task_controller import router as payment_task_router
 from middleware import add_cors
 from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
@@ -41,14 +42,27 @@ from infra.db_models.approval_history import ApprovalHistory
 from infra.db_models.attached_file import AttachedFile
 from infra.db_models.document_integrity import DocumentIntegrity
 from infra.db_models.wiki import WikiPage, WikiImage
+from infra.db_models.payment_task import PaymentTask
 from common.db import client
 from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
 from common.exceptions import AuthenticationError
 
 
+async def remove_legacy_payment_task_indexes() -> None:
+    """전자결재 연동 구조에서 남은 인덱스만 제거한다."""
+    if "payment_tasks" not in await client.dup.list_collection_names(filter={"name": "payment_tasks"}):
+        return
+    collection = client.dup.payment_tasks
+    indexes = await collection.list_indexes().to_list(length=None)
+    for name in ("approval_request_id_1", "approval_request_id_unique_for_approval"):
+        if any(index.get("name") == name for index in indexes):
+            await collection.drop_index(name)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await remove_legacy_payment_task_indexes()
     await init_beanie(
         database=client.dup,
         document_models=[
@@ -66,6 +80,7 @@ async def lifespan(app: FastAPI):
             DocumentIntegrity,
             WikiPage,
             WikiImage,
+            PaymentTask,
         ],
     )
     start_scheduler()
@@ -104,6 +119,7 @@ api_router.include_router(approval_line_router)
 api_router.include_router(file_attachment_router)
 api_router.include_router(legal_router)
 api_router.include_router(wiki_router)
+api_router.include_router(payment_task_router)
 
 app.include_router(api_router)
 app.include_router(sync_router)
