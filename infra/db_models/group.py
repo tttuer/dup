@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from beanie import Document
 from pydantic import Field
@@ -10,3 +11,4 @@ class Group(Document):
     name: str
     company: Company
     auth_users: list[str] = Field(default_factory=list)
+    last_file_changed_at: Optional[datetime] = None

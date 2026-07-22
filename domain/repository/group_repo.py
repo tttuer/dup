@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from typing import List, Any
 
 from domain.file import Company
@@ -29,4 +30,8 @@ class IGroupRepository(metaclass=ABCMeta):
 
     @abstractmethod
     async def update(self, group: GroupVo) -> Group:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def touch_file_activity(self, group_id: str, changed_at: datetime) -> None:
         raise NotImplementedError

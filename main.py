@@ -32,6 +32,7 @@ from infra.db_models.voucher import Voucher
 from infra.db_models.user import User
 from infra.db_models.file import File
 from infra.db_models.group import Group
+from infra.db_models.folder_read_state import FolderReadState
 from infra.db_models.document_template import DocumentTemplate
 from infra.db_models.approval_request import ApprovalRequest
 from infra.db_models.approval_line import ApprovalLine
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
             User,
             Voucher,
             Group,
+            FolderReadState,
             DocumentTemplate,
             ApprovalRequest,
             ApprovalLine,

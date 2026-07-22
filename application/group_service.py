@@ -2,8 +2,10 @@ from dependency_injector.wiring import inject
 
 from application.base_service import BaseService
 from common.auth import CurrentUser, Role
+from domain.folder_read_state import FolderReadState
 from domain.group import Group
 from domain.file import Company
+from domain.repository.folder_read_state_repo import IFolderReadStateRepository
 from domain.repository.file_repo import IFileRepository
 from domain.repository.group_repo import IGroupRepository
 from domain.repository.user_repo import IUserRepository
@@ -13,14 +15,22 @@ from infra.db_models.group import Group as GroupDocument
 from common.db import client
 from beanie.operators import And, In
 from common.exceptions import ConflictError, NotFoundError, PermissionError
+from utils.time import get_utc_now_naive
 
 
 class GroupService(BaseService[Group]):
     @inject
-    def __init__(self, group_repo: IGroupRepository, file_repo: IFileRepository, user_repo: IUserRepository):
+    def __init__(
+        self,
+        group_repo: IGroupRepository,
+        file_repo: IFileRepository,
+        folder_read_state_repo: IFolderReadStateRepository,
+        user_repo: IUserRepository,
+    ):
         super().__init__(user_repo)
         self.group_repo = group_repo
         self.file_repo = file_repo
+        self.folder_read_state_repo = folder_read_state_repo
         self.ulid = ULID()
 
     async def save(
@@ -57,8 +67,37 @@ class GroupService(BaseService[Group]):
         filters.append(GroupDocument.company == company)
 
         group_docs = await self.group_repo.find(And(*filters))
+        read_states = await self.folder_read_state_repo.find_by_user_and_group_ids(
+            id,
+            [group.id for group in group_docs],
+        )
+        last_seen_by_group_id = {
+            state.group_id: state.last_seen_at for state in read_states
+        }
 
-        return [GroupResponse.from_document(group) for group in group_docs]
+        return [
+            GroupResponse.from_document(
+                group,
+                has_unread_changes=self._has_unread_changes(
+                    group.last_file_changed_at,
+                    last_seen_by_group_id.get(group.id),
+                ),
+            )
+            for group in group_docs
+        ]
+
+    async def mark_as_read(self, id: str, current_user_id: str, roles: list[Role]):
+        group_doc = await self.group_repo.find_by_id(id)
+        await self._validate_group_permission(group_doc, current_user_id, roles)
+
+        await self.folder_read_state_repo.upsert(
+            FolderReadState(
+                id=self.ulid.generate(),
+                user_id=current_user_id,
+                group_id=id,
+                last_seen_at=get_utc_now_naive(),
+            )
+        )
 
     async def delete(self, id: str, current_user_id: str, roles: list[Role]):
         group_doc = await self.group_repo.find_by_id(id)
@@ -72,6 +111,7 @@ class GroupService(BaseService[Group]):
             async with session.start_transaction():
                 # Delete all files associated with the group
                 await self.file_repo.delete_by_group_id(id, session=session)
+                await self.folder_read_state_repo.delete_by_group_id(id, session=session)
                 await self.group_repo.delete(id, session=session)
 
                 # Delete the group itself
@@ -112,6 +152,13 @@ class GroupService(BaseService[Group]):
         """Validate that user has permission to access the group."""
         if user_id not in group_doc.auth_users and Role.ADMIN not in roles:
             raise PermissionError("You do not have permission to access this group")
+
+    @staticmethod
+    def _has_unread_changes(last_file_changed_at, last_seen_at) -> bool:
+        return bool(
+            last_file_changed_at
+            and (last_seen_at is None or last_file_changed_at > last_seen_at)
+        )
     
     async def grant_with_permission_check(
         self,

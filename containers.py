@@ -17,6 +17,7 @@ from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
 from infra.repository.group_repo import GroupRepository
+from infra.repository.folder_read_state_repo import FolderReadStateRepository
 from infra.repository.document_template_repo import DocumentTemplateRepository
 from infra.repository.approval_request_repo import ApprovalRequestRepository
 from infra.repository.approval_line_repo import ApprovalLineRepository
@@ -53,14 +54,26 @@ class Container(containers.DeclarativeContainer):
     user_repo = providers.Factory(UserRepository)
     user_service = providers.Factory(UserService, user_repo=user_repo, redis=redis)
 
+    group_repo = providers.Factory(GroupRepository)
     file_repo = providers.Factory(FileRepository)
-    file_service = providers.Factory(FileService, file_repo=file_repo, user_repo=user_repo)
+    file_service = providers.Factory(
+        FileService,
+        file_repo=file_repo,
+        group_repo=group_repo,
+        user_repo=user_repo,
+    )
 
     voucher_repo = providers.Factory(VoucherRepository)
     voucher_service = providers.Factory(VoucherService, voucher_repo=voucher_repo)
 
-    group_repo = providers.Factory(GroupRepository)
-    group_service = providers.Factory(GroupService, group_repo=group_repo, file_repo=file_repo, user_repo=user_repo)
+    folder_read_state_repo = providers.Factory(FolderReadStateRepository)
+    group_service = providers.Factory(
+        GroupService,
+        group_repo=group_repo,
+        file_repo=file_repo,
+        folder_read_state_repo=folder_read_state_repo,
+        user_repo=user_repo,
+    )
     
     # 전자결재 시스템 리포지토리
     document_template_repo = providers.Factory(DocumentTemplateRepository)

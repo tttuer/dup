@@ -83,6 +83,20 @@ async def delete(
     await group_service.delete(id=id, current_user_id=current_user.id, roles=current_user.roles)
 
 
+@router.put("/{id}/read", status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def mark_group_as_read(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    id: str,
+    group_service: GroupService = Depends(Provide[Container.group_service]),
+):
+    await group_service.mark_as_read(
+        id=id,
+        current_user_id=current_user.id,
+        roles=current_user.roles,
+    )
+
+
 @router.put("/{id}")
 @inject
 async def update_group(
