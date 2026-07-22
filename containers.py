@@ -13,6 +13,7 @@ from application.document_number_service import DocumentNumberService
 from application.file_attachment_service import FileAttachmentService
 from application.integrity_service import IntegrityService
 from application.legal_archive_service import LegalArchiveService
+from application.payment_task_service import PaymentTaskService
 from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
@@ -26,6 +27,7 @@ from infra.repository.approval_history_repo import ApprovalHistoryRepository
 from infra.repository.attached_file_repo import AttachedFileRepository
 from infra.repository.document_integrity_repo import DocumentIntegrityRepository
 from infra.repository.wiki_repo import WikiRepository
+from infra.repository.payment_task_repo import PaymentTaskRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
 from application.approval_notification_service import ApprovalNotificationService
@@ -83,6 +85,7 @@ class Container(containers.DeclarativeContainer):
     approval_history_repo = providers.Factory(ApprovalHistoryRepository)
     attached_file_repo = providers.Factory(AttachedFileRepository)
     document_integrity_repo = providers.Factory(DocumentIntegrityRepository)
+    payment_task_repo = providers.Factory(PaymentTaskRepository)
     
     # 전자결재 시스템 서비스
     document_template_service = providers.Factory(
@@ -147,6 +150,14 @@ class Container(containers.DeclarativeContainer):
         file_repo=attached_file_repo
     )
 
+    payment_task_service = providers.Factory(
+        PaymentTaskService,
+        payment_task_repo=payment_task_repo,
+        user_repo=user_repo,
+        file_service=file_attachment_service,
+        notification_service=approval_notification_service,
+    )
+
     approval_service = providers.Factory(
         ApprovalService,
         approval_repo=approval_request_repo,
@@ -157,7 +168,7 @@ class Container(containers.DeclarativeContainer):
         notification_service=approval_notification_service,
         file_service=file_attachment_service,
         integrity_service=integrity_service,
-        legal_archive_service=legal_archive_service
+        legal_archive_service=legal_archive_service,
     )
 
     sync_service = providers.Factory(SyncService, redis=redis)

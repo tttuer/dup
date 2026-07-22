@@ -14,11 +14,13 @@ class AttachedFileRepository(BaseRepository[AttachedFile], IAttachedFileReposito
         new_file = AttachedFile(
             id=file.id,
             request_id=file.request_id,
+            payment_task_id=file.payment_task_id,
             file_name=file.file_name,
             gridfs_file_id=file.gridfs_file_id,
             file_size=file.file_size,
             file_type=file.file_type,
             is_reference=file.is_reference,
+            attachment_type=file.attachment_type,
             uploaded_at=file.uploaded_at,
             uploaded_by=file.uploaded_by,
         )
@@ -29,6 +31,12 @@ class AttachedFileRepository(BaseRepository[AttachedFile], IAttachedFileReposito
     
     async def find_by_request_id(self, request_id: str) -> List[AttachedFile]:
         files = await AttachedFile.find(AttachedFile.request_id == request_id).sort(-AttachedFile.uploaded_at).to_list()
+        return files or []
+
+    async def find_by_payment_task_id(self, payment_task_id: str) -> List[AttachedFile]:
+        files = await AttachedFile.find(
+            AttachedFile.payment_task_id == payment_task_id
+        ).sort(-AttachedFile.uploaded_at).to_list()
         return files or []
     
     async def find_by_uploader(self, uploaded_by: str) -> List[AttachedFile]:

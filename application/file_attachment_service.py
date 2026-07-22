@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from dependency_injector.wiring import inject
 from fastapi import HTTPException, UploadFile, Response
 from fastapi.responses import StreamingResponse
@@ -52,6 +52,7 @@ class FileAttachmentService(BaseService[AttachedFile]):
         file: UploadFile,
         uploaded_by: str,
         is_reference: bool = False,
+        attachment_type: str = "REQUEST",
     ) -> AttachedFile:
         # 요청서 확인 및 권한 검증
         request = await self.approval_repo.find_by_id(request_id)
@@ -83,12 +84,91 @@ class FileAttachmentService(BaseService[AttachedFile]):
             file_size=file.size or 0,
             file_type=file.content_type or "",
             is_reference=is_reference,
+            attachment_type=attachment_type,
             uploaded_at=get_utc_now_naive(),
             uploaded_by=uploaded_by,
         )
 
         await self.file_repo.save(attached_file)
         return attached_file
+
+    async def upload_payment_evidence(
+        self,
+        request_id: str,
+        file: UploadFile,
+        uploaded_by: str,
+    ) -> AttachedFile:
+        """승인 완료 뒤에도 납부 업무의 증빙만 제한적으로 추가한다.
+
+        일반 첨부와 달리 완료된 문서의 원문을 수정하지 않고, 파일 종류를 명시해
+        후속 처리 증빙으로 분리한다. 호출자는 PaymentTaskService가 담당자 권한을
+        확인한 뒤에만 이 메서드를 사용할 수 있다.
+        """
+        request = await self.approval_repo.find_by_id(request_id)
+        if not request:
+            raise HTTPException(status_code=404, detail="Approval request not found")
+        if request.status != DocumentStatus.APPROVED:
+            raise HTTPException(status_code=400, detail="Payment evidence requires an approved request")
+
+        await self._validate_file(file)
+        gridfs_file_id = await self._save_file_to_gridfs(file, request_id)
+        attached_file = AttachedFile(
+            id=self.ulid.generate(),
+            request_id=request_id,
+            file_name=file.filename,
+            gridfs_file_id=str(gridfs_file_id),
+            file_size=file.size or 0,
+            file_type=file.content_type or "",
+            attachment_type="PAYMENT_EVIDENCE",
+            uploaded_at=get_utc_now_naive(),
+            uploaded_by=uploaded_by,
+        )
+        await self.file_repo.save(attached_file)
+        return attached_file
+
+    async def upload_payment_task_file(
+        self,
+        payment_task_id: str,
+        file: UploadFile,
+        uploaded_by: str,
+        attachment_type: str = "PAYMENT_REQUEST",
+    ) -> AttachedFile:
+        """결재 문서 없이 생성된 납부 요청의 근거 파일을 저장한다."""
+        await self._validate_file(file)
+        gridfs_file_id = await self._save_file_to_gridfs(file, f"payment_task:{payment_task_id}")
+        attached_file = AttachedFile(
+            id=self.ulid.generate(),
+            payment_task_id=payment_task_id,
+            file_name=file.filename,
+            gridfs_file_id=str(gridfs_file_id),
+            file_size=file.size or 0,
+            file_type=file.content_type or "",
+            attachment_type=attachment_type,
+            uploaded_at=get_utc_now_naive(),
+            uploaded_by=uploaded_by,
+        )
+        await self.file_repo.save(attached_file)
+        return attached_file
+
+    async def get_payment_task_files(self, payment_task_id: str) -> List[Dict[str, Any]]:
+        files = await self.file_repo.find_by_payment_task_id(payment_task_id)
+        return [file.model_dump() for file in files]
+
+    async def get_payment_task_file_stream(self, payment_task_id: str, file_id: str):
+        file = await self.file_repo.find_by_id(file_id)
+        if not file or file.payment_task_id != payment_task_id:
+            raise HTTPException(status_code=404, detail="Payment task file not found")
+        return await self._build_file_stream_response(file)
+
+    async def delete_payment_task_file(self, payment_task_id: str, file_id: str) -> None:
+        file = await self.file_repo.find_by_id(file_id)
+        if not file or file.payment_task_id != payment_task_id:
+            raise HTTPException(status_code=404, detail="Payment task file not found")
+        try:
+            await self.fs.delete(ObjectId(file.gridfs_file_id))
+        except Exception as error:
+            print(f"GridFS payment task file delete warning: {error}")
+        await file.delete()
 
     async def get_files(self, request_id: str, user_id: str) -> List[AttachedFile]:
         # 권한 확인
@@ -160,18 +240,17 @@ class FileAttachmentService(BaseService[AttachedFile]):
         # 권한 확인
         await self._validate_request_access(file.request_id, user_id)
         
+        return await self._build_file_stream_response(file)
+
+    async def _build_file_stream_response(self, file: AttachedFile):
         try:
-            # GridFS에서 파일 스트림 가져오기
             grid_out = await self.fs.open_download_stream(ObjectId(file.gridfs_file_id))
             content = await grid_out.read()
-            
-            # 파일명을 UTF-8로 인코딩하여 HTTP 헤더에 안전하게 전달
             encoded_filename = quote(file.file_name.encode('utf-8'))
-            
             return Response(
                 content=content,
                 media_type=file.file_type,
-                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+                headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"},
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to retrieve file: {str(e)}")
