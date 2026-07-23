@@ -123,6 +123,30 @@ async def update_direct_payment_task(
     )
 
 
+@router.patch("/{task_id}/completion")
+@inject
+async def update_payment_task_completion(
+    task_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    paid_at: Optional[str] = Form(None),
+    paid_amount: Optional[str] = Form(None),
+    note: Optional[str] = Form(None),
+    deleted_file_ids: Optional[str] = Form(None),
+    receipt_files: List[UploadFile] = File(default=[]),
+    payment_task_service: PaymentTaskService = Depends(Provide[Container.payment_task_service]),
+):
+    """납부 완료 뒤 담당자가 실제 납부 결과와 증빙을 수정한다."""
+    return await payment_task_service.update_completion(
+        task_id,
+        current_user.id,
+        paid_at,
+        paid_amount,
+        note,
+        receipt_files,
+        json.loads(deleted_file_ids) if deleted_file_ids else [],
+    )
+
+
 @router.get("/{task_id}/files")
 @inject
 async def get_payment_task_files(
@@ -152,7 +176,7 @@ async def complete_payment_task(
     task_id: str,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     paid_at: str = Form(...),
-    paid_amount: int = Form(...),
+    paid_amount: Optional[str] = Form(None),
     note: Optional[str] = Form(None),
     receipt_files: List[UploadFile] = File(default=[]),
     payment_task_service: PaymentTaskService = Depends(Provide[Container.payment_task_service]),

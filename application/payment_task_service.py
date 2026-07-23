@@ -122,15 +122,12 @@ class PaymentTaskService(BaseService[PaymentTask]):
         self._validate_task_access(task, user_id, user_roles)
         return await self.file_service.get_payment_task_file_stream(task_id, file_id)
 
-    async def complete_task(self, task_id: str, user_id: str, paid_at: str, paid_amount: int, note: Optional[str], receipt_files: List[UploadFile]) -> Dict[str, Any]:
+    async def complete_task(self, task_id: str, user_id: str, paid_at: str, paid_amount: Optional[str], note: Optional[str], receipt_files: List[UploadFile]) -> Dict[str, Any]:
         task = await self._get_task(task_id)
         if task.assignee_id != user_id:
             raise HTTPException(status_code=403, detail="지정된 납부 담당자만 완료 처리할 수 있습니다.")
         if task.status == "COMPLETED":
             raise HTTPException(status_code=400, detail="이미 납부 완료 처리된 업무입니다.")
-        if not receipt_files or not any(file.filename for file in receipt_files):
-            raise HTTPException(status_code=400, detail="납부확인증을 한 개 이상 첨부해주세요.")
-
         receipt_ids = []
         for file in receipt_files:
             if file.filename:
@@ -140,11 +137,50 @@ class PaymentTaskService(BaseService[PaymentTask]):
                 receipt_ids.append(attached_file.id)
         task.status = "COMPLETED"
         task.paid_at = self._parse_date(paid_at, "실제 납부일")
-        task.paid_amount = self._parse_amount(paid_amount, "실제 납부 금액")
+        task.paid_amount = self._parse_optional_amount(paid_amount, "실제 납부 금액")
         task.completion_note = (note or "").strip()
         task.receipt_file_ids = receipt_ids
         task.completed_at = get_utc_now_naive()
         task.updated_at = task.completed_at
+        return self.serialize_task(await self.payment_task_repo.update(task))
+
+    async def update_completion(
+        self,
+        task_id: str,
+        user_id: str,
+        paid_at: Optional[str],
+        paid_amount: Optional[str],
+        note: Optional[str],
+        receipt_files: List[UploadFile],
+        deleted_file_ids: List[str],
+    ) -> Dict[str, Any]:
+        """완료된 납부 업무의 실제 납부 결과를 담당자가 보완한다."""
+        task = await self._get_task(task_id)
+        if task.assignee_id != user_id:
+            raise HTTPException(status_code=403, detail="지정된 납부 담당자만 납부 결과를 수정할 수 있습니다.")
+        if task.status != "COMPLETED":
+            raise HTTPException(status_code=400, detail="납부 완료 후에만 납부 결과를 수정할 수 있습니다.")
+
+        if paid_at is not None:
+            task.paid_at = self._parse_date(paid_at, "실제 납부일")
+        if paid_amount is not None:
+            task.paid_amount = self._parse_optional_amount(paid_amount, "실제 납부 금액")
+        if note is not None:
+            task.completion_note = note.strip()
+
+        for file_id in deleted_file_ids:
+            if file_id in task.receipt_file_ids:
+                await self.file_service.delete_payment_task_file(task.id, file_id)
+                task.receipt_file_ids.remove(file_id)
+
+        for file in receipt_files:
+            if file.filename:
+                attached_file = await self.file_service.upload_payment_task_file(
+                    task.id, file, user_id, attachment_type="PAYMENT_EVIDENCE"
+                )
+                task.receipt_file_ids.append(attached_file.id)
+
+        task.updated_at = get_utc_now_naive()
         return self.serialize_task(await self.payment_task_repo.update(task))
 
     async def _get_task(self, task_id: str) -> PaymentTask:
