@@ -4,6 +4,7 @@ from application.websocket_manager import WebSocketManager
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.approval_request_repo import IApprovalRequestRepository
 from infra.db_models.approval_request import ApprovalRequest
+from infra.db_models.payment_task import PaymentTask
 
 
 class ApprovalNotificationService:
@@ -113,6 +114,20 @@ class ApprovalNotificationService:
         for user_id in all_users:
             await self.websocket_manager.send_to_user(user_id, message)
             await self.notify_pending_count(user_id)  # 대기 건수 업데이트
+
+    async def notify_payment_task_assigned(self, task: PaymentTask):
+        """납부 업무를 담당자에게 전달한다."""
+        message = {
+            "type": "payment_task_assigned",
+            "data": {
+                "task_id": task.id,
+                "title": task.title,
+                "due_date": task.due_date.isoformat() if task.due_date else None,
+                "requested_amount": task.requested_amount,
+                "timestamp": get_kst_now().isoformat(),
+            },
+        }
+        await self.websocket_manager.send_to_user(task.assignee_id, message)
 
     async def get_next_approvers(self, request: ApprovalRequest) -> List[str]:
         """다음 결재자 목록 조회"""

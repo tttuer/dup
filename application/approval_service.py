@@ -78,7 +78,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
 
                     # 필수 필드 검증
                     title = self.validate_required_field(title, "Title")
-                    content = self.validate_required_field(content, "Content")
+                    is_payment_request = (form_data or {}).get("workflow_type") == "PAYMENT_REQUEST"
+                    content = content.strip() if is_payment_request else self.validate_required_field(content, "Content")
 
                     # 파일 사전 검증
                     for file in files:
@@ -244,7 +245,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
                 try:
                     # 필수 필드 검증
                     title = self.validate_required_field(title, "Title")
-                    content = self.validate_required_field(content, "Content")
+                    is_payment_request = (form_data or {}).get("workflow_type") == "PAYMENT_REQUEST"
+                    content = content.strip() if is_payment_request else self.validate_required_field(content, "Content")
 
                     # 파일 사전 검증
                     for file in files:
