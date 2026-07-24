@@ -106,6 +106,14 @@ PAYMENT_SUMMARY_MINUTE=30
 
 연동은 DUP에서 노션으로만 데이터를 보냅니다. 금액, 설명, 계좌번호, 요청·증빙 첨부파일은 노션과 텔레그램으로 전송하지 않습니다.
 
+### 운영 환경 비밀값 관리
+
+운영 비밀값은 `.env` 파일을 Docker 이미지에 포함하지 않고, 암호화된 `k8s/dup-env.sops.yaml` 파일에서 Kubernetes Secret으로 배포합니다.
+
+최초 1회에는 GitHub `Production` 환경 시크릿에 `SOPS_AGE_KEY`를 등록한 뒤, Actions의 `SOPS 비밀값 최초 변환` 워크플로우를 수동 실행합니다. 이 작업은 기존 `ENV_VARS`를 암호화된 파일로 한 번만 옮깁니다. 변환과 배포 확인 뒤에는 `ENV_VARS`를 삭제해도 됩니다.
+
+이후 환경변수를 추가·수정할 때는 SOPS로 `k8s/dup-env.sops.yaml`을 열어 변경하고 커밋합니다. 실제 값은 암호화되어 GitHub에 저장됩니다.
+
 ## 로컬 개발 환경 설정
 
 ### 1. uv 설치
