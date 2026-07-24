@@ -110,9 +110,68 @@ PAYMENT_SUMMARY_MINUTE=30
 
 운영 비밀값은 `.env` 파일을 Docker 이미지에 포함하지 않고, 암호화된 `k8s/dup-env.sops.yaml` 파일에서 Kubernetes Secret으로 배포합니다.
 
-최초 1회에는 GitHub `Production` 환경 시크릿에 `SOPS_AGE_KEY`를 등록한 뒤, Actions의 `SOPS 비밀값 최초 변환` 워크플로우를 수동 실행합니다. 이 작업은 기존 `ENV_VARS`를 암호화된 파일로 한 번만 옮깁니다. 변환과 배포 확인 뒤에는 `ENV_VARS`를 삭제해도 됩니다.
+#### 최초 1회 전환
 
-이후 환경변수를 추가·수정할 때는 SOPS로 `k8s/dup-env.sops.yaml`을 열어 변경하고 커밋합니다. 실제 값은 암호화되어 GitHub에 저장됩니다.
+1. `age`로 만든 `age.key` 파일을 안전한 비밀번호 관리자에 백업한다. 이 파일을 잃으면 암호화된 운영 비밀값을 열 수 없다.
+2. GitHub 저장소의 **Settings → Environments → Production → Secrets**에 `SOPS_AGE_KEY`를 만든다. 값은 `age.key` 파일의 전체 내용이다.
+
+   ```powershell
+   Get-Content -Raw age.key | gh secret set SOPS_AGE_KEY --env Production
+   ```
+
+3. `SOPS 비밀값 최초 변환` GitHub Actions 워크플로우를 수동 실행한다. 이 워크플로우는 기존 `ENV_VARS`를 읽어 `k8s/dup-env.sops.yaml`로 암호화해 커밋한다.
+4. `Deploy to Kubernetes` 워크플로우를 수동 실행한다. 이때 암호화 파일을 복호화해 K3s의 `dup-env` Secret으로 적용한다.
+5. 서비스가 정상 동작하는 것을 확인한 뒤에만 기존 GitHub `ENV_VARS` 시크릿을 삭제한다.
+
+`ENV_VARS`는 암호화 파일이 만들어지기 전 첫 배포를 위한 호환용이다. 전환이 끝난 뒤에는 새 환경변수를 추가할 때 GitHub 시크릿을 수정하지 않는다.
+
+#### 평소 환경변수 추가·수정
+
+1. SOPS를 한 번만 설치한다.
+
+   ```powershell
+   winget install -e --id Mozilla.SOPS
+   ```
+
+2. 현재 PowerShell에 복호화 키 파일 위치를 알려준다.
+
+   ```powershell
+   $env:SOPS_AGE_KEY_FILE = (Resolve-Path .\age.key)
+   ```
+
+3. 암호화된 운영 설정을 연다.
+
+   ```powershell
+   sops k8s/dup-env.sops.yaml
+   ```
+
+4. `stringData` 아래에 값을 추가하거나 수정한 뒤 저장하고 편집기를 닫는다. 예를 들어 노션·텔레그램 연동을 켤 때는 다음처럼 추가한다.
+
+   ```yaml
+   stringData:
+     NOTION_API_TOKEN: 실제-노션-토큰
+     NOTION_PAYMENT_DATABASE_ID: 실제-데이터베이스-ID
+     FRONTEND_BASE_URL: https://arc.baeksung.kr
+     TELEGRAM_BOT_TOKEN: 실제-텔레그램-봇-토큰
+     TELEGRAM_CHAT_ID: 실제-채팅방-ID
+   ```
+
+5. 암호화된 파일만 커밋하고 `main`에 병합한다. 배포 워크플로우가 자동으로 K3s Secret과 DUP Pod를 갱신한다.
+
+   ```powershell
+   git add k8s/dup-env.sops.yaml
+   git commit -m "운영 환경변수 수정"
+   git push
+   ```
+
+#### 꼭 지킬 것
+
+- `age.key`와 `AGE-SECRET-KEY-1...` 값은 Git, 채팅, 문서에 올리지 않는다.
+- `k8s/dup-env.sops.yaml`은 Git에 올려도 되지만, `k8s/dup-env.yaml` 같은 복호화된 파일은 올리면 안 된다.
+- `.gitignore`가 `age.key`와 복호화된 파일을 제외한다. 그래도 `git status`로 커밋 전 확인한다.
+- 새 설정값은 가능하면 기본값을 둬서, 기능을 켜기 전까지 배포가 실패하지 않게 만든다.
+
+실제 값은 암호화되어 GitHub에 저장되며, `age.key` 또는 GitHub의 `SOPS_AGE_KEY` 없이는 읽을 수 없다.
 
 ## 로컬 개발 환경 설정
 
