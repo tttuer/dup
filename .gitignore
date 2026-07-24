@@ -5,6 +5,8 @@ __pycache__/
 *.pyd
 .env
 .env.*
+age.key
+k8s/dup-env.yaml
 
 # venv
 venv/
