@@ -80,7 +80,31 @@ REDIS_HOST=your_redis_host
 REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
 SLACK_WEBHOOK_URL=your_slack_webhook_url
+# 납부 업무 외부 연동 (설정하지 않으면 연동은 비활성화됩니다)
+NOTION_API_TOKEN=your_notion_integration_token
+NOTION_PAYMENT_DATABASE_ID=your_notion_database_id
+FRONTEND_BASE_URL=https://arc.baeksung.kr
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+PAYMENT_SUMMARY_HOUR=8
+PAYMENT_SUMMARY_MINUTE=30
 ```
+
+### 납부 업무 노션 데이터베이스
+
+노션에서 `DUP 납부 일정` 데이터베이스를 만들고, 해당 데이터베이스를 연동에 공유해야 합니다. 속성 이름과 종류는 아래처럼 정확히 맞춰야 합니다.
+
+| 속성 | 종류 |
+| --- | --- |
+| 업무명 | 제목 |
+| 납부일 | 날짜 |
+| 상태 | 선택 (`기한 미설정`, `납부 대기`, `기한 초과`, `완료`) |
+| 담당자 | 텍스트 |
+| DUP에서 확인 | URL |
+| DUP 업무 ID | 텍스트 |
+| 마지막 동기화 | 날짜 |
+
+연동은 DUP에서 노션으로만 데이터를 보냅니다. 금액, 설명, 계좌번호, 요청·증빙 첨부파일은 노션과 텔레그램으로 전송하지 않습니다.
 
 ## 로컬 개발 환경 설정
 
