@@ -30,6 +30,7 @@ class PaymentTask(BaseResponse):
     completion_note: str = ""
     request_file_ids: List[str] = Field(default_factory=list)
     receipt_file_ids: List[str] = Field(default_factory=list)
+    notion_sync_needed: bool = True
     created_at: datetime
     updated_at: datetime
 

@@ -12,6 +12,7 @@ scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
 container = Container()
 voucher_service = container.voucher_service()  # DI로 받은 서비스 인스턴스
+payment_task_notification_service = container.payment_task_notification_service()
 
 
 async def crawl_and_save_job():
@@ -50,6 +51,21 @@ async def crawl_and_save_job():
         await send_slack_message(f"✅ 전표 스케줄 작업 완료 ({total_voucher_count}건)")
 
 
+async def retry_payment_task_notion_sync_job():
+    await payment_task_notification_service.retry_unsynced_tasks()
+
+
+async def send_payment_task_summary_job():
+    try:
+        await payment_task_notification_service.send_daily_summary()
+    except Exception as error:
+        print(f"텔레그램 납부 요약 발송 실패: {error}")
+
+
+async def refresh_payment_task_notion_status_job():
+    await payment_task_notification_service.refresh_active_task_statuses()
+
+
 def start_scheduler():
     # 매일 오전 8시에 실행
     scheduler.add_job(
@@ -57,6 +73,32 @@ def start_scheduler():
         CronTrigger(hour=12, minute=0, timezone=timezone("Asia/Seoul")),
         id='whg_crawl_8am',
         replace_existing=True
+    )
+
+    # 실패한 노션 동기화와 배포 전 미완료 업무를 10분마다 안전하게 재시도한다.
+    scheduler.add_job(
+        retry_payment_task_notion_sync_job,
+        "interval",
+        minutes=10,
+        id="payment_task_notion_retry",
+        replace_existing=True,
+        next_run_time=datetime.datetime.now(timezone("Asia/Seoul")),
+    )
+    scheduler.add_job(
+        refresh_payment_task_notion_status_job,
+        CronTrigger(hour=0, minute=5, timezone=timezone("Asia/Seoul")),
+        id="payment_task_notion_daily_status",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        send_payment_task_summary_job,
+        CronTrigger(
+            hour=settings.payment_summary_hour,
+            minute=settings.payment_summary_minute,
+            timezone=timezone("Asia/Seoul"),
+        ),
+        id="payment_task_telegram_summary",
+        replace_existing=True,
     )
     
     # 매일 저녁 6시에 실행

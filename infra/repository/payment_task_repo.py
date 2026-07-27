@@ -38,3 +38,26 @@ class PaymentTaskRepository(BaseRepository[PaymentTask], IPaymentTaskRepository)
             {**active_query, "is_request_confirmed": False}
         ).count()
         return {"today_count": today_count, "confirmation_count": confirmation_count}
+
+    async def find_for_notion_sync(self) -> List[PaymentTask]:
+        query = {
+            "$or": [
+                {"notion_sync_needed": True},
+                {"notion_sync_needed": {"$exists": False}, "status": {"$ne": "COMPLETED"}},
+            ]
+        }
+        return await PaymentTask.find(query).sort(PaymentTask.updated_at).to_list()
+
+    async def get_daily_summary(self, today: date) -> dict:
+        active_query = {"status": {"$ne": "COMPLETED"}}
+        today_count = await PaymentTask.find({**active_query, "due_date": today}).count()
+        overdue_count = await PaymentTask.find({**active_query, "due_date": {"$lt": today}}).count()
+        unset_count = await PaymentTask.find({**active_query, "due_date": None}).count()
+        return {
+            "today_count": today_count,
+            "overdue_count": overdue_count,
+            "unset_count": unset_count,
+        }
+
+    async def find_active_for_notion_status(self) -> List[PaymentTask]:
+        return await PaymentTask.find({"status": {"$ne": "COMPLETED"}}).to_list()
