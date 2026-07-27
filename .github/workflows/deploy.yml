@@ -18,7 +18,7 @@ jobs:
       # SOPS 파일이 준비되기 전 첫 배포만 기존 ENV_VARS를 사용한다.
       # 변환이 끝나면 ENV_VARS를 삭제해도 된다.
       - name: SOPS 설치
-        uses: getsops/action@v2
+        uses: ./.github/actions/setup-sops
 
       - name: Kubernetes Secret 준비
         env:
