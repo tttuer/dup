@@ -14,7 +14,7 @@ from application.file_attachment_service import FileAttachmentService
 from application.integrity_service import IntegrityService
 from application.legal_archive_service import LegalArchiveService
 from application.payment_task_service import PaymentTaskService
-from application.payment_task_notification_service import PaymentTaskNotificationService
+from application.payment_task_calendar_service import PaymentTaskCalendarService
 from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
 from infra.repository.voucher_repo import VoucherRepository
@@ -87,8 +87,8 @@ class Container(containers.DeclarativeContainer):
     attached_file_repo = providers.Factory(AttachedFileRepository)
     document_integrity_repo = providers.Factory(DocumentIntegrityRepository)
     payment_task_repo = providers.Factory(PaymentTaskRepository)
-    payment_task_notification_service = providers.Factory(
-        PaymentTaskNotificationService,
+    payment_task_calendar_service = providers.Factory(
+        PaymentTaskCalendarService,
         payment_task_repo=payment_task_repo,
     )
     
@@ -161,7 +161,7 @@ class Container(containers.DeclarativeContainer):
         user_repo=user_repo,
         file_service=file_attachment_service,
         notification_service=approval_notification_service,
-        payment_task_notification_service=payment_task_notification_service,
+        payment_task_calendar_service=payment_task_calendar_service,
     )
 
     approval_service = providers.Factory(

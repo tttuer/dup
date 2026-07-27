@@ -81,8 +81,8 @@ REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
 SLACK_WEBHOOK_URL=your_slack_webhook_url
 # 납부 업무 외부 연동 (설정하지 않으면 연동은 비활성화됩니다)
-NOTION_API_TOKEN=your_notion_integration_token
-NOTION_PAYMENT_DATABASE_ID=your_notion_database_id
+GOOGLE_CALENDAR_ID=your_google_calendar_id
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 FRONTEND_BASE_URL=https://arc.baeksung.kr
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
@@ -90,88 +90,38 @@ PAYMENT_SUMMARY_HOUR=8
 PAYMENT_SUMMARY_MINUTE=30
 ```
 
-### 납부 업무 노션 데이터베이스
+### 납부 업무 구글 캘린더와 노션 캘린더 연결
 
-노션에서 `DUP 납부 일정` 데이터베이스를 만들고, 해당 데이터베이스를 연동에 공유해야 합니다. 속성 이름과 종류는 아래처럼 정확히 맞춰야 합니다.
+노션 캘린더 앱은 별도 노션 데이터베이스 없이도 연결된 구글 캘린더 일정을 보여 줄 수 있습니다. DUP는 납부일이 있는 업무마다 구글 캘린더에 하루 종일 일정을 만들고, 일정의 설명에는 DUP 업무 화면으로 바로 가는 주소만 넣습니다. 금액, 설명, 계좌번호, 요청·증빙 첨부파일은 구글 캘린더와 텔레그램으로 보내지 않습니다.
 
-| 속성 | 종류 |
-| --- | --- |
-| 업무명 | 제목 |
-| 납부일 | 날짜 |
-| 상태 | 선택 (`기한 미설정`, `납부 대기`, `기한 초과`, `완료`) |
-| 담당자 | 텍스트 |
-| DUP에서 확인 | URL |
-| DUP 업무 ID | 텍스트 |
-| 마지막 동기화 | 날짜 |
+#### 최초 1회 설정
 
-연동은 DUP에서 노션으로만 데이터를 보냅니다. 금액, 설명, 계좌번호, 요청·증빙 첨부파일은 노션과 텔레그램으로 전송하지 않습니다.
+1. [Google Cloud Console](https://console.cloud.google.com/)에서 프로젝트를 만들고 **Google Calendar API**를 사용 설정한다.
+2. **서비스 계정**을 만들고 JSON 키를 내려받는다. JSON 파일 안의 `client_email`이 자동화용 구글 계정 주소다.
+3. 일정을 넣을 구글 캘린더의 **설정 및 공유 → 특정 사용자 또는 그룹과 공유**에서 그 `client_email`을 추가하고 권한을 **일정 변경**으로 준다.
+4. 같은 캘린더의 **통합 → 캘린더 ID**를 복사한다.
+5. 노션 캘린더 앱에서 그 구글 계정을 연결하고, 방금 공유한 캘린더가 보이게 선택한다.
+
+#### GitHub `ENV_VARS`에 넣을 값
+
+GitHub 저장소의 **Settings → Environments → Production → Secrets → `ENV_VARS`**에 기존 값 아래 두 줄을 추가한다. 서비스 계정 JSON은 반드시 한 줄이어야 한다.
+
+```text
+GOOGLE_CALENDAR_ID=복사한-캘린더-ID
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...한-줄-전체-JSON...}
+```
+
+다운받은 JSON 파일을 한 줄로 만들 때는 PowerShell에서 아래 명령을 쓴다. 출력된 한 줄 전체를 `GOOGLE_SERVICE_ACCOUNT_JSON=` 뒤에 붙여 넣는다.
+
+```powershell
+(Get-Content -Raw .\google-service-account.json | ConvertFrom-Json | ConvertTo-Json -Compress)
+```
 
 ### 운영 환경 비밀값 관리
 
-운영 비밀값은 `.env` 파일을 Docker 이미지에 포함하지 않고, 암호화된 `k8s/dup-env.sops.yaml` 파일에서 Kubernetes Secret으로 배포합니다.
+운영 비밀값은 GitHub Environment의 `ENV_VARS` 하나에만 보관한다. 배포할 때 GitHub Actions가 이를 Kubernetes `dup-env` Secret으로 바꾸고, 서버에 적용한다. `.env`와 변환된 `k8s/dup-env.yaml`은 Docker 이미지와 Git에 들어가지 않는다.
 
-#### 최초 1회 전환
-
-1. `age`로 만든 `age.key` 파일을 안전한 비밀번호 관리자에 백업한다. 이 파일을 잃으면 암호화된 운영 비밀값을 열 수 없다.
-2. GitHub 저장소의 **Settings → Environments → Production → Secrets**에 `SOPS_AGE_KEY`를 만든다. 값은 `age.key` 파일의 전체 내용이다.
-
-   ```powershell
-   Get-Content -Raw age.key | gh secret set SOPS_AGE_KEY --env Production
-   ```
-
-3. `SOPS 비밀값 최초 변환` GitHub Actions 워크플로우를 수동 실행한다. 이 워크플로우는 기존 `ENV_VARS`를 읽어 `k8s/dup-env.sops.yaml`로 암호화해 커밋한다.
-4. `Deploy to Kubernetes` 워크플로우를 수동 실행한다. 이때 암호화 파일을 복호화해 K3s의 `dup-env` Secret으로 적용한다.
-5. 서비스가 정상 동작하는 것을 확인한 뒤에만 기존 GitHub `ENV_VARS` 시크릿을 삭제한다.
-
-`ENV_VARS`는 암호화 파일이 만들어지기 전 첫 배포를 위한 호환용이다. 전환이 끝난 뒤에는 새 환경변수를 추가할 때 GitHub 시크릿을 수정하지 않는다.
-
-#### 평소 환경변수 추가·수정
-
-1. SOPS를 한 번만 설치한다.
-
-   ```powershell
-   winget install -e --id Mozilla.SOPS
-   ```
-
-2. 현재 PowerShell에 복호화 키 파일 위치를 알려준다.
-
-   ```powershell
-   $env:SOPS_AGE_KEY_FILE = (Resolve-Path .\age.key)
-   ```
-
-3. 암호화된 운영 설정을 연다.
-
-   ```powershell
-   sops k8s/dup-env.sops.yaml
-   ```
-
-4. `stringData` 아래에 값을 추가하거나 수정한 뒤 저장하고 편집기를 닫는다. 예를 들어 노션·텔레그램 연동을 켤 때는 다음처럼 추가한다.
-
-   ```yaml
-   stringData:
-     NOTION_API_TOKEN: 실제-노션-토큰
-     NOTION_PAYMENT_DATABASE_ID: 실제-데이터베이스-ID
-     FRONTEND_BASE_URL: https://arc.baeksung.kr
-     TELEGRAM_BOT_TOKEN: 실제-텔레그램-봇-토큰
-     TELEGRAM_CHAT_ID: 실제-채팅방-ID
-   ```
-
-5. 암호화된 파일만 커밋하고 `main`에 병합한다. 배포 워크플로우가 자동으로 K3s Secret과 DUP Pod를 갱신한다.
-
-   ```powershell
-   git add k8s/dup-env.sops.yaml
-   git commit -m "운영 환경변수 수정"
-   git push
-   ```
-
-#### 꼭 지킬 것
-
-- `age.key`와 `AGE-SECRET-KEY-1...` 값은 Git, 채팅, 문서에 올리지 않는다.
-- `k8s/dup-env.sops.yaml`은 Git에 올려도 되지만, `k8s/dup-env.yaml` 같은 복호화된 파일은 올리면 안 된다.
-- `.gitignore`가 `age.key`와 복호화된 파일을 제외한다. 그래도 `git status`로 커밋 전 확인한다.
-- 새 설정값은 가능하면 기본값을 둬서, 기능을 켜기 전까지 배포가 실패하지 않게 만든다.
-
-실제 값은 암호화되어 GitHub에 저장되며, `age.key` 또는 GitHub의 `SOPS_AGE_KEY` 없이는 읽을 수 없다.
+환경변수를 추가하거나 바꿀 때는 `ENV_VARS`의 해당 줄만 고치고 `main`에 배포하면 된다. 값은 `KEY=VALUE` 형식이며, `=`가 값에 들어가도 그대로 사용할 수 있다. `GOOGLE_SERVICE_ACCOUNT_JSON`처럼 긴 JSON도 한 줄로 넣으면 된다.
 
 ## 로컬 개발 환경 설정
 
