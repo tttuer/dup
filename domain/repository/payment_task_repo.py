@@ -35,13 +35,9 @@ class IPaymentTaskRepository(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_for_notion_sync(self) -> List[PaymentTask]:
+    async def find_for_calendar_sync(self) -> List[PaymentTask]:
         raise NotImplementedError
 
     @abstractmethod
     async def get_daily_summary(self, today) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def find_active_for_notion_status(self) -> List[PaymentTask]:
         raise NotImplementedError

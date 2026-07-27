@@ -8,7 +8,7 @@ from ulid import ULID
 from application.approval_notification_service import ApprovalNotificationService
 from application.base_service import BaseService
 from application.file_attachment_service import FileAttachmentService
-from application.payment_task_notification_service import PaymentTaskNotificationService
+from application.payment_task_calendar_service import PaymentTaskCalendarService
 from common.auth import Role
 from domain.payment_task import PaymentTask
 from domain.repository.payment_task_repo import IPaymentTaskRepository
@@ -26,13 +26,13 @@ class PaymentTaskService(BaseService[PaymentTask]):
         user_repo: IUserRepository,
         file_service: FileAttachmentService,
         notification_service: ApprovalNotificationService,
-        payment_task_notification_service: PaymentTaskNotificationService,
+        payment_task_calendar_service: PaymentTaskCalendarService,
     ):
         super().__init__(user_repo)
         self.payment_task_repo = payment_task_repo
         self.file_service = file_service
         self.notification_service = notification_service
-        self.payment_task_notification_service = payment_task_notification_service
+        self.payment_task_calendar_service = payment_task_calendar_service
         self.ulid = ULID()
 
     async def create_direct_payment_task(
@@ -63,7 +63,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
         task = await self.payment_task_repo.save(task)
         await self._add_request_files(task, files, requester_id)
         await self.notification_service.notify_payment_task_assigned(task)
-        await self._sync_to_notion(task)
+        await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def get_my_tasks(self, user_id: str, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
@@ -90,7 +90,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
             task.confirmed_by = user_id
             task.updated_at = task.confirmed_at
             task = await self.payment_task_repo.update(task)
-            await self._sync_to_notion(task)
+            await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def update_direct_request(self, task_id: str, requester_id: str, data: Dict[str, Any], files: List[UploadFile], deleted_file_ids: List[str]) -> Dict[str, Any]:
@@ -108,7 +108,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
         await self._add_request_files(task, files, requester_id, save=False)
         task.updated_at = get_utc_now_naive()
         task = await self.payment_task_repo.update(task)
-        await self._sync_to_notion(task)
+        await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def set_due_date(self, task_id: str, user_id: str, due_date: str) -> Dict[str, Any]:
@@ -122,7 +122,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
         task.title = self.build_title(task.request_name, task.due_date)
         task.updated_at = get_utc_now_naive()
         task = await self.payment_task_repo.update(task)
-        await self._sync_to_notion(task)
+        await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def get_task_files(self, task_id: str, user_id: str, user_roles: List[Role]):
@@ -156,7 +156,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
         task.completed_at = get_utc_now_naive()
         task.updated_at = task.completed_at
         task = await self.payment_task_repo.update(task)
-        await self._sync_to_notion(task)
+        await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def update_completion(
@@ -197,7 +197,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
 
         task.updated_at = get_utc_now_naive()
         task = await self.payment_task_repo.update(task)
-        await self._sync_to_notion(task)
+        await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
     async def _get_task(self, task_id: str) -> PaymentTask:
@@ -206,14 +206,14 @@ class PaymentTaskService(BaseService[PaymentTask]):
             raise HTTPException(status_code=404, detail="납부 업무를 찾을 수 없습니다.")
         return task
 
-    async def _sync_to_notion(self, task: PaymentTask) -> None:
-        task.notion_sync_needed = True
+    async def _sync_to_calendar(self, task: PaymentTask) -> None:
+        task.calendar_sync_needed = True
         await self.payment_task_repo.update(task)
         try:
-            await self.payment_task_notification_service.sync_task(task)
+            await self.payment_task_calendar_service.sync_task(task)
         except Exception as error:
             # 외부 일정 장애 때문에 납부 업무 저장을 실패시키지 않는다.
-            print(f"납부 업무 노션 동기화 실패 ({task.id}): {error}")
+            print(f"납부 업무 구글 캘린더 동기화 실패 ({task.id}): {error}")
 
     async def _add_request_files(self, task: PaymentTask, files: List[UploadFile], uploaded_by: str, save: bool = True) -> None:
         for file in files:

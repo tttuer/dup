@@ -1,4 +1,3 @@
 .env
 .env.*
-age.key
 k8s/
