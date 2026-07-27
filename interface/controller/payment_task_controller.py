@@ -67,6 +67,17 @@ async def get_my_payment_task_summary(
     return await payment_task_service.get_my_summary(current_user.id)
 
 
+@router.get("/{task_id}")
+@inject
+async def get_payment_task(
+    task_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    payment_task_service: PaymentTaskService = Depends(Provide[Container.payment_task_service]),
+):
+    """요청자·담당자·관리자만 딥링크로 납부 업무를 조회한다."""
+    return await payment_task_service.get_task(task_id, current_user.id, current_user.roles)
+
+
 @router.patch("/{task_id}/due-date")
 @inject
 async def set_payment_task_due_date(

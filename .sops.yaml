@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: k8s/dup-env\.sops\.yaml$
+    age: age1n5jf6c3qn6wgsr8sjw9f3cmd62u599qgsqffkksuxmkfemrfxafqykdp48
