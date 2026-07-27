@@ -29,27 +29,7 @@ jobs:
             test -n "$SOPS_AGE_KEY" || { echo "SOPS_AGE_KEY 시크릿이 비어 있습니다."; exit 1; }
             sops --decrypt k8s/dup-env.sops.yaml > k8s/dup-env.yaml
           else
-            test -n "$ENV_VARS" || { echo "ENV_VARS 시크릿이 비어 있습니다."; exit 1; }
-            python3 - <<'PY'
-            import json
-            import os
-            from pathlib import Path
-
-            values = {}
-            for raw_line in os.environ["ENV_VARS"].splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                key, separator, value = raw_line.partition("=")
-                if not separator or not key.strip():
-                    raise ValueError(f"올바르지 않은 환경변수 줄입니다: {raw_line!r}")
-                values[key.strip()] = value
-
-            with Path("k8s/dup-env.yaml").open("w", encoding="utf-8") as file:
-                file.write("apiVersion: v1\nkind: Secret\nmetadata:\n  name: dup-env\ntype: Opaque\nstringData:\n")
-                for key, value in sorted(values.items()):
-                    file.write(f"  {json.dumps(key, ensure_ascii=False)}: {json.dumps(value, ensure_ascii=False)}\n")
-            PY
+            python3 scripts/create_kubernetes_secret.py k8s/dup-env.yaml
 
       - name: Kubernetes Secret 전달
         uses: appleboy/scp-action@master
