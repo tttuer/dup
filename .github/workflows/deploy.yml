@@ -15,21 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # SOPS 파일이 준비되기 전 첫 배포만 기존 ENV_VARS를 사용한다.
-      # 변환이 끝나면 ENV_VARS를 삭제해도 된다.
-      - name: SOPS 설치
-        uses: ./.github/actions/setup-sops
-
       - name: Kubernetes Secret 준비
         env:
           ENV_VARS: ${{ secrets.ENV_VARS }}
-          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
-          if [ -f k8s/dup-env.sops.yaml ]; then
-            test -n "$SOPS_AGE_KEY" || { echo "SOPS_AGE_KEY 시크릿이 비어 있습니다."; exit 1; }
-            sops --decrypt k8s/dup-env.sops.yaml > k8s/dup-env.yaml
-          else
-            python3 scripts/create_kubernetes_secret.py k8s/dup-env.yaml
+          python3 scripts/create_kubernetes_secret.py k8s/dup-env.yaml
 
       - name: Kubernetes Secret 전달
         uses: appleboy/scp-action@master
