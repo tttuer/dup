@@ -56,4 +56,6 @@ dependencies = [
     "aiohttp>=3.12.15",
     "bleach>=6.2.0",
     "tinycss2>=1.4.0",
+    "google-api-python-client>=2.0.0",
+    "google-auth>=2.0.0",
 ]
