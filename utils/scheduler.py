@@ -23,32 +23,22 @@ async def crawl_and_save_job():
     wehago_id = settings.wehago_id
     wehago_password = settings.wehago_password
 
-    total_voucher_count = 0
-    failed_companies = []
-
-    for company in Company:
-        try:
-            vouchers = await voucher_service.sync(
-                company=company,
-                year=year,
-                wehago_id=wehago_id,
-                wehago_password=wehago_password,
-            )
-            total_voucher_count += len(vouchers)
-            await send_slack_message(
-                f"✅ [{company.value}] 전표 수집 및 저장 성공 ({len(vouchers)}건)"
-            )
-        except Exception as error:
-            failed_companies.append(company.value)
-            await send_slack_message(f"❌ [{company.value}] 전표 수집 실패: {error}")
-
-    if failed_companies:
-        await send_slack_message(
-            f"⚠️ 전표 스케줄 작업 완료: {total_voucher_count}건 저장, "
-            f"실패 회사: {', '.join(failed_companies)}"
+    try:
+        vouchers_by_company = await voucher_service.sync_many(
+            companies=list(Company),
+            year=year,
+            wehago_id=wehago_id,
+            wehago_password=wehago_password,
         )
-    else:
-        await send_slack_message(f"✅ 전표 스케줄 작업 완료 ({total_voucher_count}건)")
+    except Exception as error:
+        await send_slack_message(f"❌ 전표 스케줄 작업 실패: {error}")
+        return
+
+    total_voucher_count = sum(len(vouchers) for vouchers in vouchers_by_company.values())
+    for company, vouchers in vouchers_by_company.items():
+        await send_slack_message(f"✅ [{company.value}] 전표 수집 및 저장 성공 ({len(vouchers)}건)")
+
+    await send_slack_message(f"✅ 전표 스케줄 작업 완료 ({total_voucher_count}건)")
 
 
 async def retry_payment_task_calendar_sync_job():
