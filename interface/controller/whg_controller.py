@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from fastapi import File
 from fastapi import Form
 from fastapi import UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 
 from application.sync_service import SyncService
@@ -37,6 +37,7 @@ class SyncRequest(BaseModel):
     month: int = None
     year: int = datetime.now().year
     company: Company = Company.BAEKSUNG
+    companies: list[Company] = Field(default_factory=list)
 
 
 @router.post("/sync")
@@ -53,14 +54,24 @@ async def sync_whg(
     await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
 
     try:
-        await voucher_service.sync(
-            company=sync_request.company,
-            year=sync_request.year,
-            month=sync_request.month,
-            wehago_id=sync_request.wehago_id,
-            wehago_password=sync_request.wehago_password,
-        )
-        return {"message": "Sync completed successfully"}
+        companies = sync_request.companies
+        if companies:
+            await voucher_service.sync_many(
+                companies=companies,
+                year=sync_request.year,
+                month=sync_request.month,
+                wehago_id=sync_request.wehago_id,
+                wehago_password=sync_request.wehago_password,
+            )
+        else:
+            await voucher_service.sync(
+                company=sync_request.company,
+                year=sync_request.year,
+                month=sync_request.month,
+                wehago_id=sync_request.wehago_id,
+                wehago_password=sync_request.wehago_password,
+            )
+        return {"message": "Sync completed successfully", "companies": companies or [sync_request.company]}
     except HTTPException:
         raise
     except Exception as e:

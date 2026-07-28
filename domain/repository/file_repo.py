@@ -18,7 +18,7 @@ class IFileRepository(metaclass=ABCMeta):
     async def find_many(
         self,
         *filters: Any,
-        sort_by: str = "created_at",
+        sort_by: str = "withdrawn_at",
         order: str = "desc",
         page: int,
         items_per_page: int

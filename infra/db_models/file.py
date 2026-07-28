@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from beanie import Document, PydanticObjectId
+from pymongo import ASCENDING, DESCENDING, IndexModel
 from pydantic import ConfigDict, Field
 from typing import Optional
 
@@ -29,6 +30,13 @@ class File(Document):
             "company",
             "type",
             "group_id",
+            IndexModel([
+                ("company", ASCENDING),
+                ("type", ASCENDING),
+                ("group_id", ASCENDING),
+                ("withdrawn_at", DESCENDING),
+                ("created_at", DESCENDING),
+            ]),
         ]
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
