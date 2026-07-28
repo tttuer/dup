@@ -82,7 +82,7 @@ class FileService(BaseService[File]):
         type: Optional[Type] = Type.VOUCHER,
         start_at: Optional[str] = None,
         end_at: Optional[str] = None,
-        sort_by: str = "created_at",
+        sort_by: str = "withdrawn_at",
         order: str = "desc",
         page: int = 1,
         items_per_page: int = 30,

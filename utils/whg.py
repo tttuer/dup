@@ -1,6 +1,7 @@
 import gzip
 import io
 import json
+import asyncio
 from datetime import datetime
 
 from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
@@ -55,7 +56,15 @@ class Whg:
         return config["base_gisu"] - (config["base_year"] - year)
 
     async def crawl_whg(self, company: Company, year: int, month: int, wehago_id: str, wehago_password: str):
-        """Async Playwright를 사용한 메인 크롤링 메소드 (병렬 처리)"""
+        vouchers_by_company = await self.crawl_companies(
+            [company], year, month, wehago_id, wehago_password
+        )
+        return vouchers_by_company[company]
+
+    async def crawl_companies(
+        self, companies: list[Company], year: int, month: int, wehago_id: str, wehago_password: str
+    ) -> dict[Company, list[Voucher]]:
+        """한 번 로그인한 세션에서 회사별 탭을 병렬로 열어 전표를 수집한다."""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
@@ -91,13 +100,25 @@ class Whg:
                 await main_page.locator(".snbnext").wait_for(state="visible", timeout=10000)
                 logger.info("메인 페이지 로그인 완료 확인됨")
                 
-                company_vouchers, company_enum = await self._extract_company_data_parallel(
-                    context, company, year, month
+                results = await asyncio.gather(
+                    *(self._extract_company_data_parallel(context, company, year, month) for company in companies),
+                    return_exceptions=True,
                 )
-                for voucher in company_vouchers:
-                    voucher.company = company_enum.value
+                failed_companies = [
+                    company.value
+                    for company, result in zip(companies, results)
+                    if isinstance(result, Exception)
+                ]
+                if failed_companies:
+                    raise CrawlingError(f"전표 수집 실패: {', '.join(failed_companies)}")
 
-                return company_vouchers
+                vouchers_by_company = {}
+                for company_vouchers, company_enum in results:
+                    for voucher in company_vouchers:
+                        voucher.company = company_enum.value
+                    vouchers_by_company[company_enum] = company_vouchers
+
+                return vouchers_by_company
 
             except (LoginError, CrawlingError):
                 raise
@@ -114,20 +135,19 @@ class Whg:
     
     async def _extract_company_data_parallel(self, context, company: Company, year: int, month: int):
         """각 회사별 데이터를 별도 탭에서 처리"""
+        page = await context.new_page()
         try:
-            # 새 탭 생성 (컨텍스트 공유로 세션 보장)
-            page = await context.new_page()
             await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
             
             # 바로 전표 데이터 추출 (로그인은 이미 메인 탭에서 완료됨)
             vouchers = await self._extract_voucher_data(page, company, year, month)
-            
-            await page.close()
             return vouchers, company
             
         except Exception as e:
             logger.error(f"{company.value} 처리 중 오류: {e}")
-            raise e
+            raise
+        finally:
+            await page.close()
 
     async def _login(self, page: Page, wehago_id: str, wehago_password: str) -> bool:
         """Playwright를 사용한 로그인 처리"""

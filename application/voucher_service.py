@@ -1,6 +1,7 @@
 from io import BytesIO
 from typing import Optional
 import zipfile
+import asyncio
 
 from beanie.operators import And, RegEx, In
 from dependency_injector.wiring import inject
@@ -31,8 +32,29 @@ class VoucherService:
         wehago_id: str = None,
         wehago_password: str = None,
     ):
-        # 🚀 async 크롤링 직접 실행 (병렬 처리)
         vouchers = await Whg().crawl_whg(company, year, month, wehago_id, wehago_password)
+        return await self._save_synced_vouchers(company, year, month, vouchers)
+
+    async def sync_many(
+        self,
+        companies: list[Company],
+        year: int,
+        month: int = None,
+        wehago_id: str = None,
+        wehago_password: str = None,
+    ) -> dict[Company, list]:
+        vouchers_by_company = await Whg().crawl_companies(
+            companies, year, month, wehago_id, wehago_password
+        )
+        synced_vouchers = await asyncio.gather(
+            *(
+                self._save_synced_vouchers(company, year, month, vouchers)
+                for company, vouchers in vouchers_by_company.items()
+            )
+        )
+        return dict(zip(vouchers_by_company, synced_vouchers))
+
+    async def _save_synced_vouchers(self, company: Company, year: int, month: int, vouchers: list):
 
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
