@@ -94,7 +94,7 @@ async def find_files(
     search_option: Optional[str] = None,
     start_at: Optional[str] = None,
     end_at: Optional[str] = None,
-    sort_by: str = Query("created_at", description="Sort field"),
+    sort_by: str = Query("withdrawn_at", description="Sort field"),
     order: str = Query("desc", description="Sort order (asc or desc)"),
     company: Optional[Company] = Company.BAEKSUNG,
     type: Optional[Type] = Type.VOUCHER,
