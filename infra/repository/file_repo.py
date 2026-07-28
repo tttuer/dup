@@ -50,22 +50,24 @@ class FileRepository(BaseRepository[File], IFileRepository):
     async def find_many(
         self,
         *filters: Any,
-        sort_by: str = "created_at",
+        sort_by: str = "withdrawn_at",
         order: str = "desc",
         page: int = 1,
         items_per_page: int = 10,
     ) -> tuple[int, list[File]]:
         offset = (page - 1) * items_per_page
 
-        sort_field_name = SORT_FIELDS.get(sort_by, "created_at")
-        sort_field = f"-{sort_field_name}" if order == "desc" else sort_field_name
+        sort_field_name = SORT_FIELDS.get(sort_by, "withdrawn_at")
+        primary_sort = f"-{sort_field_name}" if order == "desc" else sort_field_name
+        # 날짜가 같으면 가장 나중에 생성한 파일을 먼저 보여준다.
+        sort_fields = [primary_sort, "-created_at"]
 
         if filters:
             total_count = await File.find(*filters).count()
 
             files = (
                 await File.find(*filters)
-                .sort(sort_field)
+                .sort(*sort_fields)
                 .skip(offset)
                 .limit(items_per_page)
                 .to_list()
@@ -79,7 +81,7 @@ class FileRepository(BaseRepository[File], IFileRepository):
 
         files = (
             await File.find()
-            .sort(sort_field)
+            .sort(*sort_fields)
             .skip(offset)
             .limit(items_per_page)
             .to_list()
