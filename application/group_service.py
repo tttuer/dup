@@ -86,6 +86,13 @@ class GroupService(BaseService[Group]):
             for group in group_docs
         ]
 
+    async def find_accessible_companies(self, user_id: str, roles: list[Role]) -> list[Company]:
+        if Role.ADMIN in roles:
+            return list(Company)
+
+        group_docs = await self.group_repo.find(In(GroupDocument.auth_users, [user_id]))
+        return list(dict.fromkeys(group.company for group in group_docs))
+
     async def mark_as_read(self, id: str, current_user_id: str, roles: list[Role]):
         group_doc = await self.group_repo.find_by_id(id)
         await self._validate_group_permission(group_doc, current_user_id, roles)

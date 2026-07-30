@@ -31,6 +31,17 @@ class GroupGrantBody(BaseModel):
     auth_users: list[str] = []
 
 
+@router.get("/companies")
+@inject
+async def find_accessible_companies(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    group_service: GroupService = Depends(Provide[Container.group_service]),
+) -> list[Company]:
+    return await group_service.find_accessible_companies(
+        user_id=current_user.id,
+        roles=current_user.roles,
+    )
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 @inject
 async def create_group(
