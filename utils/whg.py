@@ -43,6 +43,15 @@ COMPANY_CONFIGS = {
         "base_year": 2026,
         "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
     },
+    Company.BAEKSUNG_PYEONGTAEK_BRANCH: {
+        "cno": "REDACTED_WEHAGO_COMPANY_ID",
+        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
+        "company_name": "%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)%ED%8F%89%ED%83%9D%EC%A7%80%EC%A0%90",
+        "base_gisu": 39,
+        "base_year": 2024,
+        "color": "#F09A1E",
+        "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
+    },
 }
 
 
@@ -254,9 +263,9 @@ class Whg:
     
     def _build_sao_url(self, company: Company, gisu: int, year: int) -> str:
         """Build the SAO URL for the specified company."""
-        base_params = f"gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color=#1C90FB&companyID=REDACTED_WEHAGO_USER_ID"
-        
         config = COMPANY_CONFIGS[company]
+        color = config.get("color", "#1C90FB")
+        base_params = f"gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color={color}&companyID=REDACTED_WEHAGO_USER_ID"
         url = f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno={config['cno']}&cd_com={config['cd_com']}&{base_params}&companyName={config['company_name']}"
 
         if "ledger_suffix" in config:

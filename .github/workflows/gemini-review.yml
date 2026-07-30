@@ -1,0 +1,31 @@
+name: "Gemini AI Code Review"
+
+# 1. 트리거 설정: PR이 생성되거나, 새 커밋이 푸시(synchronize)되거나, 다시 열릴 때 실행
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# 2. 권한 설정: 코드 읽기 권한 및 PR에 코멘트를 남기기 위한 쓰기 권한 부여
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: 저장소 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Gemini API를 호출하여 코드 리뷰 진행
+      - name: Gemini AI Code Review
+        uses: petarzarkov/gemini-code-review-action@v1
+        with:
+          model: gemini-2.0-flash-lite     # 빠른 코드 리뷰용 검증 모델
+          language: Korean                 # 리뷰 언어 (Korean, English 등)
+          skip_draft_prs: false            # 초안 PR도 즉시 리뷰
+          # exclude: '*.md,*.json,package-lock.json' # 제외하고 싶은 파일 패턴 (필요시 주석 해제)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} # GitHub Secrets에 등록한 API Key
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}     # GitHub에서 자동 제공하는 토큰
