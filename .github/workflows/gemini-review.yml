@@ -20,9 +20,9 @@ jobs:
 
       # Step 2: Gemini API를 호출하여 코드 리뷰 진행
       - name: Gemini AI Code Review
-        uses: petarzarkov/gemini-code-review-action@v1
+        uses: petarzarkov/gemini-code-review-action@latest
         with:
-          model: gemini-2.0-flash-lite     # 빠른 코드 리뷰용 검증 모델
+          model: gemini-3.5-flash          # 안정판 코드 리뷰 모델
           language: Korean                 # 리뷰 언어 (Korean, English 등)
           skip_draft_prs: false            # 초안 PR도 즉시 리뷰
           # exclude: '*.md,*.json,package-lock.json' # 제외하고 싶은 파일 패턴 (필요시 주석 해제)
