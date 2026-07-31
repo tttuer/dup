@@ -38,7 +38,6 @@ ALLOWED_CONTENT_TYPES = {
     "image/gif",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
     "application/haansoftxlsx",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
