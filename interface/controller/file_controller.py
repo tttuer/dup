@@ -31,10 +31,18 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 ALLOWED_CONTENT_TYPES = {
     "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "image/jpeg",
     "image/png",
+    "image/gif",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+    "application/haansoftxlsx",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
     "application/x-hwp",
     "application/vnd.hancom.hwp",
     "application/haansofthwp",
