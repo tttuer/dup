@@ -30,6 +30,9 @@ class PaymentTask(Document):
     completion_note: str = ""
     request_file_ids: List[str] = Field(default_factory=list)
     receipt_file_ids: List[str] = Field(default_factory=list)
+    series_id: Optional[str] = Field(default=None)
+    occurrence_date: Optional[date] = Field(default=None)
+    occurrence_number: Optional[int] = Field(default=None)
     google_calendar_event_id: Optional[str] = None
     calendar_sync_needed: bool = True
     created_at: datetime
@@ -42,4 +45,9 @@ class PaymentTask(Document):
             IndexModel([("assignee_id", ASCENDING), ("due_date", ASCENDING)]),
             IndexModel([("status", ASCENDING), ("due_date", ASCENDING)]),
             IndexModel([("created_at", DESCENDING)]),
+            IndexModel(
+                [("series_id", ASCENDING), ("occurrence_date", ASCENDING)],
+                unique=True,
+                partialFilterExpression={"series_id": {"$type": "string"}},
+            ),
         ]

@@ -21,6 +21,10 @@ class IAttachedFileRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_payment_task_id(self, payment_task_id: str) -> List[AttachedFile]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_payment_task_series_id(self, series_id: str) -> List[AttachedFile]:
+        raise NotImplementedError
     
     @abstractmethod
     async def find_by_uploader(self, uploaded_by: str) -> List[AttachedFile]:
