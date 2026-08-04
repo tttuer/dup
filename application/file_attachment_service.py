@@ -154,9 +154,32 @@ class FileAttachmentService(BaseService[AttachedFile]):
         files = await self.file_repo.find_by_payment_task_id(payment_task_id)
         return [file.model_dump() for file in files]
 
-    async def get_payment_task_file_stream(self, payment_task_id: str, file_id: str):
+    async def upload_payment_task_series_file(
+        self, series_id: str, file: UploadFile, uploaded_by: str
+    ) -> AttachedFile:
+        await self._validate_file(file)
+        gridfs_file_id = await self._save_file_to_gridfs(file, f"payment_task_series:{series_id}")
+        attached_file = AttachedFile(
+            id=self.ulid.generate(),
+            payment_task_series_id=series_id,
+            file_name=file.filename,
+            gridfs_file_id=str(gridfs_file_id),
+            file_size=file.size or 0,
+            file_type=file.content_type or "",
+            attachment_type="PAYMENT_REQUEST",
+            uploaded_at=get_utc_now_naive(),
+            uploaded_by=uploaded_by,
+        )
+        await self.file_repo.save(attached_file)
+        return attached_file
+
+    async def get_payment_task_series_files(self, series_id: str) -> List[Dict[str, Any]]:
+        files = await self.file_repo.find_by_payment_task_series_id(series_id)
+        return [file.model_dump() for file in files]
+
+    async def get_payment_task_file_stream(self, payment_task_id: str, file_id: str, series_id: Optional[str] = None):
         file = await self.file_repo.find_by_id(file_id)
-        if not file or file.payment_task_id != payment_task_id:
+        if not file or (file.payment_task_id != payment_task_id and (not series_id or file.payment_task_series_id != series_id)):
             raise HTTPException(status_code=404, detail="Payment task file not found")
         return await self._build_file_stream_response(file)
 

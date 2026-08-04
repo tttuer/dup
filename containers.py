@@ -14,6 +14,7 @@ from application.file_attachment_service import FileAttachmentService
 from application.integrity_service import IntegrityService
 from application.legal_archive_service import LegalArchiveService
 from application.payment_task_service import PaymentTaskService
+from application.payment_task_recurrence_service import PaymentTaskRecurrenceService
 from application.payment_task_calendar_service import PaymentTaskCalendarService
 from infra.repository.file_repo import FileRepository
 from infra.repository.user_repo import UserRepository
@@ -29,6 +30,7 @@ from infra.repository.attached_file_repo import AttachedFileRepository
 from infra.repository.document_integrity_repo import DocumentIntegrityRepository
 from infra.repository.wiki_repo import WikiRepository
 from infra.repository.payment_task_repo import PaymentTaskRepository
+from infra.repository.payment_task_series_repo import PaymentTaskSeriesRepository
 from application.group_service import GroupService
 from application.websocket_manager import WebSocketManager
 from application.approval_notification_service import ApprovalNotificationService
@@ -87,6 +89,7 @@ class Container(containers.DeclarativeContainer):
     attached_file_repo = providers.Factory(AttachedFileRepository)
     document_integrity_repo = providers.Factory(DocumentIntegrityRepository)
     payment_task_repo = providers.Factory(PaymentTaskRepository)
+    payment_task_series_repo = providers.Factory(PaymentTaskSeriesRepository)
     payment_task_calendar_service = providers.Factory(
         PaymentTaskCalendarService,
         payment_task_repo=payment_task_repo,
@@ -162,6 +165,11 @@ class Container(containers.DeclarativeContainer):
         file_service=file_attachment_service,
         notification_service=approval_notification_service,
         payment_task_calendar_service=payment_task_calendar_service,
+    )
+    payment_task_recurrence_service = providers.Factory(
+        PaymentTaskRecurrenceService,
+        series_repo=payment_task_series_repo,
+        payment_task_service=payment_task_service,
     )
 
     approval_service = providers.Factory(

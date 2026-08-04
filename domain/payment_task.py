@@ -30,6 +30,9 @@ class PaymentTask(BaseResponse):
     completion_note: str = ""
     request_file_ids: List[str] = Field(default_factory=list)
     receipt_file_ids: List[str] = Field(default_factory=list)
+    series_id: Optional[str] = None
+    occurrence_date: Optional[date] = None
+    occurrence_number: Optional[int] = None
     google_calendar_event_id: Optional[str] = None
     calendar_sync_needed: bool = True
     created_at: datetime
