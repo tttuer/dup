@@ -5,6 +5,7 @@ __pycache__/
 *.pyd
 .env
 .env.*
+!.env.example
 k8s/dup-env.yaml
 
 # venv

@@ -5,6 +5,11 @@ from typing import Optional
 class Settings(BaseSettings):
     wehago_id: str
     wehago_password: str
+    wehago_baeksung_url: str
+    wehago_pyeongtaek_url: str
+    wehago_paran_url: str
+    wehago_pyeongtaek_maul_url: str
+    wehago_baeksung_pyeongtaek_branch_url: str
     db_url: str
     secret_key: str
     redis_host: str

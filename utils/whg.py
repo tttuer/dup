@@ -10,55 +10,44 @@ from common.exceptions import CrawlingError, LoginError
 from domain.voucher import Company
 from domain.voucher import Voucher
 from utils.logger import logger
+from utils.settings import settings
 
-COMPANY_CONFIGS = {
+COMPANY_PERIODS = {
     Company.BAEKSUNG: {
-        "cno": "REDACTED_WEHAGO_COMPANY_ID",
-        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
-        "company_name": "%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)",
         "base_gisu": 38,
         "base_year": 2025,
     },
     Company.PYEONGTAEK: {
-        "cno": "REDACTED_WEHAGO_COMPANY_ID",
-        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
-        "company_name": "%ED%8F%89%ED%83%9D%EC%97%AC%EA%B0%9D(%EC%A3%BC)",
         "base_gisu": 20,
         "base_year": 2025,
-        "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
     },
     Company.PARAN: {
-        "cno": "REDACTED_WEHAGO_COMPANY_ID",
-        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
-        "company_name": "(%EC%A3%BC)%ED%8C%8C%EB%9E%80%EC%A0%84%EA%B8%B0%EC%B6%A9%EC%A0%84%EC%86%8C",
         "base_gisu": 5,
         "base_year": 2025,
-        "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
     },
     Company.PYEONGTAEK_MAUL: {
-        "cno": "REDACTED_WEHAGO_COMPANY_ID",
-        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
-        "company_name": "%ED%8F%89%ED%83%9D%EB%A7%88%EC%9D%84%EB%B2%84%EC%8A%A4(%EC%A3%BC)",
         "base_gisu": 1,
         "base_year": 2026,
-        "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
     },
     Company.BAEKSUNG_PYEONGTAEK_BRANCH: {
-        "cno": "REDACTED_WEHAGO_COMPANY_ID",
-        "cd_com": "REDACTED_WEHAGO_COMPANY_CODE",
-        "company_name": "%EB%B0%B1%EC%84%B1%EC%9A%B4%EC%88%98(%EC%A3%BC)%ED%8F%89%ED%83%9D%EC%A7%80%EC%A0%90",
         "base_gisu": 39,
         "base_year": 2024,
-        "color": "#F09A1E",
-        "ledger_suffix": "&ledgerNum=REDACTED_WEHAGO_COMPANY_ID&ledger",
     },
+}
+
+COMPANY_URLS = {
+    Company.BAEKSUNG: settings.wehago_baeksung_url,
+    Company.PYEONGTAEK: settings.wehago_pyeongtaek_url,
+    Company.PARAN: settings.wehago_paran_url,
+    Company.PYEONGTAEK_MAUL: settings.wehago_pyeongtaek_maul_url,
+    Company.BAEKSUNG_PYEONGTAEK_BRANCH: settings.wehago_baeksung_pyeongtaek_branch_url,
 }
 
 
 class Whg:
     def calculate_gisu(self, company: Company, year: int):
         """Calculate gisu (period) for the given company and year."""
-        config = COMPANY_CONFIGS.get(company)
+        config = COMPANY_PERIODS.get(company)
         if config is None:
             raise ValueError("Invalid company")
 
@@ -250,7 +239,7 @@ class Whg:
         gisu = self.calculate_gisu(company, year)
         sao_url = self._build_sao_url(company, gisu, year)
         
-        logger.info(f"전표 페이지로 이동: {sao_url}")
+        logger.info(f"{company.value} 전표 페이지로 이동")
         await page.goto(sao_url, wait_until="domcontentloaded")
         # await page.reload()
 
@@ -263,15 +252,7 @@ class Whg:
     
     def _build_sao_url(self, company: Company, gisu: int, year: int) -> str:
         """Build the SAO URL for the specified company."""
-        config = COMPANY_CONFIGS[company]
-        color = config.get("color", "#1C90FB")
-        base_params = f"gisu={gisu}&yminsa={year}&searchData={year}0101{year}1231&color={color}&companyID=REDACTED_WEHAGO_USER_ID"
-        url = f"https://smarta.wehago.com/#/smarta/account/SABK0102?sao&cno={config['cno']}&cd_com={config['cd_com']}&{base_params}&companyName={config['company_name']}"
-
-        if "ledger_suffix" in config:
-            url += config["ledger_suffix"]
-        logger.info(f"전표 페이지 URL: {url}")
-        return url
+        return COMPANY_URLS[company].format(gisu=gisu, year=year)
     
 
     async def _extract_monthly_vouchers(self, page: Page, year: int, month: int, company: Company) -> list:
@@ -289,7 +270,7 @@ class Whg:
             
             try:
                 async with page.expect_response(
-                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url and COMPANY_CONFIGS[company]["cno"] in r.url,
+                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url,
                     timeout=15000
                 ) as response_info:
                     await self._set_month_input(page, month)
