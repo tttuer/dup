@@ -43,6 +43,9 @@ COMPANY_URLS = {
     Company.BAEKSUNG_PYEONGTAEK_BRANCH: settings.wehago_baeksung_pyeongtaek_branch_url,
 }
 
+MAX_CONCURRENT_COMPANIES = 5
+MONTH_REQUEST_ATTEMPTS = 3
+
 
 class Whg:
     def calculate_gisu(self, company: Company, year: int):
@@ -62,7 +65,7 @@ class Whg:
     async def crawl_companies(
         self, companies: list[Company], year: int, month: int, wehago_id: str, wehago_password: str
     ) -> dict[Company, list[Voucher]]:
-        """한 번 로그인한 세션에서 회사별 탭을 병렬로 열어 전표를 수집한다."""
+        """한 번 로그인한 세션에서 제한된 수의 회사 탭으로 전표를 수집한다."""
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
@@ -98,17 +101,18 @@ class Whg:
                 await main_page.locator(".snbnext").wait_for(state="visible", timeout=10000)
                 logger.info("메인 페이지 로그인 완료 확인됨")
                 
+                semaphore = asyncio.Semaphore(min(MAX_CONCURRENT_COMPANIES, len(companies)))
                 results = await asyncio.gather(
-                    *(self._extract_company_data_parallel(context, company, year, month) for company in companies),
+                    *(self._extract_company_data_parallel(context, semaphore, company, year, month) for company in companies),
                     return_exceptions=True,
                 )
-                failed_companies = [
-                    company.value
+                failures = [
+                    f"{company.value}: {result}"
                     for company, result in zip(companies, results)
                     if isinstance(result, Exception)
                 ]
-                if failed_companies:
-                    raise CrawlingError(f"전표 수집 실패: {', '.join(failed_companies)}")
+                if failures:
+                    raise CrawlingError(f"전표 수집 실패: {'; '.join(failures)}")
 
                 vouchers_by_company = {}
                 for company_vouchers, company_enum in results:
@@ -131,21 +135,23 @@ class Whg:
                 await browser.close()
 
     
-    async def _extract_company_data_parallel(self, context, company: Company, year: int, month: int):
+    async def _extract_company_data_parallel(
+        self, context, semaphore: asyncio.Semaphore, company: Company, year: int, month: int
+    ):
         """각 회사별 데이터를 별도 탭에서 처리"""
-        page = await context.new_page()
-        try:
-            await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
-            
-            # 바로 전표 데이터 추출 (로그인은 이미 메인 탭에서 완료됨)
-            vouchers = await self._extract_voucher_data(page, company, year, month)
-            return vouchers, company
-            
-        except Exception as e:
-            logger.error(f"{company.value} 처리 중 오류: {e}")
-            raise
-        finally:
-            await page.close()
+        async with semaphore:
+            page = await context.new_page()
+            try:
+                await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
+
+                vouchers = await self._extract_voucher_data(page, company, year, month)
+                return vouchers, company
+
+            except Exception as e:
+                logger.error(f"{company.value} 처리 중 오류: {e}")
+                raise
+            finally:
+                await page.close()
 
     async def _login(self, page: Page, wehago_id: str, wehago_password: str) -> bool:
         """Playwright를 사용한 로그인 처리"""
@@ -269,25 +275,59 @@ class Whg:
             logger.info(f"{year}년 {month}월 데이터 추출을 시작합니다.")
             
             try:
-                async with page.expect_response(
-                    lambda r: r.request.method == "GET" and f"start_date={year}{month}" in r.url,
-                    timeout=15000
-                ) as response_info:
-                    await self._set_month_input(page, month)
-                
-                response = await response_info.value
-                vouchers = await self._parse_voucher_response(response, year, month, company)
+                vouchers = await self._request_month_vouchers(page, year, month, company)
                 all_vouchers.extend(vouchers)
 
-            except PlaywrightTimeoutError:
-                logger.warning(f"전표 데이터 요청 시간 초과: {year}년 {month}월, 해당 월 건너뛀")
-                continue
             except Exception as e:
-                logger.error(f"{year}년 {month}월 처리 중 오류 발생: {e}")
-                continue
+                # 일부 월을 빈 목록으로 처리하면 기존 전표가 삭제될 수 있으므로 중단한다.
+                raise CrawlingError(f"{company.value} {year}년 {month}월 전표 수집 실패: {e}") from e
         
         logger.info(f"총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
         return all_vouchers
+
+    async def _request_month_vouchers(self, page: Page, year: int, month: str, company: Company) -> list:
+        """요청이 지나가는 순간 본문을 확보하고, 실패하면 같은 월을 다시 조회한다."""
+        last_error = None
+        for attempt in range(1, MONTH_REQUEST_ATTEMPTS + 1):
+            response_future = asyncio.get_running_loop().create_future()
+
+            async def capture_response(route):
+                if (
+                    route.request.method != "GET"
+                    or f"start_date={year}{month}" not in route.request.url
+                ):
+                    await route.continue_()
+                    return
+
+                response = None
+                try:
+                    response = await route.fetch()
+                    vouchers = await self._parse_voucher_response(response, year, month, company)
+                    if not response_future.done():
+                        response_future.set_result(vouchers)
+                except Exception as e:
+                    if not response_future.done():
+                        response_future.set_exception(e)
+                finally:
+                    if response:
+                        await route.fulfill(response=response)
+                    else:
+                        await route.continue_()
+
+            try:
+                await page.route("**/*", capture_response)
+                await self._set_month_input(page, month)
+                return await asyncio.wait_for(response_future, timeout=15)
+            except Exception as e:
+                last_error = e
+                if attempt < MONTH_REQUEST_ATTEMPTS:
+                    logger.warning(
+                        f"{year}년 {month}월 전표 조회 재시도 ({attempt}/{MONTH_REQUEST_ATTEMPTS - 1}): {e}"
+                    )
+            finally:
+                await page.unroute("**/*", capture_response)
+
+        raise last_error
     
     async def _set_month_input(self, page: Page, month: str):
         """월 선택기에서 월을 변경"""
@@ -316,24 +356,13 @@ class Whg:
     async def _parse_voucher_response(self, response: Response, year: int, month: str, company: Company) -> list:
         """전표 데이터 파싱"""
         if response.status != 200:
-            logger.warning(f"전표 데이터 요청 실패 ({year}년 {month}월): HTTP {response.status}")
-            return []
-        
-        try:
-            body = self._decompress_response_body(await response.body())
-            target_data = json.loads(body)
-            
-            voucher_list = target_data.get("list", [])
-            logger.info(f"{year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
-            
-            if not voucher_list:
-                return []
-            
-            return self._convert_to_voucher_objects(voucher_list, company)
-            
-        except Exception as e:
-            logger.warning(f"전표 데이터 파싱 실패 ({year}년 {month}월): {e}")
-            return []
+            raise RuntimeError(f"전표 데이터 요청 실패 (HTTP {response.status})")
+
+        body = self._decompress_response_body(await response.body())
+        target_data = json.loads(body)
+        voucher_list = target_data.get("list", [])
+        logger.info(f"{year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
+        return self._convert_to_voucher_objects(voucher_list, company)
     
     def _convert_to_voucher_objects(self, voucher_list: list, company: Company) -> list:
         """Voucher 객체 변환 로직"""
