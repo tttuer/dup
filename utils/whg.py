@@ -43,7 +43,7 @@ COMPANY_URLS = {
     Company.BAEKSUNG_PYEONGTAEK_BRANCH: settings.wehago_baeksung_pyeongtaek_branch_url,
 }
 
-MAX_CONCURRENT_COMPANIES = 5
+MAX_CONCURRENT_COMPANIES = 2
 MONTH_REQUEST_ATTEMPTS = 3
 
 
@@ -296,7 +296,7 @@ class Whg:
             response_future = asyncio.get_running_loop().create_future()
 
             # 늦게 도착한 이전 시도의 응답이 다음 시도를 완료하지 않도록 고정한다.
-            async def capture_response(route, response_future=response_future):
+            async def capture_response(route, _request, *, response_future=response_future):
                 if (
                     route.request.method != "GET"
                     or f"start_date={year}{month}" not in route.request.url
