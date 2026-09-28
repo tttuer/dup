@@ -125,7 +125,7 @@ class Whg:
             except (LoginError, CrawlingError):
                 raise
             except Exception as e:
-                logger.error(f"크롤링 중 오류 발생: {e}")
+                logger.exception("크롤링 중 오류 발생")
                 try:
                     await main_page.screenshot(path="error_screenshot.png")
                 except Exception:
@@ -148,7 +148,7 @@ class Whg:
                 return vouchers, company
 
             except Exception as e:
-                logger.error(f"{company.value} 처리 중 오류: {e}")
+                logger.exception("%s %s년 전표 수집 실패 (%s)", company.value, year, type(e).__name__)
                 raise
             finally:
                 await page.close()
@@ -245,16 +245,20 @@ class Whg:
         gisu = self.calculate_gisu(company, year)
         sao_url = self._build_sao_url(company, gisu, year)
         
-        logger.info(f"{company.value} 전표 페이지로 이동")
-        await page.goto(sao_url, wait_until="domcontentloaded")
-        # await page.reload()
-
-        try:
-            await page.locator(".WSC_LUXMonthPicker").wait_for(state="visible", timeout=15000)
-            logger.info("전표 페이지 로딩 완료.")
-        except PlaywrightTimeoutError:
-            logger.error("전표 페이지 로딩 시간 초과")
-            raise CrawlingError(f"전표 페이지 로딩 실패: {company.value}")
+        for attempt in range(1, 3):
+            logger.info("%s 전표 페이지로 이동 (%s/2)", company.value, attempt)
+            try:
+                await page.goto(sao_url, wait_until="domcontentloaded", timeout=30000)
+                await page.locator(".WSC_LUXMonthPicker").wait_for(state="visible", timeout=30000)
+                logger.info("%s 전표 페이지 로딩 완료", company.value)
+                return
+            except PlaywrightTimeoutError as e:
+                logger.warning("%s %s년 전표 페이지 로딩 시간 초과 (%s/2)", company.value, year, attempt)
+                if attempt == 2:
+                    raise CrawlingError(
+                        f"전표 페이지 로딩 실패: {company.value} {year}년 "
+                        "(단계별 대기 30초, 2회 시도)"
+                    ) from e
     
     def _build_sao_url(self, company: Company, gisu: int, year: int) -> str:
         """Build the SAO URL for the specified company."""
@@ -272,7 +276,7 @@ class Whg:
             if str(year) == current_year_str and month > current_month_str:
                 break
 
-            logger.info(f"{year}년 {month}월 데이터 추출을 시작합니다.")
+            logger.info(f"{company.value} {year}년 {month}월 데이터 추출을 시작합니다.")
             
             try:
                 vouchers = await self._request_month_vouchers(page, year, month, company)
@@ -282,7 +286,7 @@ class Whg:
                 # 일부 월을 빈 목록으로 처리하면 기존 전표가 삭제될 수 있으므로 중단한다.
                 raise CrawlingError(f"{company.value} {year}년 {month}월 전표 수집 실패: {e}") from e
         
-        logger.info(f"총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
+        logger.info(f"{company.value} 총 {len(all_vouchers)}개의 전표를 가져왔습니다.")
         return all_vouchers
 
     async def _request_month_vouchers(self, page: Page, year: int, month: str, company: Company) -> list:
@@ -291,7 +295,8 @@ class Whg:
         for attempt in range(1, MONTH_REQUEST_ATTEMPTS + 1):
             response_future = asyncio.get_running_loop().create_future()
 
-            async def capture_response(route):
+            # 늦게 도착한 이전 시도의 응답이 다음 시도를 완료하지 않도록 고정한다.
+            async def capture_response(route, response_future=response_future):
                 if (
                     route.request.method != "GET"
                     or f"start_date={year}{month}" not in route.request.url
@@ -319,12 +324,21 @@ class Whg:
                 await self._set_month_input(page, month)
                 return await asyncio.wait_for(response_future, timeout=15)
             except Exception as e:
-                last_error = e
-                if attempt < MONTH_REQUEST_ATTEMPTS:
-                    logger.warning(
-                        f"{year}년 {month}월 전표 조회 재시도 ({attempt}/{MONTH_REQUEST_ATTEMPTS - 1}): {e}"
-                    )
+                last_error = (
+                    TimeoutError("전표 응답 대기 시간 초과 (15초)")
+                    if isinstance(e, asyncio.TimeoutError) and not str(e)
+                    else e
+                )
+                logger.warning(
+                    "%s %s년 %s월 전표 조회 실패 (%s/%s, %s): %s",
+                    company.value, year, month, attempt, MONTH_REQUEST_ATTEMPTS,
+                    type(e).__name__, last_error,
+                )
             finally:
+                if not response_future.done():
+                    response_future.cancel()
+                elif not response_future.cancelled():
+                    response_future.exception()
                 await page.unroute("**/*", capture_response)
 
         raise last_error
@@ -361,7 +375,7 @@ class Whg:
         body = self._decompress_response_body(await response.body())
         target_data = json.loads(body)
         voucher_list = target_data.get("list", [])
-        logger.info(f"{year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
+        logger.info(f"{company.value} {year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
         return self._convert_to_voucher_objects(voucher_list, company)
     
     def _convert_to_voucher_objects(self, voucher_list: list, company: Company) -> list:
