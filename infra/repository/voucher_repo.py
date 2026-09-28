@@ -179,11 +179,16 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         return db_vouchers
 
     async def find_by_company_year_and_month(self, company: Company, year: int, month: int) -> list[Voucher]:
+        return await self.find_by_company_year_and_months(company, year, [month])
+
+    async def find_by_company_year_and_months(
+        self, company: Company, year: int, months: list[int]
+    ) -> list[Voucher]:
         db_vouchers = await Voucher.find(
             And(
                 Voucher.company == company,
                 Voucher.year == str(year),
-                Voucher.month == f"{month:02d}",
+                In(Voucher.month, [f"{month:02d}" for month in months]),
             )
         ).to_list()
 

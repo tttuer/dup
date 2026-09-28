@@ -63,7 +63,8 @@ class Whg:
         return vouchers_by_company[company]
 
     async def crawl_companies(
-        self, companies: list[Company], year: int, month: int, wehago_id: str, wehago_password: str
+        self, companies: list[Company], year: int, month: int, wehago_id: str, wehago_password: str,
+        *, months: list[int] | None = None,
     ) -> dict[Company, list[Voucher]]:
         """한 번 로그인한 세션에서 제한된 수의 회사 탭으로 전표를 수집한다."""
         async with async_playwright() as p:
@@ -103,7 +104,7 @@ class Whg:
                 
                 semaphore = asyncio.Semaphore(min(MAX_CONCURRENT_COMPANIES, len(companies)))
                 results = await asyncio.gather(
-                    *(self._extract_company_data_parallel(context, semaphore, company, year, month) for company in companies),
+                    *(self._extract_company_data_parallel(context, semaphore, company, year, month, months=months) for company in companies),
                     return_exceptions=True,
                 )
                 failures = [
@@ -136,7 +137,8 @@ class Whg:
 
     
     async def _extract_company_data_parallel(
-        self, context, semaphore: asyncio.Semaphore, company: Company, year: int, month: int
+        self, context, semaphore: asyncio.Semaphore, company: Company, year: int, month: int,
+        *, months: list[int] | None = None,
     ):
         """각 회사별 데이터를 별도 탭에서 처리"""
         async with semaphore:
@@ -144,7 +146,7 @@ class Whg:
             try:
                 await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
 
-                vouchers = await self._extract_voucher_data(page, company, year, month)
+                vouchers = await self._extract_voucher_data(page, company, year, month, months=months)
                 return vouchers, company
 
             except Exception as e:
@@ -235,10 +237,13 @@ class Whg:
             return False
     
     
-    async def _extract_voucher_data(self, page: Page, company: Company, year: int, month: int) -> list:
+    async def _extract_voucher_data(
+        self, page: Page, company: Company, year: int, month: int,
+        *, months: list[int] | None = None,
+    ) -> list:
         """전표 데이터 추출 로직"""
         await self._navigate_to_voucher_page(page, company, year)
-        return await self._extract_monthly_vouchers(page, year, month, company)
+        return await self._extract_monthly_vouchers(page, year, month, company, months=months)
     
     async def _navigate_to_voucher_page(self, page: Page, company: Company, year: int):
         """전표 페이지로 직접 URL 이동"""
@@ -265,10 +270,14 @@ class Whg:
         return COMPANY_URLS[company].format(gisu=gisu, year=year)
     
 
-    async def _extract_monthly_vouchers(self, page: Page, year: int, month: int, company: Company) -> list:
+    async def _extract_monthly_vouchers(
+        self, page: Page, year: int, month: int, company: Company,
+        *, months: list[int] | None = None,
+    ) -> list:
         """월별 데이터 추출"""
         all_vouchers = []
-        months = [f"{i:02d}" for i in range(1, 13)] if month is None else [f"{month:02d}"]
+        selected_months = months if months is not None else ([month] if month is not None else range(1, 13))
+        months = [f"{m:02d}" for m in selected_months]
         current_month_str = datetime.now().strftime("%m")
         current_year_str = datetime.now().strftime("%Y")
 
@@ -374,7 +383,9 @@ class Whg:
 
         body = self._decompress_response_body(await response.body())
         target_data = json.loads(body)
-        voucher_list = target_data.get("list", [])
+        if not isinstance(target_data, dict) or not isinstance(target_data.get("list"), list):
+            raise ValueError("전표 응답에 정상적인 list가 없어 동기화를 중단합니다.")
+        voucher_list = target_data["list"]
         logger.info(f"{company.value} {year}년 {month}월: {len(voucher_list)}개의 전표를 가져왔습니다.")
         return self._convert_to_voucher_objects(voucher_list, company)
     
@@ -387,6 +398,5 @@ class Whg:
                 entry_dict["id"] = str(entry_dict["sq_acttax2"]) + "_" + company.value
                 vouchers.append(Voucher(**entry_dict))
             except Exception as e:
-                logger.error(f"전표 객체 변환 실패: {entry_dict.get('sq_acttax2', 'N/A')} - {e}")
-                continue
+                raise ValueError("전표 변환 실패: 불완전한 결과로 동기화할 수 없습니다.") from e
         return vouchers

@@ -42,43 +42,57 @@ class VoucherService:
         month: int = None,
         wehago_id: str = None,
         wehago_password: str = None,
+        months: list[int] | None = None,
     ) -> dict[Company, list]:
         vouchers_by_company = await Whg().crawl_companies(
-            companies, year, month, wehago_id, wehago_password
+            companies, year, month, wehago_id, wehago_password, months=months
         )
         synced_vouchers = await asyncio.gather(
             *(
-                self._save_synced_vouchers(company, year, month, vouchers)
+                self._save_synced_vouchers(company, year, month, vouchers, months=months)
                 for company, vouchers in vouchers_by_company.items()
             )
         )
         return dict(zip(vouchers_by_company, synced_vouchers))
 
-    async def _save_synced_vouchers(self, company: Company, year: int, month: int, vouchers: list):
+    async def _save_synced_vouchers(
+        self, company: Company, year: int, month: int, vouchers: list,
+        months: list[int] | None = None,
+    ):
+        selected_months = months if months is not None else ([month] if month is not None else None)
+        if selected_months is not None:
+            if not selected_months or any(not 1 <= m <= 12 for m in selected_months):
+                raise ValidationError("동기화할 월 범위가 올바르지 않습니다.")
+            allowed_months = {f"{m:02d}" for m in selected_months}
+            if any(
+                v.company != company or v.year != str(year) or v.month not in allowed_months
+                for v in vouchers
+            ):
+                raise ValidationError("선택한 회사 또는 기간 밖의 전표가 포함되어 동기화를 중단합니다.")
 
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
 
         # 4. 기존 DB에 저장된 ID 목록 조회
-        if month is None:
-            # month가 None이면 연도 전체 조회
+        if selected_months is None:
+            # 전체 동기화에서는 선택한 연도 조회
             existing_vouchers = await self.voucher_repo.find_by_company_and_year(
                 company, year
             )
         else:
-            # month가 있으면 해당 월만 조회
-            existing_vouchers = await self.voucher_repo.find_by_company_year_and_month(
-                company, year, month
+            # 삭제 비교 대상도 선택한 월로만 제한한다.
+            existing_vouchers = await self.voucher_repo.find_by_company_year_and_months(
+                company, year, selected_months
             )
         existing_ids = {v.id for v in existing_vouchers}
 
         # 5. 삭제 대상 ID 찾기 (기존에는 있었는데, 새로는 없음)
         ids_to_delete = existing_ids - new_ids
 
+        await self.voucher_repo.save(vouchers)
+
         if ids_to_delete:
             await self.voucher_repo.delete_by_ids(ids_to_delete)
-
-        await self.voucher_repo.save(vouchers)
 
         return vouchers
 

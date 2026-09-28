@@ -43,3 +43,9 @@ class IVoucherRepository(metaclass=ABCMeta):
     @abstractmethod
     async def find_by_company_year_and_month(self, company: Company, year: int, month: int) -> list[Voucher]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def find_by_company_year_and_months(
+        self, company: Company, year: int, months: list[int]
+    ) -> list[Voucher]:
+        raise NotImplementedError
