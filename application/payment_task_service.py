@@ -11,6 +11,7 @@ from application.file_attachment_service import FileAttachmentService
 from application.payment_task_calendar_service import PaymentTaskCalendarService
 from common.auth import Role
 from domain.payment_task import PaymentTask
+from domain.payment_task_series import PaymentTaskSeries
 from domain.repository.payment_task_repo import IPaymentTaskRepository
 from domain.repository.user_repo import IUserRepository
 from utils.time import get_utc_now_naive
@@ -65,6 +66,34 @@ class PaymentTaskService(BaseService[PaymentTask]):
         await self.notification_service.notify_payment_task_assigned(task)
         await self._sync_to_calendar(task)
         return self.serialize_task(task)
+
+    async def create_recurring_task(self, series: PaymentTaskSeries, due_date: date) -> PaymentTask:
+        """Create one independent payment task from a recurring request."""
+        now = get_utc_now_naive()
+        task = PaymentTask(
+            id=self.ulid.generate(),
+            title=self.build_title(series.name, due_date),
+            request_name=series.name,
+            category=series.category,
+            requested_amount=series.requested_amount,
+            due_date=due_date,
+            assignee_id=series.assignee_id,
+            assignee_name=series.assignee_name,
+            requester_id=series.requester_id,
+            requester_name=series.requester_name,
+            description=series.description,
+            status="PENDING_PAYMENT",
+            series_id=series.id,
+            occurrence_date=due_date,
+            occurrence_number=series.generated_count + 1,
+            request_file_ids=series.request_file_ids.copy(),
+            created_at=now,
+            updated_at=now,
+        )
+        task = await self.payment_task_repo.save(task)
+        await self.notification_service.notify_payment_task_assigned(task)
+        await self._sync_to_calendar(task)
+        return task
 
     async def get_my_tasks(self, user_id: str, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
         tasks = await self.payment_task_repo.find_for_user(user_id, status, limit)
@@ -128,12 +157,15 @@ class PaymentTaskService(BaseService[PaymentTask]):
     async def get_task_files(self, task_id: str, user_id: str, user_roles: List[Role]):
         task = await self._get_task(task_id)
         self._validate_task_access(task, user_id, user_roles)
-        return await self.file_service.get_payment_task_files(task_id)
+        files = await self.file_service.get_payment_task_files(task_id)
+        if task.series_id:
+            files.extend(await self.file_service.get_payment_task_series_files(task.series_id))
+        return files
 
     async def download_task_file(self, task_id: str, file_id: str, user_id: str, user_roles: List[Role]):
         task = await self._get_task(task_id)
         self._validate_task_access(task, user_id, user_roles)
-        return await self.file_service.get_payment_task_file_stream(task_id, file_id)
+        return await self.file_service.get_payment_task_file_stream(task_id, file_id, task.series_id)
 
     async def complete_task(self, task_id: str, user_id: str, paid_at: str, paid_amount: Optional[str], note: Optional[str], receipt_files: List[UploadFile]) -> Dict[str, Any]:
         task = await self._get_task(task_id)
