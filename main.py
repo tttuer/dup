@@ -43,6 +43,7 @@ from infra.db_models.attached_file import AttachedFile
 from infra.db_models.document_integrity import DocumentIntegrity
 from infra.db_models.wiki import WikiPage, WikiImage
 from infra.db_models.payment_task import PaymentTask
+from infra.db_models.payment_task_series import PaymentTaskSeries
 from common.db import client
 from utils.settings import settings
 from utils.scheduler import start_scheduler, shutdown_scheduler
@@ -81,6 +82,7 @@ async def lifespan(app: FastAPI):
             WikiPage,
             WikiImage,
             PaymentTask,
+            PaymentTaskSeries,
         ],
     )
     start_scheduler()

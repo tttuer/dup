@@ -8,6 +8,7 @@ class AttachedFile(BaseResponse):
     id: str
     request_id: Optional[str] = None
     payment_task_id: Optional[str] = None
+    payment_task_series_id: Optional[str] = None
     file_name: str
     gridfs_file_id: str  # GridFS ObjectId as string
     file_size: int
