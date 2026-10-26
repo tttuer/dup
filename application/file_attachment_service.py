@@ -16,7 +16,7 @@ from domain.repository.approval_request_repo import IApprovalRequestRepository
 from common.exceptions import InternalServerError
 from domain.repository.approval_line_repo import IApprovalLineRepository
 from domain.repository.user_repo import IUserRepository
-from domain.attached_file import AttachedFile
+from domain.attached_file import AttachedFile, PersonalAttachedFile
 from common.auth import DocumentStatus
 from common.db import client
 from utils.time import get_utc_now_naive
@@ -170,13 +170,23 @@ class FileAttachmentService(BaseService[AttachedFile]):
             print(f"GridFS payment task file delete warning: {error}")
         await file.delete()
 
-    async def get_files(self, request_id: str, user_id: str) -> List[AttachedFile]:
+    async def get_files(self, request_id: str, user_id: str) -> List[PersonalAttachedFile]:
         # 권한 확인
         await self._validate_request_access(request_id, user_id)
         
         files = await self.file_repo.find_by_request_id(request_id)
         
-        return files
+        completed_ids = await self.file_repo.get_completed_file_ids(
+            [file.id for file in files], user_id
+        )
+        return [
+            PersonalAttachedFile(**file.model_dump(), is_completed=file.id in completed_ids)
+            for file in files
+        ]
+
+    async def set_file_completed(self, file_id: str, user_id: str, completed: bool) -> None:
+        await self.get_file_info(file_id, user_id)
+        await self.file_repo.set_completed(file_id, user_id, completed)
 
     async def delete_file(self, file_id: str, user_id: str) -> None:
         file = await self.file_repo.find_by_id(file_id)

@@ -8,7 +8,12 @@ import io
 from application.file_attachment_service import FileAttachmentService
 from common.auth import CurrentUser, get_current_user
 from containers import Container
-from domain.attached_file import AttachedFile
+from domain.attached_file import AttachedFile, PersonalAttachedFile
+from pydantic import BaseModel, StrictBool
+
+
+class FileCompletionUpdate(BaseModel):
+    is_completed: StrictBool
 
 router = APIRouter(prefix="/files", tags=["file-attachments"])
 
@@ -37,9 +42,21 @@ async def get_files(
     request_id: str,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     file_service: FileAttachmentService = Depends(Provide[Container.file_attachment_service]),
-) -> List[AttachedFile]:
+) -> List[PersonalAttachedFile]:
     """결재 요청의 첨부파일 목록"""
     return await file_service.get_files(request_id, current_user.id)
+
+
+@router.put("/approvals/{file_id}/completion", status_code=status.HTTP_204_NO_CONTENT)
+@inject
+async def set_file_completed(
+    file_id: str,
+    update: FileCompletionUpdate,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    file_service: FileAttachmentService = Depends(Provide[Container.file_attachment_service]),
+):
+    """로그인한 사용자의 개인 처리 표시만 변경한다."""
+    await file_service.set_file_completed(file_id, current_user.id, update.is_completed)
 
 
 @router.get("/approvals/{file_id}/info")

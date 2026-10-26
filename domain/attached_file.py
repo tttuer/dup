@@ -18,3 +18,7 @@ class AttachedFile(BaseResponse):
     uploaded_by: str
     
     model_config = ConfigDict(extra="ignore")
+
+
+class PersonalAttachedFile(AttachedFile):
+    is_completed: bool = False

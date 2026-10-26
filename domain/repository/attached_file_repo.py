@@ -7,6 +7,14 @@ from infra.db_models.attached_file import AttachedFile
 class IAttachedFileRepository(metaclass=ABCMeta):
 
     @abstractmethod
+    async def get_completed_file_ids(self, file_ids: List[str], user_id: str) -> set[str]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_completed(self, file_id: str, user_id: str, completed: bool) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def save(self, file: AttachedFileVo) -> None:
         raise NotImplementedError
 
