@@ -13,6 +13,7 @@ scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 container = Container()
 voucher_service = container.voucher_service()  # DI로 받은 서비스 인스턴스
 payment_task_calendar_service = container.payment_task_calendar_service()
+payment_task_recurrence_service = container.payment_task_recurrence_service()
 
 
 async def crawl_and_save_job():
@@ -52,6 +53,13 @@ async def send_payment_task_summary_job():
         print(f"텔레그램 납부 요약 발송 실패: {error}")
 
 
+async def generate_recurring_payment_tasks_job():
+    try:
+        await payment_task_recurrence_service.refresh_due_series(datetime.datetime.now(timezone("Asia/Seoul")).date())
+    except Exception as error:
+        print(f"반복 납부 업무 생성 실패: {error}")
+
+
 def start_scheduler():
     # 매일 오전 8시에 실행
     scheduler.add_job(
@@ -67,6 +75,13 @@ def start_scheduler():
         "interval",
         minutes=10,
         id="payment_task_calendar_retry",
+        replace_existing=True,
+        next_run_time=datetime.datetime.now(timezone("Asia/Seoul")),
+    )
+    scheduler.add_job(
+        generate_recurring_payment_tasks_job,
+        CronTrigger(hour=0, minute=5, timezone=timezone("Asia/Seoul")),
+        id="payment_task_recurrence",
         replace_existing=True,
         next_run_time=datetime.datetime.now(timezone("Asia/Seoul")),
     )
