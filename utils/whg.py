@@ -2,6 +2,7 @@ import gzip
 import io
 import json
 import asyncio
+from utils.wehago_email_auth import email_auth_session
 from datetime import datetime
 
 from playwright.async_api import async_playwright, Page, Response, TimeoutError as PlaywrightTimeoutError
@@ -176,14 +177,60 @@ class Whg:
                 await page.locator("#inputPw").press("Enter")
             
             login_response = await response_info.value
-            return await self._process_login_response(login_response)
+            await self._process_login_response(login_response)
 
         except PlaywrightTimeoutError:
             logger.error("로그인 API 'POST' 응답 시간 초과.")
             logger.error("네트워크 문제, 또는 웹사이트의 로그인 방식에 변경이 있을 수 있습니다.")
             await page.screenshot(path="login_post_timeout_error.png")
             raise
+        await self._complete_email_auth(page)
+        return True
     
+
+    async def _complete_email_auth(self, page: Page):
+        """로그인 결과 화면을 확인하고 필요한 경우 텔레그램 답장을 기다린다."""
+        email_button = page.get_by_text("이메일 인증", exact=True)
+        email_heading = page.get_by_text("이메일 인증 로그인", exact=True)
+        main = page.locator(".snbnext")
+        duplicate = page.locator(".duplicate_login")
+        waits = [asyncio.create_task(locator.first.wait_for(state="visible", timeout=20000))
+                 for locator in (main, duplicate, email_button, email_heading)]
+        try:
+            done, _ = await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+            await next(iter(done))
+        finally:
+            for task in waits:
+                task.cancel()
+            await asyncio.gather(*waits, return_exceptions=True)
+        if await main.is_visible() or await duplicate.is_visible():
+            return
+        async with email_auth_session() as auth:
+            if not await email_heading.is_visible():
+                # 발송 전에 새 메일의 시작 지점을 기록해 이전 번호를 사용하지 않는다.
+                await auth.prepare_mailbox()
+                await email_button.first.click()
+            await email_heading.wait_for(state="visible", timeout=15000)
+            code = await auth.wait_for_code()
+            try:
+                inputs = page.locator('input:visible:not([type="hidden"])')
+                count = await inputs.count()
+                if count == 6:
+                    for index, digit in enumerate(code):
+                        await inputs.nth(index).fill(digit)
+                elif count == 1:
+                    await inputs.fill(code)
+                else:
+                    raise LoginError("이메일 인증 번호 입력칸을 확인할 수 없습니다.", status_code=502)
+                await page.get_by_role("button", name="인증", exact=True).click()
+                await self._handle_duplicate_login(page)
+                await main.wait_for(state="visible", timeout=15000)
+            except Exception:
+                await auth.notify("❌ 위하고 이메일 인증에 실패했습니다. 번호가 틀렸거나 만료되었을 수 있습니다. 동기화를 다시 시작해주세요.")
+                raise LoginError("이메일 인증에 실패했습니다. 동기화를 다시 시작해주세요.", status_code=422) from None
+            finally:
+                code = None
+            await auth.notify("✅ 위하고 이메일 인증을 완료했습니다. 전표 동기화를 계속합니다.")
 
     async def _process_login_response(self, login_response: Response) -> bool:
         """로그인 API 응답 처리"""
@@ -195,7 +242,7 @@ class Whg:
             data = await login_response.json()
             if data.get("resultCode") == 401:
                 raise LoginError("아이디 또는 비밀번호가 올바르지 않습니다.", status_code=460)
-            logger.info("로그인에 성공했습니다.")
+            logger.info("로그인 정보를 확인했습니다. 추가 인증 여부를 확인합니다.")
             return True
         except json.JSONDecodeError:
             raise LoginError("로그인 응답 JSON 파싱 실패", status_code=500)

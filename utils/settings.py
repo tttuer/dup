@@ -1,5 +1,6 @@
 # settings.py
 from pydantic_settings import BaseSettings
+from pydantic import SecretStr
 from typing import Optional
 
 class Settings(BaseSettings):
@@ -21,6 +22,8 @@ class Settings(BaseSettings):
     frontend_base_url: str = "https://arc.baeksung.kr"
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
+    wehago_mail_username: Optional[str] = None
+    wehago_mail_app_password: Optional[SecretStr] = None
     payment_summary_hour: int = 8
     payment_summary_minute: int = 30
 
