@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -6,6 +7,7 @@ from domain.voucher import Company
 
 
 class SyncRequest(BaseModel):
+    auth_request_id: UUID = Field(default_factory=uuid4)
     wehago_id: str
     wehago_password: str
     year: int = Field(default_factory=lambda: datetime.now().year)
