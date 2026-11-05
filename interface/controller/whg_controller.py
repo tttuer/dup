@@ -1,4 +1,7 @@
 import json
+from uuid import UUID
+from pydantic import BaseModel, Field
+from utils.manual_sync_auth import ManualSyncAuth, manual_auth_context
 from itertools import zip_longest
 from typing import Annotated
 from typing import Optional, List
@@ -39,11 +42,14 @@ async def sync_whg(
     voucher_service: VoucherService = Depends(Provide[Container.voucher_service]),
     redis: Redis = Depends(Provide[Container.redis]),
 ):
+    auth = ManualSyncAuth(redis, str(sync_request.auth_request_id), current_user.id)
+    await auth.create()
+    context_token = manual_auth_context.set((str(sync_request.auth_request_id), current_user.id))
+    success = False
     # ✅ 상태 업데이트 + Redis Pub/Sub 전파만 수행
-    await sync_service.set_sync_status(True)
-    await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
-
     try:
+        await sync_service.set_sync_status(True)
+        await redis.publish("sync_status_channel", json.dumps({"syncing": True}))
         companies = sync_request.companies
         await voucher_service.sync_many(
             companies=companies or [sync_request.company],
@@ -52,14 +58,56 @@ async def sync_whg(
             wehago_id=sync_request.wehago_id,
             wehago_password=sync_request.wehago_password,
         )
+        success = True
         return {"message": "Sync completed successfully", "companies": companies or [sync_request.company]}
     except HTTPException:
         raise
     except Exception as e:
         raise InternalServerError(f"동기화 오류: {e}")
     finally:
+        manual_auth_context.reset(context_token)
+        await auth.finish(success)
         await sync_service.set_sync_status(False)
         await redis.publish("sync_status_channel", json.dumps({"syncing": False}))
+
+
+class EmailCodeRequest(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+@router.get("/sync/auth/{request_id}")
+@inject
+async def get_sync_auth(
+    request_id: UUID,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    redis: Redis = Depends(Provide[Container.redis]),
+):
+    state = await ManualSyncAuth(redis, str(request_id), current_user.id).state()
+    return {key: state[key] for key in ("status", "expires_at") if key in state}
+
+
+@router.post("/sync/auth/{request_id}")
+@inject
+async def submit_sync_auth(
+    request_id: UUID,
+    payload: EmailCodeRequest,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    redis: Redis = Depends(Provide[Container.redis]),
+):
+    await ManualSyncAuth(redis, str(request_id), current_user.id).submit(payload.code)
+    return {"message": "인증 번호를 전달했습니다."}
+
+
+@router.delete("/sync/auth/{request_id}")
+@inject
+async def cancel_sync_auth(
+    request_id: UUID,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    redis: Redis = Depends(Provide[Container.redis]),
+):
+    auth = ManualSyncAuth(redis, str(request_id), current_user.id)
+    await auth.cancel()
+    return {"message": "인증을 취소했습니다."}
 
 
 @router.post("/files/download")

@@ -246,5 +246,88 @@ class MailFallbackTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(auth.mailbox)
 
 
+class ManualSyncAuthTest(unittest.IsolatedAsyncioTestCase):
+    async def test_manual_context_skips_server_mail_and_telegram(self):
+        from utils.manual_sync_auth import ManualSyncAuth, manual_auth_context
+        from utils.wehago_email_auth import email_auth_session
+        redis = MagicMock()
+        connection = MagicMock()
+        connection.__aenter__ = AsyncMock(return_value=redis)
+        connection.__aexit__ = AsyncMock(return_value=False)
+        token = manual_auth_context.set(("request-one", "user-one"))
+        try:
+            with patch("utils.wehago_email_auth.Redis", return_value=connection), \
+                 patch("utils.wehago_email_auth.NaverEmailReader") as mailbox, \
+                 patch("utils.wehago_email_auth.TelegramEmailAuth") as telegram:
+                async with email_auth_session() as auth:
+                    self.assertIsInstance(auth, ManualSyncAuth)
+                    await auth.prepare_mailbox()
+                    self.assertEqual(auth.user_id, "user-one")
+                mailbox.assert_not_called()
+                telegram.assert_not_called()
+        finally:
+            manual_auth_context.reset(token)
+        self.assertIsNone(manual_auth_context.get())
+
+    async def test_other_user_cannot_read_request(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        from fastapi import HTTPException
+        redis = MagicMock(get=AsyncMock(return_value='{"user_id":"other","status":"waiting"}'))
+        with self.assertRaises(HTTPException) as error:
+            await ManualSyncAuth(redis, "request-one", "user-one").state()
+        self.assertEqual(error.exception.status_code, 404)
+
+    async def test_request_ids_isolate_users(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        redis = MagicMock(set=AsyncMock(return_value=True))
+        first = ManualSyncAuth(redis, "request-one", "user-one")
+        second = ManualSyncAuth(redis, "request-two", "user-two")
+        await first.create()
+        await second.create()
+        self.assertNotEqual(first.key, second.key)
+        self.assertEqual(redis.set.await_count, 2)
+        self.assertTrue(redis.set.await_args.kwargs["nx"])
+
+    async def test_waiting_code_preserves_zero_and_is_consumed_once(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        redis = MagicMock(get=AsyncMock(return_value='{"user_id":"user-one","status":"waiting"}'),
+                          set=AsyncMock(), getdel=AsyncMock(return_value=b"012345"))
+        auth = ManualSyncAuth(redis, "request-one", "user-one")
+        self.assertEqual(await auth.wait_for_code(), "012345")
+        redis.getdel.assert_awaited_once_with(auth.key + ":code")
+        self.assertIn('"status": "verifying"', redis.set.await_args.args[1])
+
+    async def test_cancellation_stops_wait(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        redis = MagicMock(get=AsyncMock(return_value='{"user_id":"user-one","status":"cancelled"}'),
+                          set=AsyncMock(), getdel=AsyncMock())
+        auth = ManualSyncAuth(redis, "request-one", "user-one")
+        auth.update = AsyncMock()
+        with self.assertRaises(LoginError):
+            await auth.wait_for_code()
+        redis.getdel.assert_not_awaited()
+
+    async def test_expiration_stops_wait(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        redis = MagicMock(get=AsyncMock(return_value='{"user_id":"user-one","status":"waiting"}'),
+                          set=AsyncMock(), getdel=AsyncMock(return_value=None))
+        with patch("utils.manual_sync_auth.AUTH_SECONDS", 0):
+            with self.assertRaises(LoginError) as error:
+                await ManualSyncAuth(redis, "request-one", "user-one").wait_for_code()
+        self.assertEqual(error.exception.status_code, 408)
+
+    async def test_atomic_submit_reports_rejection(self):
+        from utils.manual_sync_auth import ManualSyncAuth
+        from fastapi import HTTPException
+        for result in (404, 409, 410):
+            redis = MagicMock(eval=AsyncMock(return_value=result))
+            with self.assertRaises(HTTPException) as error:
+                await ManualSyncAuth(redis, "request-one", "user-one").submit("012345")
+            self.assertEqual(error.exception.status_code, result)
+        redis = MagicMock(eval=AsyncMock(return_value=200))
+        await ManualSyncAuth(redis, "request-one", "user-one").submit("012345")
+        self.assertEqual(redis.eval.await_args.args[-1], "012345")
+
+
 if __name__ == "__main__":
     unittest.main()
