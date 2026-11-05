@@ -11,6 +11,7 @@ from common.exceptions import LoginError
 from utils.logger import logger
 from utils.settings import settings
 from utils.naver_email import NaverEmailReader
+from utils.manual_sync_auth import ManualSyncAuth, manual_auth_context
 
 WAIT_SECONDS = 240
 LOCK_KEY = "wehago:telegram:email-auth"
@@ -118,6 +119,13 @@ class TelegramEmailAuth:
 
 @asynccontextmanager
 async def email_auth_session():
+    manual = manual_auth_context.get()
+    if manual is not None:
+        request_id, user_id = manual
+        async with Redis(host=settings.redis_host, port=settings.redis_port,
+                         password=settings.redis_password) as redis:
+            yield ManualSyncAuth(redis, request_id, user_id)
+        return
     if not (NaverEmailReader.configured() or (settings.telegram_bot_token and settings.telegram_chat_id)):
         raise LoginError("네이버 메일 또는 텔레그램 인증 설정이 필요합니다.", status_code=503)
     owner = uuid4().hex
