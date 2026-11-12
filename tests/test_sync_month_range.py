@@ -4,6 +4,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from bson import ObjectId
 from beanie.odm.fields import ExpressionField
 from pydantic import ValidationError as PydanticValidationError
 
@@ -73,6 +74,10 @@ class SyncRangeTest(unittest.IsolatedAsyncioTestCase):
                 del self.records[id]
 
         self.repo = SimpleNamespace(
+            find_sync_ids=AsyncMock(side_effect=lambda company, year, months: {
+                v.id for v in self.records.values() if v.company == company and v.year == str(year)
+                and (months is None or v.month in {f"{m:02d}" for m in months})
+            }),
             find_by_company_year_and_months=AsyncMock(side_effect=find_months),
             find_by_company_and_year=AsyncMock(side_effect=find_year),
             save=AsyncMock(side_effect=save), delete_by_ids=AsyncMock(side_effect=delete),
@@ -95,7 +100,7 @@ class SyncRangeTest(unittest.IsolatedAsyncioTestCase):
     async def test_full_sync_keeps_year_scope(self):
         await self.service._save_synced_vouchers(Company.PYEONGTAEK, 2025, None, [voucher("march", 3)])
         self.assertEqual(set(self.records), {"march", "other-year", "other-company"})
-        self.repo.find_by_company_and_year.assert_awaited_once_with(Company.PYEONGTAEK, 2025)
+        self.repo.find_sync_ids.assert_awaited_once_with(Company.PYEONGTAEK, 2025, None)
 
     async def test_out_of_scope_response_cannot_write_or_delete(self):
         for invalid in [voucher("january", 1), voucher("other-year", 3, 2024),
@@ -135,6 +140,41 @@ class SyncRangeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(query, {"$and": [
             {"company": Company.PYEONGTAEK}, {"year": "2025"}, {"month": {"$in": ["03", "04", "05"]}},
         ]})
+
+    async def test_sync_ids_only_fetches_ids_and_scopes_period(self):
+        for months in (None, [3, 4, 5]):
+            async def records():
+                yield {"_id": "existing"}
+            collection = SimpleNamespace(find=Mock(side_effect=lambda *args: records()))
+            with patch.object(VoucherRepository, "__init__", return_value=None), \
+                 patch("infra.repository.voucher_repo.Voucher") as model:
+                model.get_motor_collection.return_value = collection
+                ids = await VoucherRepository().find_sync_ids(Company.PYEONGTAEK, 2025, months)
+            expected = {"company": Company.PYEONGTAEK.value, "year": "2025"}
+            if months is not None:
+                expected["month"] = {"$in": ["03", "04", "05"]}
+            collection.find.assert_called_once_with(expected, {"_id": 1})
+            self.assertEqual(ids, {"existing"})
+
+    async def test_non_string_database_id_stops_before_save_or_delete(self):
+        for invalid_id in (ObjectId(), 123, None):
+            with self.subTest(id_type=type(invalid_id).__name__):
+                async def records():
+                    yield {"_id": "valid"}
+                    yield {"_id": invalid_id}
+                collection = SimpleNamespace(find=Mock(side_effect=lambda *args: records()))
+                with patch.object(VoucherRepository, "__init__", return_value=None), \
+                     patch("infra.repository.voucher_repo.Voucher") as model:
+                    model.get_motor_collection.return_value = collection
+                    repo = VoucherRepository()
+                    repo.save = AsyncMock()
+                    repo.delete_by_ids = AsyncMock()
+                    with self.assertRaises(ValidationError):
+                        await VoucherService(repo)._save_synced_vouchers(
+                            Company.PYEONGTAEK, 2025, None, [voucher("valid", 3)], months=[3],
+                        )
+                    repo.save.assert_not_awaited()
+                    repo.delete_by_ids.assert_not_awaited()
 
     async def test_crawler_requests_only_selected_months(self):
         crawler = Whg()

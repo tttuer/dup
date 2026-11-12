@@ -2,6 +2,8 @@ from io import BytesIO
 from typing import Optional
 import zipfile
 import asyncio
+from time import perf_counter
+from utils.logger import logger
 
 from beanie.operators import And, RegEx, In
 from dependency_injector.wiring import inject
@@ -44,15 +46,19 @@ class VoucherService:
         wehago_password: str = None,
         months: list[int] | None = None,
     ) -> dict[Company, list]:
+        started = perf_counter()
         vouchers_by_company = await Whg().crawl_companies(
             companies, year, month, wehago_id, wehago_password, months=months
         )
+        logger.info("전체 회사 전표 수집: %.2f초", perf_counter() - started)
+        started = perf_counter()
         synced_vouchers = await asyncio.gather(
             *(
                 self._save_synced_vouchers(company, year, month, vouchers, months=months)
                 for company, vouchers in vouchers_by_company.items()
             )
         )
+        logger.info("전체 회사 DB 반영: %.2f초", perf_counter() - started)
         return dict(zip(vouchers_by_company, synced_vouchers))
 
     async def _save_synced_vouchers(
@@ -73,18 +79,7 @@ class VoucherService:
         # 3. 새로 수집한 ID 목록
         new_ids = {v.id for v in vouchers}
 
-        # 4. 기존 DB에 저장된 ID 목록 조회
-        if selected_months is None:
-            # 전체 동기화에서는 선택한 연도 조회
-            existing_vouchers = await self.voucher_repo.find_by_company_and_year(
-                company, year
-            )
-        else:
-            # 삭제 비교 대상도 선택한 월로만 제한한다.
-            existing_vouchers = await self.voucher_repo.find_by_company_year_and_months(
-                company, year, selected_months
-            )
-        existing_ids = {v.id for v in existing_vouchers}
+        existing_ids = await self.voucher_repo.find_sync_ids(company, year, selected_months)
 
         # 5. 삭제 대상 ID 찾기 (기존에는 있었는데, 새로는 없음)
         ids_to_delete = existing_ids - new_ids

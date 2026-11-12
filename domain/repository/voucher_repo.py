@@ -33,6 +33,12 @@ class IVoucherRepository(metaclass=ABCMeta):
         raise NotImplementedError
     
     @abstractmethod
+    async def find_sync_ids(
+        self, company: Company, year: int, months: list[int] | None = None,
+    ) -> set[str]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def find_by_company(self, company: Company) -> list[Voucher]:
         raise NotImplementedError
     

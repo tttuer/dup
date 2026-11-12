@@ -2,6 +2,7 @@ import gzip
 import io
 import json
 import asyncio
+from time import perf_counter
 from utils.wehago_email_auth import email_auth_session
 from datetime import datetime
 
@@ -95,13 +96,13 @@ class Whg:
                 main_page = await context.new_page()
                 await main_page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda route: route.abort())
                 
+                login_started = perf_counter()
                 if not await self._login(main_page, wehago_id, wehago_password):
                     raise LoginError("로그인 실패")
                 
                 # 로그인 완료 후 메인 페이지 안정화 대기
-                await self._handle_duplicate_login(main_page)
                 await main_page.locator(".snbnext").wait_for(state="visible", timeout=10000)
-                logger.info("메인 페이지 로그인 완료 확인됨")
+                logger.info("로그인 완료: %.2f초", perf_counter() - login_started)
                 
                 semaphore = asyncio.Semaphore(min(MAX_CONCURRENT_COMPANIES, len(companies)))
                 results = await asyncio.gather(
@@ -203,7 +204,10 @@ class Whg:
             for task in waits:
                 task.cancel()
             await asyncio.gather(*waits, return_exceptions=True)
-        if await main.is_visible() or await duplicate.is_visible():
+        if await duplicate.is_visible():
+            await self._handle_duplicate_login(page)
+            return
+        if await main.is_visible():
             return
         async with email_auth_session() as auth:
             if not await email_heading.is_visible():
@@ -289,7 +293,9 @@ class Whg:
         *, months: list[int] | None = None,
     ) -> list:
         """전표 데이터 추출 로직"""
+        started = perf_counter()
         await self._navigate_to_voucher_page(page, company, year)
+        logger.info("%s 화면 준비: %.2f초", company.value, perf_counter() - started)
         return await self._extract_monthly_vouchers(page, year, month, company, months=months)
     
     async def _navigate_to_voucher_page(self, page: Page, company: Company, year: int):
@@ -335,7 +341,9 @@ class Whg:
             logger.info(f"{company.value} {year}년 {month}월 데이터 추출을 시작합니다.")
             
             try:
+                started = perf_counter()
                 vouchers = await self._request_month_vouchers(page, year, month, company)
+                logger.info("%s %s년 %s월 조회: %.2f초 (%s건)", company.value, year, month, perf_counter() - started, len(vouchers))
                 all_vouchers.extend(vouchers)
 
             except Exception as e:
