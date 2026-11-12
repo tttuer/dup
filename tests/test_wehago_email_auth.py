@@ -114,6 +114,19 @@ class LoginEmailAuthTest(unittest.IsolatedAsyncioTestCase):
             await Whg()._complete_email_auth(page)
         session.assert_not_called()
 
+    async def test_ready_main_does_not_wait_for_duplicate_popup(self):
+        page, _, _, _ = self.page(logged_in=True)
+        with patch.object(Whg, "_handle_duplicate_login", new=AsyncMock()) as handle:
+            await Whg()._complete_email_auth(page)
+        handle.assert_not_awaited()
+
+    async def test_duplicate_popup_is_still_handled(self):
+        page, _, _, _ = self.page(logged_in=False)
+        page.locator(".duplicate_login").is_visible.return_value = True
+        with patch.object(Whg, "_handle_duplicate_login", new=AsyncMock()) as handle:
+            await Whg()._complete_email_auth(page)
+        handle.assert_awaited_once_with(page)
+
     async def test_email_button_then_six_digits_then_verification(self):
         page, digits, button, _ = self.page()
         auth = MagicMock(prepare_mailbox=AsyncMock(), wait_for_code=AsyncMock(return_value="012345"), notify=AsyncMock())

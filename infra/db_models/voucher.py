@@ -1,5 +1,6 @@
 from typing import Optional
 from beanie import Document
+from pymongo import ASCENDING, IndexModel
 from pydantic import BaseModel, Field
 from datetime import datetime
 from domain.voucher import Company, VoucherFile
@@ -30,3 +31,4 @@ class Voucher(Document):
 
     class Settings:
         name = "vouchers"  # MongoDB collection name
+        indexes = [IndexModel([("company", ASCENDING), ("year", ASCENDING), ("month", ASCENDING)])]

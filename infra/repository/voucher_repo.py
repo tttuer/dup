@@ -163,6 +163,15 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
 
         await Voucher.find(In(Voucher.id, list(ids))).delete()
 
+    async def find_sync_ids(
+        self, company: Company, year: int, months: list[int] | None = None,
+    ) -> set[str]:
+        query = {"company": company.value, "year": str(year)}
+        if months is not None:
+            query["month"] = {"$in": [f"{month:02d}" for month in months]}
+        cursor = Voucher.get_motor_collection().find(query, {"_id": 1})
+        return {record["_id"] async for record in cursor}
+
     async def find_by_company(self, company: Company) -> list[Voucher]:
         db_vouchers = await Voucher.find(Voucher.company == company).to_list()
 
