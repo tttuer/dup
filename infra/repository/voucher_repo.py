@@ -2,7 +2,7 @@ from dataclasses import asdict
 from typing import Any, override
 
 from domain.voucher import Voucher as VoucherVo
-from common.exceptions import NotFoundError
+from common.exceptions import NotFoundError, ValidationError
 from utils.logger import logger
 from domain.repository.voucher_repo import IVoucherRepository
 from infra.db_models.voucher import Voucher
@@ -170,7 +170,13 @@ class VoucherRepository(BaseRepository[Voucher], IVoucherRepository):
         if months is not None:
             query["month"] = {"$in": [f"{month:02d}" for month in months]}
         cursor = Voucher.get_motor_collection().find(query, {"_id": 1})
-        return {record["_id"] async for record in cursor}
+        ids = set()
+        async for record in cursor:
+            voucher_id = record["_id"]
+            if not isinstance(voucher_id, str):
+                raise ValidationError("기존 전표 ID가 문자열이 아니어서 해당 회사 동기화를 중단합니다.")
+            ids.add(voucher_id)
+        return ids
 
     async def find_by_company(self, company: Company) -> list[Voucher]:
         db_vouchers = await Voucher.find(Voucher.company == company).to_list()
