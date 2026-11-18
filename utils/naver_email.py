@@ -11,6 +11,9 @@ from html.parser import HTMLParser
 
 from utils.settings import settings
 
+# IMAP modified UTF-7 for "위하고 인증". Quote the mailbox name because it contains a space.
+AUTH_MAILBOX = '"&xwTVWKzg- &x3jJnQ-"'
+
 SUBJECT = "[WEHAGO] 로그인 인증 코드를 확인해주세요"
 
 
@@ -77,7 +80,7 @@ class NaverEmailReader:
         try:
             password = settings.wehago_mail_app_password.get_secret_value()
             client.login(settings.wehago_mail_username, password)
-            status, _ = client.select("INBOX", readonly=True)
+            status, _ = client.select(AUTH_MAILBOX, readonly=True)
             if status != "OK":
                 raise ValueError("받은메일함 연결 실패")
             yield client
