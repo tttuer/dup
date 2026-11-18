@@ -2,10 +2,11 @@ import json
 from typing import Annotated, List, Optional
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from application.payment_task_service import PaymentTaskService
+from application.payment_task_recurrence_service import PaymentTaskRecurrenceService
 from common.auth import CurrentUser, get_current_user
 from containers import Container
 
@@ -45,6 +46,33 @@ async def create_direct_payment_task(
     )
 
 
+@router.post("/series")
+@inject
+async def create_payment_task_series(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    assignee_id: str = Form(...),
+    due_date: str = Form(...),
+    recurrence: str = Form(...),
+    name: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    amount: Optional[int] = Form(None),
+    description: Optional[str] = Form(None),
+    files: List[UploadFile] = File(default=[]),
+    recurrence_service: PaymentTaskRecurrenceService = Depends(Provide[Container.payment_task_recurrence_service]),
+):
+    """Create a recurring payment request and its first independent task."""
+    try:
+        rule = json.loads(recurrence)
+    except json.JSONDecodeError as error:
+        raise HTTPException(status_code=400, detail="반복 설정 형식이 올바르지 않습니다.") from error
+    return await recurrence_service.create_series(
+        current_user.id,
+        {"assignee_id": assignee_id, "name": name, "category": category, "amount": amount, "due_date": due_date, "description": description},
+        rule,
+        files,
+    )
+
+
 @router.get("/my")
 @inject
 async def get_my_payment_tasks(
@@ -65,6 +93,26 @@ async def get_my_payment_task_summary(
 ):
     """사이드바 배지에 표시할 오늘 납부·요청 확인 건수."""
     return await payment_task_service.get_my_summary(current_user.id)
+
+
+@router.get("/series/{series_id}")
+@inject
+async def get_payment_task_series(
+    series_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    recurrence_service: PaymentTaskRecurrenceService = Depends(Provide[Container.payment_task_recurrence_service]),
+):
+    return await recurrence_service.get_series(series_id, current_user.id, current_user.roles)
+
+
+@router.post("/series/{series_id}/cancel")
+@inject
+async def cancel_payment_task_series(
+    series_id: str,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    recurrence_service: PaymentTaskRecurrenceService = Depends(Provide[Container.payment_task_recurrence_service]),
+):
+    return await recurrence_service.cancel_series(series_id, current_user.id)
 
 
 @router.get("/{task_id}")
