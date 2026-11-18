@@ -221,7 +221,7 @@ class NaverEmailTest(unittest.TestCase):
                 reader.find_code()
         client.uid.assert_not_called()
 
-    def test_connection_uses_tls_and_readonly_inbox(self):
+    def test_connection_uses_tls_and_readonly_auth_mailbox(self):
         client = MagicMock()
         client.select.return_value = ("OK", [b"0"])
         with patch("utils.naver_email.imaplib.IMAP4_SSL", return_value=client) as connect, \
@@ -230,7 +230,19 @@ class NaverEmailTest(unittest.TestCase):
             with NaverEmailReader().connect():
                 pass
         self.assertEqual(connect.call_args.args, ("imap.naver.com", 993))
-        client.select.assert_called_once_with("INBOX", readonly=True)
+        client.select.assert_called_once_with('"&xwTVWKzg- &x3jJnQ-"', readonly=True)
+        client.logout.assert_called_once()
+
+    def test_missing_auth_mailbox_aborts_without_opening_another_mailbox(self):
+        client = MagicMock()
+        client.select.return_value = ("NO", [b"Mailbox does not exist"])
+        with patch("utils.naver_email.imaplib.IMAP4_SSL", return_value=client), \
+             patch("utils.naver_email.settings.wehago_mail_username", "test@naver.com"), \
+             patch("utils.naver_email.settings.wehago_mail_app_password", SecretStr("dummy")):
+            with self.assertRaises(ValueError):
+                NaverEmailReader().prepare()
+        client.select.assert_called_once_with('"&xwTVWKzg- &x3jJnQ-"', readonly=True)
+        client.uid.assert_not_called()
         client.logout.assert_called_once()
 
 
