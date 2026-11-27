@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Any, Dict, List, Optional
 
@@ -10,10 +11,14 @@ from application.base_service import BaseService
 from application.file_attachment_service import FileAttachmentService
 from application.payment_task_calendar_service import PaymentTaskCalendarService
 from common.auth import Role
+from domain.file import Company
 from domain.payment_task import PaymentTask
 from domain.repository.payment_task_repo import IPaymentTaskRepository
 from domain.repository.user_repo import IUserRepository
 from utils.time import get_utc_now_naive
+
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentTaskService(BaseService[PaymentTask]):
@@ -47,6 +52,7 @@ class PaymentTaskService(BaseService[PaymentTask]):
         task = PaymentTask(
             id=self.ulid.generate(),
             title=self.build_title(name, due_date),
+            company=data.get("company"),
             request_name=name,
             category=str(data.get("category") or ""),
             requested_amount=self._parse_optional_amount(data.get("amount"), "요청 금액"),
@@ -60,14 +66,27 @@ class PaymentTaskService(BaseService[PaymentTask]):
             created_at=now,
             updated_at=now,
         )
-        task = await self.payment_task_repo.save(task)
-        await self._add_request_files(task, files, requester_id)
-        await self.notification_service.notify_payment_task_assigned(task)
+        try:
+            await self._add_request_files(task, files, requester_id, save=False)
+            task = await self.payment_task_repo.save(task)
+        except Exception:
+            for file_id in task.request_file_ids:
+                try:
+                    await self.file_service.delete_payment_task_file(task.id, file_id)
+                except Exception:
+                    logger.exception("Failed to clean up payment task attachment %s", file_id)
+            raise
+        try:
+            await self.notification_service.notify_payment_task_assigned(task)
+        except Exception:
+            logger.exception("Failed to notify assignee for payment task %s", task.id)
         await self._sync_to_calendar(task)
         return self.serialize_task(task)
 
-    async def get_my_tasks(self, user_id: str, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
-        tasks = await self.payment_task_repo.find_for_user(user_id, status, limit)
+    async def get_my_tasks(
+        self, user_id: str, status: Optional[str] = None, limit: int = 100, company: Optional[Company] = None
+    ) -> List[Dict[str, Any]]:
+        tasks = await self.payment_task_repo.find_for_user(user_id, status, limit, company=company)
         return [self.serialize_task(task) for task in tasks]
 
     async def get_my_summary(self, user_id: str) -> Dict[str, int]:

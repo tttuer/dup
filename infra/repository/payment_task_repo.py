@@ -1,6 +1,7 @@
 from datetime import date
 from typing import List, Optional
 
+from domain.file import Company
 from domain.payment_task import PaymentTask as PaymentTaskVo
 from domain.repository.payment_task_repo import IPaymentTaskRepository
 from infra.db_models.payment_task import PaymentTask
@@ -24,11 +25,13 @@ class PaymentTaskRepository(BaseRepository[PaymentTask], IPaymentTaskRepository)
         return await PaymentTask.find(*filters).sort(PaymentTask.due_date).limit(limit).to_list()
 
     async def find_for_user(
-        self, user_id: str, status: Optional[str] = None, limit: int = 100
+        self, user_id: str, status: Optional[str] = None, limit: int = 100, company: Optional[Company] = None
     ) -> List[PaymentTask]:
         query = {"$or": [{"assignee_id": user_id}, {"requester_id": user_id}]}
         if status:
             query["status"] = status
+        if company:
+            query["company"] = company.value
         return await PaymentTask.find(query).sort(PaymentTask.due_date).limit(limit).to_list()
 
     async def get_assignee_summary(self, assignee_id: str) -> dict:

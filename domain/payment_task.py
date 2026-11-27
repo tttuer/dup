@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from pydantic import ConfigDict, Field
 
+from domain.file import Company
 from domain.responses.base_response import BaseResponse
 
 
@@ -11,6 +12,7 @@ class PaymentTask(BaseResponse):
 
     id: str
     title: str
+    company: Optional[Company] = None
     request_name: str = ""
     category: str = ""
     requested_amount: Optional[int] = Field(default=None, ge=0)
