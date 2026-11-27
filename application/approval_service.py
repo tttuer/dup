@@ -18,6 +18,7 @@ from domain.repository.approval_history_repo import IApprovalHistoryRepository
 from domain.repository.document_template_repo import IDocumentTemplateRepository
 from domain.repository.user_repo import IUserRepository
 from domain.approval_request import ApprovalRequest
+from domain.file import Company
 from domain.approval_line import ApprovalLine
 from domain.approval_history import ApprovalHistory
 from common.auth import DocumentStatus, ApprovalStatus, ApprovalAction
@@ -325,7 +326,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company: Optional[Company] = None,
     ) -> Tuple[List[ApprovalRequest], int]:
         """내가 결재 완료한 목록"""
         # 해당 결재자의 모든 완료된 결재선 조회 (APPROVED 또는 REJECTED)
@@ -342,6 +344,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         
         # Beanie In operator 사용
         filters = [In(ApprovalRequestDoc.id, request_ids)]
+        if company:
+            filters.append({"form_data.company": company.value})
         
         # Beanie NE operator로 completed_at 필터링
         if start_date or end_date:
@@ -389,12 +393,15 @@ class ApprovalService(BaseService[ApprovalRequest]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company: Optional[Company] = None,
     ) -> Tuple[List[ApprovalRequest], int]:
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
         # Beanie 필터 조건 구성
         filters = [ApprovalRequestDoc.requester_id == requester_id]
+        if company:
+            filters.append({"form_data.company": company.value})
         
         # 상태 필터링 추가
         if status:
@@ -442,7 +449,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         skip: int = 0,
-        limit: int = 50
+        limit: int = 50,
+        company: Optional[Company] = None,
     ) -> List[ApprovalRequest]:
         """모든 전자결재 조회 및 검색"""
         await self.validate_user_exists(user_id)
@@ -454,6 +462,8 @@ class ApprovalService(BaseService[ApprovalRequest]):
         
         # 검색 쿼리 구성
         query = {}
+        if company:
+            query["form_data.company"] = company.value
         
         # 텍스트 검색 (제목, 내용, 기안자명, 문서번호)
         if search_query:
@@ -491,12 +501,15 @@ class ApprovalService(BaseService[ApprovalRequest]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        company: Optional[Company] = None,
     ) -> Tuple[List[ApprovalRequest], int]:
         from infra.db_models.approval_request import ApprovalRequest as ApprovalRequestDoc
         
         # 1. 먼저 결재 대기 가능한 모든 ApprovalRequest를 조회 (정렬과 날짜 필터 적용)
         filters = [In(ApprovalRequestDoc.status, [DocumentStatus.SUBMITTED, DocumentStatus.IN_PROGRESS])]
+        if company:
+            filters.append({"form_data.company": company.value})
         
         # 날짜 필터링
         if start_date:

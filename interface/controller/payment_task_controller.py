@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from application.payment_task_service import PaymentTaskService
 from common.auth import CurrentUser, get_current_user
 from containers import Container
+from domain.file import Company
 
 
 router = APIRouter(prefix="/payment-tasks", tags=["payment-tasks"])
@@ -27,6 +28,7 @@ async def create_direct_payment_task(
     amount: Optional[int] = Form(None),
     due_date: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
+    company: Optional[Company] = Form(None),
     files: List[UploadFile] = File(default=[]),
     payment_task_service: PaymentTaskService = Depends(Provide[Container.payment_task_service]),
 ):
@@ -40,6 +42,7 @@ async def create_direct_payment_task(
             "amount": amount,
             "due_date": due_date,
             "description": description,
+            "company": company,
         },
         files,
     )
@@ -51,10 +54,11 @@ async def get_my_payment_tasks(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     status: Optional[str] = None,
     limit: int = 100,
+    company: Optional[Company] = None,
     payment_task_service: PaymentTaskService = Depends(Provide[Container.payment_task_service]),
 ):
     """현재 사용자가 납부 담당자인 후속 업무 목록."""
-    return await payment_task_service.get_my_tasks(current_user.id, status, min(max(limit, 1), 100))
+    return await payment_task_service.get_my_tasks(current_user.id, status, min(max(limit, 1), 100), company=company)
 
 
 @router.get("/summary")

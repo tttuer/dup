@@ -7,6 +7,7 @@ from application.approval_service import ApprovalService
 from application.approval_line_service import ApprovalLineService
 from common.auth import CurrentUser, get_current_user, DocumentStatus
 from containers import Container
+from domain.file import Company
 from domain.approval_request import ApprovalRequest
 from domain.approval_line import ApprovalLine
 from domain.responses.paginated_response import PaginatedResponse
@@ -89,11 +90,12 @@ async def get_my_approval_requests(
     start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
     page: int = 1,  # 페이지 번호 (1부터 시작)
+    company: Optional[Company] = None,
     page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> PaginatedResponse[ApprovalRequest]:
     """내가 기안한 결재 목록"""
-    items, total = await approval_service.get_my_requests(current_user.id, sort, status, start_date, end_date, page, page_size)
+    items, total = await approval_service.get_my_requests(current_user.id, sort, status, start_date, end_date, page, page_size, company=company)
     return PaginatedResponse.create(items, total, page, page_size)
 
 
@@ -106,6 +108,7 @@ async def search_approval_requests(
     start_date: Optional[str] = None,  # 시작 날짜
     end_date: Optional[str] = None,  # 종료 날짜
     skip: int = 0,  # 페이징 시작
+    company: Optional[Company] = None,
     limit: int = 50,  # 페이징 크기
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> List[ApprovalRequest]:
@@ -127,7 +130,8 @@ async def search_approval_requests(
         start_date=start_date,
         end_date=end_date,
         skip=skip,
-        limit=limit
+        limit=limit,
+        company=company,
     )
 
 
@@ -139,11 +143,12 @@ async def get_pending_approvals(
     start_date: Optional[str] = None,  # 시작 날짜 (기안일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (기안일 기준, YYYY-MM-DD)
     page: int = 1,  # 페이지 번호 (1부터 시작)
+    company: Optional[Company] = None,
     page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> PaginatedResponse[ApprovalRequest]:
     """내가 결재할 요청 목록"""
-    items, total = await approval_service.get_pending_approvals(current_user.id, sort, start_date, end_date, page, page_size)
+    items, total = await approval_service.get_pending_approvals(current_user.id, sort, start_date, end_date, page, page_size, company=company)
     return PaginatedResponse.create(items, total, page, page_size)
 
 
@@ -165,11 +170,12 @@ async def get_completed_approvals(
     start_date: Optional[str] = None,  # 시작 날짜 (결재완료일 기준, YYYY-MM-DD)
     end_date: Optional[str] = None,  # 종료 날짜 (결재완료일 기준, YYYY-MM-DD)
     page: int = 1,  # 페이지 번호 (1부터 시작)
+    company: Optional[Company] = None,
     page_size: int = 20,  # 페이지당 아이템 수
     approval_service: ApprovalService = Depends(Provide[Container.approval_service]),
 ) -> PaginatedResponse[ApprovalRequest]:
     """내가 결재 완료한 목록"""
-    items, total = await approval_service.get_completed_approvals(current_user.id, sort, start_date, end_date, page, page_size)
+    items, total = await approval_service.get_completed_approvals(current_user.id, sort, start_date, end_date, page, page_size, company=company)
     return PaginatedResponse.create(items, total, page, page_size)
 
 

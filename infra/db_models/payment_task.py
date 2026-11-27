@@ -4,6 +4,7 @@ from typing import List, Optional
 from beanie import Document, Indexed
 from pydantic import Field
 from pymongo import ASCENDING, DESCENDING, IndexModel
+from domain.file import Company
 
 
 class PaymentTask(Document):
@@ -11,6 +12,7 @@ class PaymentTask(Document):
 
     id: str
     title: str
+    company: Optional[Company] = None
     request_name: str = ""
     category: str = ""
     requested_amount: Optional[int] = Field(default=None, ge=0)

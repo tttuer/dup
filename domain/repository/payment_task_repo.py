@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import List, Optional
 
+from domain.file import Company
 from domain.payment_task import PaymentTask as PaymentTaskVo
 from infra.db_models.payment_task import PaymentTask
 
@@ -22,7 +23,7 @@ class IPaymentTaskRepository(metaclass=ABCMeta):
 
     @abstractmethod
     async def find_for_user(
-        self, user_id: str, status: Optional[str] = None, limit: int = 100
+        self, user_id: str, status: Optional[str] = None, limit: int = 100, company: Optional[Company] = None
     ) -> List[PaymentTask]:
         raise NotImplementedError
 
